@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 notifDropdown.classList.remove('active');
             }
         });
-        const notifSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_78385764d7.mp3');
-        notifSound.volume = 0.5;
+        const notifSound = new Audio('https://cdn.pixabay.com/audio/2022/12/12/audio_e3abc0b017.mp3');
+        notifSound.volume = 0.35;
 
         let baselineTime = Date.now();
         let alertedIds = new Set();
@@ -45,11 +45,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     .limit(1);
                 
                 if (data && data.length > 0) {
-                    baselineTime = new Date(data[0].created_at).getTime();
-                    // Mark existing ones as already "seen" for alerts
-                    alertedIds.add(data[0].id);
+                    const bStr = data[0].created_at || data[0].createdAt || data[0].timestamp;
+                    const bTime = bStr ? new Date(bStr).getTime() : 0;
+                    if (bTime) {
+                        baselineTime = bTime;
+                        alertedIds.add(data[0].id);
+                    }
                 }
-                console.log('[TransitWay] Intelligence Link Established. Baseline:', new Date(baselineTime).toLocaleTimeString());
+                const baselineDisplay = !isNaN(baselineTime) ? new Date(baselineTime).toLocaleTimeString() : 'Current Time';
+                console.log('[TransitWay] Intelligence Link Established. Baseline:', baselineDisplay);
             } catch (e) { 
                 console.warn('[TransitWay] Baseline sync failed, using client time.');
             }
@@ -76,31 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => badge.classList.remove('notif-ping'), 2000);
             }
 
-            // Add Red Badge to Reports Sidebar Tab
-            const reportsLink = document.querySelector('a[href="reports.html"]');
-            if (reportsLink) {
-                let sBadge = reportsLink.querySelector('.sidebar-notif-badge');
-                if (!sBadge) {
-                    sBadge = document.createElement('span');
-                    sBadge.className = 'sidebar-notif-badge';
-                    sBadge.style.cssText = `
-                        background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: 900;
-                        padding: 2px 6px; border-radius: 50px; margin-left: auto;
-                        box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
-                        animation: pulse-red-badge 1.5s infinite;
-                    `;
-                    reportsLink.appendChild(sBadge);
-                    
-                    if (!document.getElementById('badgePulseStyle')) {
-                        const style = document.createElement('style');
-                        style.id = 'badgePulseStyle';
-                        style.innerHTML = `@keyframes pulse-red-badge { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }`;
-                        document.head.appendChild(style);
-                    }
-                }
-                const currentCount = parseInt(sBadge.innerText || '0');
-                sBadge.innerText = currentCount + 1;
-            }
+            // ── Add pulsing red badge on Reports sidebar link ──
+            addReportsSidebarBadge();
 
             // Show High-End Popup
             if (typeof Swal !== 'undefined') {
@@ -140,6 +121,73 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        /* ── Sidebar Reports Badge System ── */
+        function addReportsSidebarBadge() {
+            // Find the Reports nav link in the sidebar
+            const reportsLinks = document.querySelectorAll('.nav-link');
+            let reportsLink = null;
+            reportsLinks.forEach(link => {
+                if (link.getAttribute('href') === 'reports.html' || (link.getAttribute('data-i18n') === 'reports')) {
+                    reportsLink = link;
+                }
+            });
+            if (!reportsLink) return;
+
+            // Don't add if we're already on reports page
+            if (window.location.pathname.includes('reports.html') && reportsLink.classList.contains('active')) return;
+
+            // Check if badge already exists
+            let existingBadge = reportsLink.querySelector('.sidebar-report-badge');
+            if (!existingBadge) {
+                reportsLink.style.position = 'relative';
+                const badgeEl = document.createElement('span');
+                badgeEl.className = 'sidebar-report-badge';
+                badgeEl.innerHTML = '!';
+                badgeEl.style.cssText = `
+                    position: absolute;
+                    right: 10px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 22px;
+                    height: 22px;
+                    background: #ef4444;
+                    color: #fff;
+                    font-size: 0.7rem;
+                    font-weight: 900;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+                    animation: reportBadgePulse 1.5s infinite;
+                `;
+                reportsLink.appendChild(badgeEl);
+
+                // Inject the animation if not already present
+                if (!document.getElementById('reportBadgePulseStyle')) {
+                    const styleEl = document.createElement('style');
+                    styleEl.id = 'reportBadgePulseStyle';
+                    styleEl.textContent = `
+                        @keyframes reportBadgePulse {
+                            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); transform: translateY(-50%) scale(1); }
+                            50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); transform: translateY(-50%) scale(1.1); }
+                            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: translateY(-50%) scale(1); }
+                        }
+                    `;
+                    document.head.appendChild(styleEl);
+                }
+            }
+
+            // Also flash the Reports nav link briefly
+            reportsLink.style.transition = 'background 0.3s';
+            reportsLink.style.background = 'rgba(239, 68, 68, 0.12)';
+            setTimeout(() => {
+                if (!reportsLink.classList.contains('active')) {
+                    reportsLink.style.background = '';
+                }
+            }, 3000);
+        }
+
         async function pollNotifications() {
             if (typeof supabase === 'undefined') return;
             try {
@@ -155,12 +203,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const pendingReports = data.filter(r => (r.status || '').toLowerCase() === 'pending');
                     
                     pendingReports.forEach(report => {
-                        const reportTime = new Date(report.created_at || report.createdAt).getTime();
+                        const dateStr = report.created_at || report.createdAt || report.timestamp;
+                        const reportTime = dateStr ? new Date(dateStr).getTime() : 0;
                         
-                        // LOG FOR DEBUGGING
-                        console.log(`[TransitWay] Checking Report ${report.id}: Time=${new Date(reportTime).toLocaleTimeString()}, Baseline=${new Date(baselineTime).toLocaleTimeString()}`);
-
-                        if (reportTime > baselineTime && !alertedIds.has(report.id)) {
+                        if (reportTime && reportTime > baselineTime && !alertedIds.has(report.id)) {
                             alertedIds.add(report.id);
                             triggerAlert(report);
                         }
@@ -191,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             setTimeout(() => {
                 if (items.length === 0) {
-                    badge.style.display = 'none';
+                    if (badge) badge.style.display = 'none';
                     notifList.innerHTML = `
                         <div style="padding: 60px 40px; text-align: center; color: var(--text-muted);">
                             <div style="width: 80px; height: 80px; background: rgba(16, 185, 129, 0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
@@ -202,11 +248,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `;
                 } else {
-                    badge.innerText = items.length;
-                    badge.style.display = 'flex';
+                    if (badge) {
+                        badge.innerText = items.length;
+                        badge.style.display = 'flex';
+                    }
 
                     notifList.innerHTML = items.map((item, index) => {
-                        const time = timeAgo(item.created_at || item.createdAt);
+                        const time = timeAgo(item.created_at || item.createdAt || item.timestamp);
                         const priority = (item.priority || 'Medium').toLowerCase();
                         const color = priority === 'critical' ? '#ef4444' : (priority === 'high' ? '#f59e0b' : '#3b82f6');
                         const icon = priority === 'critical' ? 'fa-radiation-alt' : (priority === 'high' ? 'fa-exclamation-triangle' : 'fa-info-circle');
@@ -233,8 +281,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function timeAgo(date) {
-            if (!date) return 'Unknown';
-            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            if (!date) return '—';
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return '—';
+            const seconds = Math.floor((new Date() - d) / 1000);
             if (seconds < 60) return 'Just now';
             if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
             if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
@@ -250,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         pollNotifications();
-        setInterval(pollNotifications, 1000);
+        setInterval(pollNotifications, 5000);
     }
 
     initNotifications();

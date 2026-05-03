@@ -23,20 +23,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function getRouteColor(routeName) {
-        if (!routeName) return routeColors.default;
-        const name = routeName.toLowerCase();
-        if (name.includes('cairo') || name.includes('القاهرة')) return routeColors.cairo;
-        if (name.includes('badr') || name.includes('بدر')) return routeColors.badr;
-        if (name.includes('shorouk') || name.includes('شروق')) return routeColors.shorouk;
-        if (name.includes('madinaty') || name.includes('مدينتي') || name.includes('مدينتى')) return routeColors.madinaty;
-        return routeColors.default;
+        if (!routeName) return '#3b82f6';
+        const str = routeName.toString().toLowerCase();
+        if (str.includes('capital') || str.includes('عاصمة') || str.includes('العاصمة')) return '#14b8a6';
+        if (str.includes('cairo') || str.includes('قاهرة')) return '#3b82f6';
+        if (str.includes('badr') || str.includes('بدر')) return '#8b5cf6';
+        if (str.includes('shorouk') || str.includes('shrouk') || str.includes('شروق')) return '#ef4444';
+        if (str.includes('madinaty') || str.includes('مدينتي') || str.includes('مدينتى')) return '#f59e0b';
+        if (str.includes('1')) return '#f43f5e';
+        if (str.includes('2')) return '#8b5cf6';
+        if (str.includes('3')) return '#3b82f6';
+        if (str.includes('4')) return '#f59e0b';
+        if (str.includes('5')) return '#10b981';
+        return '#0ea5e9';
     }
 
     async function loadData() {
+        const ticketTableBody = document.getElementById('ticketTableBody');
+        if (ticketTableBody) {
+            ticketTableBody.innerHTML = Array(5).fill('<tr><td colspan="7"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
+        }
         try {
-            if (ticketTableBody && !ticketsData.length) {
-                ticketTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem; color:var(--primary-color);"></i><p style="margin-top:10px; font-weight:700;">Connecting to Revenue Network...</p></td></tr>`;
-            }
 
             const [tRes, uRes, rRes, bRes] = await Promise.all([
                 supabase.from('tickets').select('*').order('created_at', { ascending: false }),
@@ -76,6 +83,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.getElementById('summaryExpired')) document.getElementById('summaryExpired').innerText = expired;
     }
 
+    let currentFilter = 'all';
+
     function renderTable() {
         if (!ticketTableBody) return;
         const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
@@ -99,13 +108,19 @@ document.addEventListener('DOMContentLoaded', () => {
             );
         }
 
+        // 3. Filter by Status Card
+        if (currentFilter === 'active') filtered = filtered.filter(t => (t.status || '').toLowerCase() === 'active' || (t.status || '').toLowerCase() === 'valid');
+        else if (currentFilter === 'used') filtered = filtered.filter(t => (t.status || '').toLowerCase() === 'used' || (t.status || '').toLowerCase() === 'redeemed');
+        else if (currentFilter === 'sold') filtered = filtered.filter(t => (t.status || '').toLowerCase() !== 'canceled');
+        else if (currentFilter === 'expired') filtered = filtered.filter(t => (t.status || '').toLowerCase() === 'expired');
+
         ticketTableBody.innerHTML = "";
         if (filtered.length === 0) {
             ticketTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px; color:var(--text-muted); font-weight:700;"><i class="fas fa-ticket-alt" style="font-size:2rem; display:block; margin-bottom:10px; opacity:0.2;"></i>No tickets found in the ledger.</td></tr>`;
             return;
         }
 
-        filtered.forEach(tck => {
+        filtered.forEach((tck, idx) => {
             const passenger = usersMap[tck.user_id] || "Guest User";
             const routeInfo = routesMap[tck.route_id] || { name: "General Route", price: 15 };
             const status = (tck.status || 'Active').toLowerCase();
@@ -120,19 +135,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusBadge = `<span style="background:rgba(239,68,68,0.1); color:#ef4444; padding:6px 14px; border-radius:50px; font-size:0.75rem; font-weight:800; text-transform:uppercase;">${status}</span>`;
             }
 
+            // Route pill badge
+            const routeLabel = routeInfo.name.includes('Cairo') || routeInfo.name.includes('القاهرة') ? '🏙️ Cairo' :
+                               routeInfo.name.includes('Shorouk') || routeInfo.name.includes('شروق') ? '🔴 Shorouk' :
+                               routeInfo.name.includes('Madinaty') || routeInfo.name.includes('مدينتي') || routeInfo.name.includes('مدينتى') ? '🟠 Madinaty' :
+                               routeInfo.name.includes('Badr') || routeInfo.name.includes('بدر') ? '🟣 Badr' : 
+                               routeInfo.name.includes('Capital') || routeInfo.name.includes('العاصمة') || routeInfo.name.includes('عاصمة') ? '🏛️ Capital' : routeInfo.name;
+
             const tr = document.createElement('tr');
+            // Color-coded left border + subtle background tint per route
             tr.style.borderLeft = `4px solid ${rColor}`;
-            tr.style.background = `linear-gradient(to right, ${rColor}05, transparent)`;
+            tr.style.background = `linear-gradient(90deg, ${rColor}08 0%, transparent 40%)`;
+            tr.style.transition = 'all 0.3s ease';
+            tr.style.animation = `ticketSlideIn 0.4s ease forwards ${idx * 0.03}s`;
+            tr.style.opacity = '0';
+            
+            tr.onmouseenter = function() { this.style.background = `linear-gradient(90deg, ${rColor}15 0%, ${rColor}05 100%)`; this.style.transform = 'scale(1.005)'; };
+            tr.onmouseleave = function() { this.style.background = `linear-gradient(90deg, ${rColor}08 0%, transparent 40%)`; this.style.transform = 'scale(1)'; };
+
             tr.innerHTML = `
                 <td><div style="font-family:monospace; font-weight:900; color:${rColor};">#${String(tck.id).substring(0, 8)}</div></td>
                 <td><div style="font-weight:800; cursor:pointer; color:var(--text-main);" onclick="window.jumpToUser('${tck.user_id}')" title="Jump to User Profile">${passenger} <i class="fas fa-external-link-alt" style="font-size:0.7rem; opacity:0.4; margin-left:4px;"></i></div></td>
-                <td><div style="font-weight:700; color:${rColor};"><i class="fas fa-route" style="margin-right:8px; opacity:0.6;"></i>${routeInfo.name}</div></td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="display:inline-flex; align-items:center; gap:6px; background:${rColor}12; color:${rColor}; border:1px solid ${rColor}25; padding:5px 14px; border-radius:50px; font-size:0.78rem; font-weight:800;">
+                            <i class="fas fa-route" style="font-size:0.7rem;"></i>${routeLabel}
+                        </span>
+                    </div>
+                </td>
                 <td><div style="font-weight:600; color:var(--text-muted);">${new Date(tck.created_at).toLocaleString()}</div></td>
                 <td><div style="font-weight:900; color:${rColor};">${routeInfo.price}.00 EGP</div></td>
                 <td>${statusBadge}</td>
                 <td>
                     <div style="display:flex; gap:8px;">
-                        <button class="btn-outline" style="width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:10px; border-color:${rColor}44; color:${rColor};" onclick="window.viewTicket('${tck.id}')"><i class="fas fa-eye"></i></button>
+                        <button class="btn-outline" style="width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:10px;" onclick="window.viewTicket('${tck.id}')"><i class="fas fa-eye"></i></button>
                         <button class="btn-outline" style="width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:10px; color:#ef4444; border-color:rgba(239,68,68,0.2);" onclick="window.deleteTicket('${tck.id}')"><i class="fas fa-trash"></i></button>
                     </div>
                 </td>
@@ -143,6 +179,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (searchInput) searchInput.addEventListener('input', renderTable);
 
+    const statCards = document.querySelectorAll('.v-card:not(section)');
+    statCards.forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+            const h3 = card.querySelector('h3');
+            if (!h3) return;
+            const id = h3.id;
+            
+            statCards.forEach(c => c.style.border = 'none');
+            card.style.border = '2px solid var(--primary-color)';
+            
+            if (id === 'summaryTotalSold') currentFilter = 'all';
+            else if (id === 'summaryAvailable') currentFilter = 'active';
+            else if (id === 'summaryUsed') currentFilter = 'used';
+            else if (id === 'summarySold') currentFilter = 'sold';
+            else if (id === 'summaryExpired') currentFilter = 'expired';
+            
+            renderTable();
+        });
+    });
+
     window.jumpToUser = (userId) => {
         if (!userId || userId === 'null') return;
         localStorage.setItem('jumpToUserId', userId);
@@ -150,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.viewTicket = (id) => {
-        const tck = ticketsData.find(t => t.id === id);
+        const tck = ticketsData.find(t => String(t.id) === String(id));
         if (!tck) return;
         
         const passenger = usersMap[tck.user_id] || "Guest User";
@@ -246,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (res.isConfirmed) {
             try {
-                const { error } = await supabase.from('tickets').eq('id', id).delete();
+                const { error } = await supabase.from('tickets').delete().eq('id', id);
                 if (error) throw error;
                 Swal.fire({ icon: 'success', title: 'Deleted', timer: 1000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                 loadData();
@@ -294,6 +351,32 @@ document.addEventListener('DOMContentLoaded', () => {
             ticketsData = data || [];
             renderTable();
         }
+    };
+
+    window.exportData = () => {
+        if (!ticketsData.length) {
+            Swal.fire({ icon: 'info', title: 'No Data', text: 'No tickets to export.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+            return;
+        }
+        const headers = ['ID', 'Passenger', 'Route', 'Price', 'Status', 'Ticket Code', 'Date'];
+        const rows = ticketsData.map(t => [
+            t.id,
+            usersMap[t.user_id] || 'Guest',
+            routesMap[t.route_id] ? routesMap[t.route_id].name : 'Unknown',
+            routesMap[t.route_id] ? routesMap[t.route_id].price : 0,
+            t.status || 'Active',
+            t.ticket_code || '',
+            new Date(t.created_at).toLocaleString()
+        ]);
+        const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `TransitWay_Tickets_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        Swal.fire({ icon: 'success', title: 'Exported', text: `${ticketsData.length} tickets exported.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
     };
 
     window.openAddTicket = () => {
@@ -385,5 +468,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initCalendar();
     loadData();
-    setInterval(loadData, 15000);
+    
+    if (window.supabaseAuth) {
+        window.supabaseAuth.channel('tickets_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    ticketsData.unshift(payload.new);
+                } else if (payload.eventType === 'UPDATE') {
+                    const idx = ticketsData.findIndex(t => t.id === payload.new.id);
+                    if (idx !== -1) ticketsData[idx] = { ...ticketsData[idx], ...payload.new };
+                } else if (payload.eventType === 'DELETE') {
+                    const idx = ticketsData.findIndex(t => t.id === payload.old.id);
+                    if (idx !== -1) ticketsData.splice(idx, 1);
+                }
+                updateStats();
+                renderTable();
+            })
+            .subscribe();
+    }
 });

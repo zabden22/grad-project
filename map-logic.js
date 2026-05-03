@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.classList.add('active');
     };
     let allStations = [];
+    let allRoutes = [];
     let allRealBuses = [];
     let busMarkers = {};
     let routingControl = null;
@@ -66,11 +67,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let realBusRouteMarkers = {};
     let realBusRouteIntervals = [];
     let routeIdToZoneMap = {};
+    
+    // Layer management for filtering
+    let stationLayers = {}; // routeId -> LayerGroup
+    let routeLineLayers = {}; // routeId -> LayerGroup
+    let currentSelectedRoute = null;
     const CITY_COLORS = {
         cairo: '#3b82f6',
         shorouk: '#ef4444',
         badr: '#8b5cf6',
         madinaty: '#f59e0b',
+        capital: '#14b8a6',
         default: '#94a3b8'
     };
 
@@ -80,18 +87,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getBusColor(routeId, routeName, customColor) {
         if (customColor) return customColor;
-
-        const rIdStr = String(routeId || "");
-        if (rIdStr === '8') return CITY_COLORS.cairo;
-        if (rIdStr === '11') return CITY_COLORS.madinaty;
-        if (rIdStr === '9') return CITY_COLORS.shorouk;
-        if (rIdStr === '13') return CITY_COLORS.badr;
-
-        const rName = (routeName || "").toLowerCase();
-        if (rName.includes('cairo') || rName.includes('القاهرة')) return CITY_COLORS.cairo;
-        if (rName.includes('shrouk') || rName.includes('shorouk') || rName.includes('شروق')) return CITY_COLORS.shorouk;
-        if (rName.includes('badr') || rName.includes('بدر')) return CITY_COLORS.badr;
-        if (rName.includes('madinaty') || rName.includes('madinty') || rName.includes('مدينتي') || rName.includes('مدينتى')) return CITY_COLORS.madinaty;
+        const name = (routeName || String(routeId) || '').toLowerCase();
+        
+        if (name.includes('capital') || name.includes('عاصمة') || name.includes('العاصمة') || String(routeId) === '1') return '#14b8a6';
+        if (name.includes('cairo') || name.includes('قاهرة') || String(routeId) === '8') return '#3b82f6';
+        if (name.includes('badr') || name.includes('بدر') || String(routeId) === '13') return '#8b5cf6';
+        if (name.includes('shorouk') || name.includes('shrouk') || name.includes('شروق') || String(routeId) === '9') return '#ef4444';
+        if (name.includes('madinaty') || name.includes('مدينتي') || name.includes('مدينتى') || String(routeId) === '11') return '#f59e0b';
+        
+        if (name.includes('2')) return '#8b5cf6';
+        if (name.includes('3')) return '#3b82f6';
+        if (name.includes('4')) return '#f59e0b';
+        if (name.includes('5')) return '#10b981';
         
         if (!routeId) return CITY_COLORS.default;
         if (!routeColorCache[routeId]) {
@@ -109,7 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
         'el shrouk zone': 9,
         'madinty zone': 11,
         'madinaty zone': 11,
-        'badr zone': 13
+        'badr zone': 13,
+        'capital zone': 1,
+        'new capital zone': 1,
+        'العاصمة': 1,
+        'العاصمه': 1
     };
     function zoneToRouteId(zone) {
         if (!zone) return null;
@@ -126,6 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const s2 = document.getElementById('endStationId');
 
         try {
+            // Fetch routes first for the legend
+            const { data: rtData } = await supabase.from('routes').select('*');
+            allRoutes = rtData || [];
+            buildDynamicLegend();
+
             const { data, error: stErr } = await supabase.from('stations').select('*').order('created_at', { ascending: true });
             if (stErr) return;
 
@@ -133,8 +149,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             allStations = fetchedStations.map(st => {
                 let parsedLat = 0, parsedLng = 0;
-
-                // Priority: latitude/longitude columns > lat_long string > lat/lng
                 if (st.latitude && st.longitude && st.latitude !== 0 && st.longitude !== 0) {
                     parsedLat = parseFloat(st.latitude);
                     parsedLng = parseFloat(st.longitude);
@@ -149,9 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         parsedLng = parseFloat(st.lng || st.longitude || 0);
                     }
                 }
-
                 const numericRouteId = zoneToRouteId(st.zone);
-
                 return {
                     id: st.id,
                     name: st.name || 'Unknown Station',
@@ -172,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     validStations++;
                     const stColor = getBusColor(st.routeId, st.routeName);
                     
-                    L.circleMarker([st.lat, st.lng], {
+                    const marker = L.circleMarker([st.lat, st.lng], {
                         radius: 7, color: '#fff', weight: 2,
                         fillOpacity: 1, fillColor: stColor
                     }).addTo(map).bindPopup(`
@@ -182,6 +194,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <i class="fas fa-location-arrow"></i> ${st.lat.toFixed(4)}, ${st.lng.toFixed(4)}
                             </div>
                         </div>`);
+                    
+                    const rId = String(st.routeId || 'none');
+                    if (!stationLayers[rId]) stationLayers[rId] = L.layerGroup().addTo(map);
+                    stationLayers[rId].addLayer(marker);
 
                     const opt = `<option value="${st.id}">${st.name}</option>`;
                     if (s1) s1.innerHTML += opt;
@@ -204,11 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const rt = routeGroups[rId];
                 if (rt.stations.length > 1) {
                     const color = getBusColor(rt.id, rt.name, null);
-                    await drawOSRMRoute(rt.stations, color);
+                    if (!routeLineLayers[rId]) routeLineLayers[rId] = L.layerGroup().addTo(map);
+                    await drawOSRMRoute(rt.stations, color, routeLineLayers[rId]);
                 }
             }
 
-            async function drawOSRMRoute(stations, color) {
+            async function drawOSRMRoute(stations, color, group) {
                 try {
                     const coords = stations.map(s => `${s.lng},${s.lat}`).join(';');
                     const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
@@ -217,22 +234,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (data.code === 'Ok' && data.routes?.length > 0) {
                         const geometry = data.routes[0].geometry;
-                        L.geoJSON(geometry, {
+                        const line1 = L.geoJSON(geometry, {
                             style: { color, weight: 4, opacity: 0.65, dashArray: '8, 8', lineJoin: 'round' }
-                        }).addTo(map);
-                        L.geoJSON(geometry, {
+                        }).addTo(group);
+                        const line2 = L.geoJSON(geometry, {
                             style: { color, weight: 10, opacity: 0.15, lineCap: 'round' }
-                        }).addTo(map);
+                        }).addTo(group);
                     } else {
                         throw new Error('OSRM fallback');
                     }
                 } catch (e) {
-                    L.polyline(stations.map(s => [s.lat, s.lng]), {
+                    const poly = L.polyline(stations.map(s => [s.lat, s.lng]), {
                         color, weight: 4, opacity: 0.5, dashArray: '10, 10', lineJoin: 'round'
-                    }).addTo(map);
+                    }).addTo(group);
                 }
             }
-
         } catch (error) {
             console.error('Fetch Stations Error:', error);
         }
@@ -294,10 +310,119 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    function buildDynamicLegend() {
+        const legend = document.getElementById('cityLegend');
+        if (!legend) return;
+        
+        legend.innerHTML = '';
+        allRoutes.forEach(r => {
+            const color = getBusColor(r.id, r.name);
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.onclick = () => window.showRoutePanel(r.id);
+            
+            let icon = '🏙️';
+            const name = (r.name || '').toLowerCase();
+            if (name.includes('shorouk')) icon = '🏠';
+            if (name.includes('madinaty')) icon = '🛍️';
+            if (name.includes('badr')) icon = '🌵';
+            if (name.includes('capital')) icon = '🏛️';
+            
+            item.innerHTML = `<span class="legend-dot" style="background:${color};"></span> ${icon} ${r.name}`;
+            legend.appendChild(item);
+        });
+    }
+
+    window.showRoutePanel = function(routeId) {
+        const route = allRoutes.find(r => String(r.id) === String(routeId));
+        if (!route) return;
+        
+        currentSelectedRoute = routeId;
+        const color = getBusColor(route.id, route.name);
+        
+        // UI Updates
+        const panel = document.getElementById('routeInfoPanel');
+        const legend = document.getElementById('cityLegend');
+        if (panel) panel.style.display = 'flex';
+        if (legend) legend.classList.add('hidden');
+        
+        const header = document.getElementById('ripHeader');
+        if (header) header.style.background = color;
+        
+        const title = document.getElementById('ripTitle');
+        if (title) title.innerText = route.name;
+        
+        const idEl = document.getElementById('ripId');
+        if (idEl) idEl.innerText = `#${String(route.id).padStart(2, '0')}`;
+        
+        const priceEl = document.getElementById('ripPrice');
+        if (priceEl) priceEl.innerText = `${route.price || '15.00'} EGP`;
+        
+        const routeStations = allStations.filter(st => String(st.routeId) === String(routeId));
+        const countEl = document.getElementById('ripStationsCount');
+        if (countEl) countEl.innerText = `${routeStations.length} Network Nodes`;
+        
+        const list = document.getElementById('ripStationsList');
+        if (list) {
+            list.innerHTML = routeStations.map(st => `
+                <div class="rip-station-item">
+                    <i class="fas fa-map-marker-alt" style="color:${color};"></i>
+                    <span>${st.name}</span>
+                </div>
+            `).join('');
+        }
+        
+        // Map Filtering
+        Object.keys(stationLayers).forEach(rid => {
+            if (rid !== String(routeId)) map.removeLayer(stationLayers[rid]);
+            else map.addLayer(stationLayers[rid]);
+        });
+        Object.keys(routeLineLayers).forEach(rid => {
+            if (rid !== String(routeId)) map.removeLayer(routeLineLayers[rid]);
+            else map.addLayer(routeLineLayers[rid]);
+        });
+        
+        // Also filter real buses if possible
+        Object.keys(busMarkers).forEach(bid => {
+            const bus = allRealBuses.find(b => String(b.id) === bid);
+            if (bus && String(bus.route_id) !== String(routeId)) map.removeLayer(busMarkers[bid]);
+            else if (bus) map.addLayer(busMarkers[bid]);
+        });
+
+        // Zoom to route
+        if (routeStations.length > 0) {
+            const bounds = L.latLngBounds(routeStations.map(s => [s.lat, s.lng]));
+            map.fitBounds(bounds, { padding: [100, 100] });
+        }
+    };
+
+    window.closeRoutePanel = function() {
+        currentSelectedRoute = null;
+        const panel = document.getElementById('routeInfoPanel');
+        const legend = document.getElementById('cityLegend');
+        if (panel) panel.style.display = 'none';
+        if (legend) legend.classList.remove('hidden');
+        
+        // Restore everything
+        Object.values(stationLayers).forEach(layer => map.addLayer(layer));
+        Object.values(routeLineLayers).forEach(layer => map.addLayer(layer));
+        Object.values(busMarkers).forEach(marker => map.addLayer(marker));
+        
+        map.setView([30.0691, 31.3381], 12);
+    };
+
     window.toggleFullMap = function () {
         const btn = document.getElementById('fullScreenToggle');
         const isFull = document.body.classList.toggle('full-map-mode');
         if (btn) btn.classList.toggle('active', isFull);
+        
+        if (isFull) {
+            window.switchLayer('satellite');
+        } else {
+            const currentTheme = localStorage.getItem('siteTheme') || 'light';
+            window.switchLayer(currentTheme === 'dark' ? 'dark' : 'default');
+        }
+        
         setTimeout(() => {
             if (map) map.invalidateSize();
         }, 300);
@@ -464,7 +589,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const label = el.querySelector('.bus-id-label');
                     if (pulse) pulse.style.background = color;
                     if (busIcon) busIcon.style.color = color;
-                    if (label) { label.style.background = color; label.textContent = '#' + bNum; }
+                    if (label) { 
+                        label.style.background = window.hexToRgba(color, 1); 
+                        label.style.color = '#fff';
+                        label.style.setProperty('color', '#fff', 'important');
+                        label.textContent = '#' + bNum; 
+                    }
                 }
             } else {
                 const divIcon = L.divIcon({
@@ -472,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     html: `
                         <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
                             <div class="bus-id-label" style="
-                                background:${color};color:#fff;
+                                background:${window.hexToRgba(color, 1)};color:#fff !important;
                                 font-size:10px;font-weight:900;
                                 padding:2px 8px;border-radius:8px;
                                 box-shadow:0 2px 6px rgba(0,0,0,0.25);
@@ -568,7 +698,7 @@ async function placeRealBusesOnRoutes() {
                 html: `
                         <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
                             <div class="bus-id-label" style="
-                                background:${color};color:#fff;
+                                background:${window.hexToRgba(color, 1)};color:#fff !important;
                                 font-size:10px;font-weight:900;
                                 padding:2px 8px;border-radius:8px;
                                 box-shadow:0 2px 6px rgba(0,0,0,0.25);
@@ -820,7 +950,7 @@ window.toggleSimulation = function () {
     if (isGlobalSimulationActive) {
         if (btn) {
             btn.classList.add('paused');
-            btn.innerHTML = '<i class="fas fa-pause-circle"></i><span>Simulation OFF</span>';
+            btn.innerHTML = '<div class="sim-icon-circle"><i class="fa-solid fa-pause"></i></div><span>Simulation OFF</span>';
         }
         
         // Hide Real Fleet
@@ -834,7 +964,7 @@ window.toggleSimulation = function () {
     } else {
         if (btn) {
             btn.classList.remove('paused');
-            btn.innerHTML = '<i class="fas fa-play-circle"></i><span>Simulation ON</span>';
+            btn.innerHTML = '<div class="sim-icon-circle"><i class="fa-solid fa-play" style="margin-left:2px;"></i></div><span>Simulation ON 🚀</span>';
         }
 
         stopGlobalSimulation();
@@ -877,20 +1007,9 @@ async function startGlobalSimulation() {
     for (const route of routesToSimulate) {
         if (route.stations.length < 2) continue;
 
-        const rName = (route.name || '').toLowerCase();
-        let routeColor = null;
-
-        if (rName.includes('shrouk') || rName.includes('shorouk') || rName.includes('academy')) {
-            routeColor = CITY_COLORS.shorouk;
-        } else if (rName.includes('madinaty') || rName.includes('madinty') || rName.includes('open air mall')) {
-            routeColor = CITY_COLORS.madinaty;
-        } else if (rName.includes('cairo') || rName.includes('ain shams') || rName.includes('asmarat')) {
-            routeColor = CITY_COLORS.cairo;
-        } else if (rName.includes('badr') || rName.includes('haram') || rName.includes('horeyya')) {
-            routeColor = CITY_COLORS.badr;
-        } else {
-            continue;
-        }
+        // Use the existing getBusColor function to ensure consistency with the rest of the map
+        const routeColor = getBusColor(route.id, route.name);
+        
         let bestSegment = [];
         let currentSegment = [route.stations[0]];
 
@@ -899,6 +1018,7 @@ async function startGlobalSimulation() {
             const curr = route.stations[i];
             const dist = Math.sqrt(Math.pow(curr.lat - prev.lat, 2) + Math.pow(curr.lng - prev.lng, 2));
 
+            // Segment splitting for non-contiguous routes
             if (dist > 0.08) {
                 if (currentSegment.length > bestSegment.length) bestSegment = currentSegment;
                 currentSegment = [curr];
@@ -974,8 +1094,21 @@ fetchStationsAndInitMap().then(() => {
         fetchRealBuses().then(() => {
             syncFleet();
             placeRealBusesOnRoutes();
-            setInterval(syncFleet, 1000);
-            setInterval(fetchRealStats, 2000);
+            
+            if (window.supabaseAuth) {
+                window.supabaseAuth.channel('map_realtime')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bus_locations' }, () => syncFleet())
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'buses' }, () => { fetchRealStats(); syncFleet(); })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, fetchRealStats)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, async (payload) => {
+                        fetchRealStats();
+                        const { data } = await supabase.from('routes').select('*');
+                        allRoutes = data || [];
+                        buildDynamicLegend();
+                    })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, fetchRealStats)
+                    .subscribe();
+            }
         });
     });
 });

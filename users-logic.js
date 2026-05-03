@@ -93,10 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadUsers(silent = false) {
         try {
             if (!silent && grid && usersData.length === 0) {
-                grid.innerHTML = `<div class="users-loading" style="grid-column:1/-1;">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    Loading users...
-                </div>`;
+                grid.innerHTML = Array(6).fill('<div class="user-card"><div class="skeleton" style="width:100%;height:150px;border-radius:12px;"></div></div>').join('');
             }
             const { data, error } = await supabase.from('users').select('*');
             if (error) throw error;
@@ -109,29 +106,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let currentFilter = 'all';
+
     function filterUsers() {
-        if (!searchInput) {
-            renderUsers(usersData);
-            return;
+        let filtered = usersData;
+
+        // Apply Status Filter
+        if (currentFilter === 'active') {
+            filtered = filtered.filter(u => !(u.is_banned === true || (u.ban_reason && u.ban_reason !== null && u.ban_reason !== '')));
+        } else if (currentFilter === 'banned') {
+            filtered = filtered.filter(u => u.is_banned === true || (u.ban_reason && u.ban_reason !== null && u.ban_reason !== ''));
+        } else if (currentFilter === 'warned') {
+            filtered = filtered.filter(u => u.warning_count > 0 || (u.last_warning_reason && u.last_warning_reason !== ''));
         }
-        const query = searchInput.value.toLowerCase().trim();
-        if (!query) {
-            renderUsers(usersData);
-            return;
+
+        // Apply Search Filter
+        if (searchInput) {
+            const query = searchInput.value.toLowerCase().trim();
+            if (query) {
+                filtered = filtered.filter(u => 
+                    (u.full_name || '').toLowerCase().includes(query) ||
+                    (u.email || '').toLowerCase().includes(query) ||
+                    (u.phone_number || '').toLowerCase().includes(query) ||
+                    (u.id || '').toLowerCase() === query ||
+                    (u.id || '').toLowerCase().includes(query)
+                );
+            }
         }
-        const filtered = usersData.filter(u => 
-            (u.full_name || '').toLowerCase().includes(query) ||
-            (u.email || '').toLowerCase().includes(query) ||
-            (u.phone_number || '').toLowerCase().includes(query) ||
-            (u.id || '').toLowerCase() === query ||
-            (u.id || '').toLowerCase().includes(query)
-        );
+        
         renderUsers(filtered);
     }
 
     if (searchInput) {
         searchInput.addEventListener('input', filterUsers);
     }
+
+    const statCards = document.querySelectorAll('.users-stat-card');
+    statCards.forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+            const h4 = card.querySelector('h4');
+            if (!h4) return;
+            const id = h4.id;
+            
+            statCards.forEach(c => c.style.border = '1px solid var(--border-color)');
+            card.style.border = '2px solid var(--primary-color)';
+            
+            if (id === 'statTotalUsers') currentFilter = 'all';
+            else if (id === 'statActiveUsers') currentFilter = 'active';
+            else if (id === 'statBannedUsers') currentFilter = 'banned';
+            else if (id === 'statWarnedUsers') currentFilter = 'warned';
+            
+            filterUsers();
+        });
+    });
 
     async function sendUserNotification(userId, title, body, type) {
         try {
@@ -408,5 +436,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initUsers();
-    setInterval(() => loadUsers(true), 15000);
+
+    if (window.supabaseAuth) {
+        window.supabaseAuth.channel('users_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    usersData.unshift(payload.new);
+                } else if (payload.eventType === 'UPDATE') {
+                    const idx = usersData.findIndex(u => u.id === payload.new.id);
+                    if (idx !== -1) usersData[idx] = { ...usersData[idx], ...payload.new };
+                } else if (payload.eventType === 'DELETE') {
+                    const idx = usersData.findIndex(u => u.id === payload.old.id);
+                    if (idx !== -1) usersData.splice(idx, 1);
+                }
+                updateStats();
+                filterUsers();
+            })
+            .subscribe();
+    }
 });

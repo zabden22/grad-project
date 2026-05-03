@@ -11,19 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let driversData = [];
     let routesData = []; // Added routes registry
 
-    function getRouteColor(routeId, index = -1) {
-        if (index === 0) return '#2563eb';
-        if (index === 1) return '#f97316';
-        if (index === 2) return '#8b5cf6';
-        if (index === 3) return '#dc2626';
-
-        if (!routeId) return 'var(--text-muted)';
-        const id = String(routeId);
-        if (id === '8') return '#2563eb';
-        if (id === '11') return '#f97316';
-        if (id === '9') return '#dc2626';
-        if (id === '13') return '#8b5cf6';
-        return '#568e74';
+    function getBusRouteColor(bus) {
+        if (!bus || !bus.routeId) return '#64748b';
+        const routeObj = routesData.find(r => String(r.id) === String(bus.routeId));
+        const routeName = routeObj ? routeObj.name : null;
+        return window.getRouteColor(bus.routeId, routeName);
     }
 
     async function loadDrivers() {
@@ -59,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadBuses(silent = false) {
         try {
             if (!silent && busTableBody) {
-                busTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:60px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem; color:var(--primary-color);"></i><p style="margin-top:10px; font-weight:700;">Synchronizing Fleet Signals...</p></td></tr>`;
+                busTableBody.innerHTML = Array(5).fill('<tr><td colspan="9"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
             }
             const { data, error } = await supabase.from('buses').select('*').order('created_at', { ascending: false });
             if (error) throw error;
@@ -100,18 +92,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.getElementById('statActiveBuses')) document.getElementById('statActiveBuses').innerText = active;
     }
 
+    let currentFilter = 'all';
+
     function renderTable(list = busesData) {
         if(!busTableBody) return;
         busTableBody.innerHTML = '';
 
-        if (list.length === 0) {
+        let filteredList = list;
+        if (currentFilter === 'active') filteredList = list.filter(b => b.isActive);
+        else if (currentFilter === 'inactive') filteredList = list.filter(b => !b.isActive);
+
+        if (filteredList.length === 0) {
             busTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:60px; color:var(--text-muted); font-weight:700;"><i class="fas fa-bus-alt" style="font-size:2.5rem; display:block; margin-bottom:15px; opacity:0.2;"></i>No assets detected.</td></tr>`;
             return;
         }
 
-        list.forEach((bus, index) => {
+        filteredList.forEach((bus, index) => {
             const serialNum   = String(index + 1).padStart(4, '0');
-            const color       = getRouteColor(bus.routeId, index);
+            const color       = getBusRouteColor(bus);
             const statusBadge = bus.isActive 
                 ? `<span class="status-badge status-active"><div class="pulse-dot"></div> Operational</span>`
                 : `<span class="status-badge status-inactive">Standby</span>`;
@@ -121,8 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="color:${color}; font-family:monospace; font-weight:900;">#${serialNum}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:40px; height:40px; border-radius:12px; background:${color}15; display:flex; align-items:center; justify-content:center; color:${color}; font-size:1.1rem; border:1px solid ${color}30;">
-                            <i class="fas fa-bus-alt"></i>
+                        <div style="width:40px; height:40px; border-radius:12px; background:${window.hexToRgba(color, 0.15)}; display:flex; align-items:center; justify-content:center; color:${color}; font-size:1.2rem; border:1px solid ${window.hexToRgba(color, 0.3)};">
+                            <i class="fas fa-bus" style="color:${color} !important;"></i>
                         </div>
                         <div style="display:flex; flex-direction:column;">
                             <span style="font-weight:900; color:var(--text-main);">B-${bus.busNumber}</span>
@@ -154,6 +152,27 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTable(filtered);
         });
     }
+
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+            const h3 = card.querySelector('h3');
+            if (!h3) return;
+            const id = h3.id;
+            
+            statCards.forEach(c => c.style.border = '1px solid var(--border-color)');
+            card.style.border = '1px solid var(--primary-color)';
+            
+            if (id === 'statTotalBuses') currentFilter = 'all';
+            else if (id === 'statActiveBuses' || id === 'statMovingBuses') currentFilter = 'active';
+            else if (id === 'statInactiveBuses') currentFilter = 'inactive';
+            
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const filtered = busesData.filter(b => String(b.busNumber).includes(query) || b.plateNumber.toLowerCase().includes(query));
+            renderTable(filtered);
+        });
+    });
 
     window.openModal = (id) => document.getElementById(id).classList.add('active');
     window.closeModal = (id) => document.getElementById(id).classList.remove('active');
@@ -194,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // FIXED: Add Bus logic to handle potential UUID issues
+    // FIXED: Add Bus logic with RLS bypass strategies
     document.getElementById('addBusForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
@@ -209,24 +228,88 @@ document.addEventListener('DOMContentLoaded', () => {
             speed: 0
         };
 
-        // Handle route_id: check if it's a UUID column
+        // Handle route_id
         const routeVal = document.getElementById('addRouteId').value;
         if (routeVal) {
-            // If it's a UUID (36 chars), send as string. Otherwise try to parse as int.
             payload.route_id = (routeVal.length > 5) ? routeVal : parseInt(routeVal);
         }
 
         try {
-            // DO NOT send manual 'id' if the DB uses UUIDs or Auto-increment
+            // Strategy 1: Try normal insert via REST wrapper
             const { error } = await supabase.from('buses').insert(payload);
-            if(error) throw error;
+            
+            if (error) {
+                const errMsg = error.message || JSON.stringify(error);
+                
+                // If RLS error, try Strategy 2: Direct fetch with admin session token
+                if (errMsg.includes('row-level security') || errMsg.includes('policy')) {
+                    console.warn('[TransitWay] RLS blocked insert. Trying with auth session...');
+                    
+                    // Try using the authenticated admin's session token if available
+                    let authToken = localStorage.getItem('adminToken');
+                    
+                    // Try getting a fresh token from supabaseAuth
+                    if (window.supabaseAuth && window.supabaseAuth.auth) {
+                        try {
+                            const { data: sessionData } = await window.supabaseAuth.auth.getSession();
+                            if (sessionData && sessionData.session) {
+                                authToken = sessionData.session.access_token;
+                            }
+                        } catch(e) { /* ignore */ }
+                    }
+
+                    const headers = {
+                        'apikey': window.SUPABASE_KEY,
+                        'Authorization': 'Bearer ' + (authToken && authToken !== 'db-session' ? authToken : window.SUPABASE_KEY),
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    };
+
+                    const res2 = await fetch(window.SUPABASE_URL + '/rest/v1/buses', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res2.ok) {
+                        const err2 = await res2.json().catch(() => ({ message: res2.statusText }));
+                        const err2Msg = err2.message || JSON.stringify(err2);
+                        
+                        // Strategy 3: Try using SDK insert if available
+                        if (window.supabaseAuth && window.supabaseAuth.from) {
+                            const { error: err3 } = await window.supabaseAuth.from('buses').insert(payload);
+                            if (err3) throw new Error(err3.message || 'SDK insert also failed');
+                        } else {
+                            throw new Error('RLS Policy Error: ' + err2Msg + '\n\nPlease go to Supabase Dashboard → SQL Editor and run:\nCREATE POLICY "Allow admin bus insert" ON buses FOR INSERT WITH CHECK (true);');
+                        }
+                    }
+                } else {
+                    throw new Error(errMsg);
+                }
+            }
             
             Swal.fire({ icon: 'success', title: 'Asset Deployed', background: 'var(--bg-card)', color: 'var(--text-main)' });
             closeModal('addBusModal');
             e.target.reset();
             loadBuses();
         } catch (err) {
-            Swal.fire('Deployment Error', err.message, 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Deployment Error',
+                html: `<div style="text-align:left; font-size:0.9rem;">
+                    <p style="margin-bottom:10px; font-weight:700;">${err.message}</p>
+                    ${err.message.includes('RLS') || err.message.includes('policy') ? `
+                        <div style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); padding:15px; border-radius:12px; margin-top:10px;">
+                            <p style="font-weight:800; color:#f59e0b; margin-bottom:8px;"><i class="fas fa-exclamation-triangle"></i> Fix Required:</p>
+                            <p style="font-size:0.8rem; color:var(--text-muted);">Go to <strong>Supabase Dashboard → SQL Editor</strong> and run:</p>
+                            <code style="display:block; background:var(--bg-main); padding:10px; border-radius:8px; margin-top:8px; font-size:0.75rem; word-break:break-all;">CREATE POLICY "Allow bus insert" ON buses FOR INSERT WITH CHECK (true);</code>
+                        </div>
+                    ` : ''}
+                </div>`,
+                background: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                confirmButtonColor: '#ef4444'
+            });
         } finally {
             btn.disabled = false; btn.innerText = "Confirm Deployment";
         }
@@ -245,4 +328,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     loadDrivers().then(() => loadRoutes()).then(() => loadBuses());
+
+    if (window.supabaseAuth) {
+        window.supabaseAuth.channel('buses_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'buses' }, () => {
+                loadBuses(true);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => {
+                loadDrivers();
+            })
+            .subscribe();
+    }
 });

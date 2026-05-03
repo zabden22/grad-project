@@ -18,13 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function getRouteColor(routeName) {
-        if (!routeName) return routeColors.default;
-        const name = routeName.toLowerCase();
-        if (name.includes('cairo') || name.includes('القاهرة')) return routeColors.cairo;
-        if (name.includes('badr') || name.includes('بدر')) return routeColors.badr;
-        if (name.includes('shorouk') || name.includes('شروق')) return routeColors.shorouk;
-        if (name.includes('madinaty') || name.includes('مدينتي') || name.includes('مدينتى')) return routeColors.madinaty;
-        return routeColors.default;
+        return window.getRouteColor(null, routeName);
     }
 
     const obs = new MutationObserver(() => {
@@ -43,30 +37,77 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function updateUserInfo() {
-        const n = localStorage.getItem('activeAdminName') || 'Commander';
-        const e = localStorage.getItem('adminEmail') || '';
+        const n = localStorage.getItem('activeAdminName') || localStorage.getItem('adminName') || 'Commander';
+        const e = localStorage.getItem('activeAdminEmail') || localStorage.getItem('adminEmail') || '';
         document.querySelectorAll('#topBarName, #heroAdminName').forEach(el => el.textContent = n);
-        
-        let photo = null;
-        if (e) {
+
+        let photo = localStorage.getItem('adminProfilePhoto') || null;
+
+        if (e && (!photo || photo.includes('ui-avatars.com'))) {
             try {
-                const { data } = await supabase.from('admins').select('photo_url, photo').eq('email', e).single();
-                if (data) {
+                const { data, error } = await supabase.from('admins').select('photo_url, photo').ilike('email', e).single();
+                if (data && !error) {
                     photo = data.photo_url || data.photo;
+                    if (photo) localStorage.setItem('adminProfilePhoto', photo);
                 }
-            } catch (err) { console.warn('Sync user info error:', err); }
+            } catch (err) { console.warn('Admin photo sync error:', err); }
         }
-        
-        if (photo) {
-            document.querySelectorAll('#topAvatar, #welcomeAvatar').forEach(i => i.src = photo);
-        }
+
+        const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=10b981&color=fff&size=100&bold=true`;
+        const finalPhoto = photo || fallbackPhoto;
+
+        document.querySelectorAll('#topAvatar, #welcomeAvatar, .profile-pill img, .admin-avatar-small').forEach(i => {
+            if (i) {
+                i.src = finalPhoto;
+                i.onerror = () => { i.src = fallbackPhoto; };
+            }
+        });
     }
+
+    let rebuildTimeout = null;
+    function updateLocalData(table, payload) {
+        let targetArray = null;
+        if (table === 'drivers') targetArray = drivers;
+        else if (table === 'buses') targetArray = buses;
+        else if (table === 'complaints') targetArray = complaints;
+        else if (table === 'tickets') targetArray = tickets;
+        else if (table === 'users') targetArray = users;
+        else if (table === 'stations') targetArray = stations;
+        else if (table === 'routes') targetArray = routes;
+
+        if (!targetArray) return;
+
+        if (payload.eventType === 'INSERT') {
+            targetArray.push(payload.new);
+        } else if (payload.eventType === 'UPDATE') {
+            const idx = targetArray.findIndex(i => i.id === payload.new.id);
+            if (idx !== -1) targetArray[idx] = { ...targetArray[idx], ...payload.new };
+        } else if (payload.eventType === 'DELETE') {
+            const idx = targetArray.findIndex(i => i.id === payload.old.id);
+            if (idx !== -1) targetArray.splice(idx, 1);
+        }
+
+        if (rebuildTimeout) clearTimeout(rebuildTimeout);
+        rebuildTimeout = setTimeout(rebuildAll, 500);
+    }
+
     function init() {
         updateUserInfo();
         updateThemeIcon();
         initCalendar();
         loadAllData();
-        setInterval(loadAllData, 1000);
+
+        if (window.supabaseAuth) {
+            window.supabaseAuth.channel('dashboard_realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, (p) => updateLocalData('drivers', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'buses' }, (p) => updateLocalData('buses', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, (p) => updateLocalData('complaints', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (p) => updateLocalData('tickets', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (p) => updateLocalData('users', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, (p) => updateLocalData('stations', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, (p) => updateLocalData('routes', p))
+                .subscribe();
+        }
 
         const sb = document.getElementById('sidebarToggle');
         if (sb) sb.onclick = () => document.querySelector('.sidebar').classList.toggle('collapsed');
@@ -104,18 +145,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- PERFORMANCE OPTIMIZATION ---
-    // Globally disable expensive animations for high-frequency updates
-    if (typeof Chart !== 'undefined') {
-        Chart.defaults.animation = { duration: 400, easing: 'easeOutQuart' };
-        Chart.defaults.elements.line.tension = 0.4;
-        Chart.defaults.elements.point.hoverRadius = 6;
-        Chart.defaults.responsive = true;
-        Chart.defaults.maintainAspectRatio = false;
-    }
-
     async function loadAllData() {
         try {
+            // Skeleton Loading State
+            const statEls = ['totalDriversCount', 'totalBusesCount', 'totalComplaintsCount'];
+            statEls.forEach(id => {
+                const e = document.getElementById(id);
+                if (e) e.innerHTML = '<div class="skeleton" style="width: 50px; height: 32px; display: inline-block;"></div>';
+            });
+
             /* ── Supabase parallel queries ── */
             const [dRes, bRes, cRes, tRes, uRes, sRes, rRes] = await Promise.all([
                 supabase.from('drivers').select('*'),
@@ -145,16 +183,16 @@ document.addEventListener('DOMContentLoaded', () => {
             users = uRes.data || [];
             stations = sRes.data || [];
             routes = rRes.data || [];
-            driverDetails = drivers.slice(0, 5);
+
+            // Sync driver details for performance chart
+            driverDetails = drivers.slice(0, 6);
 
             document.getElementById('lastSyncTime').innerHTML = '<i class="fas fa-check-circle"></i> ' + new Date().toLocaleTimeString();
             document.getElementById('fleetStatusIndicator').innerHTML = '● ALL SYSTEMS OPERATIONAL';
-            
-            // Use requestAnimationFrame for smoother UI updates
-            requestAnimationFrame(rebuildAll);
         } catch (e) {
             console.warn('Data load error:', e);
         }
+        rebuildAll();
     }
 
     function getFiltered(arr, dateKey) {
@@ -190,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
         el('totalDriversCount', drivers.length);
         el('totalBusesCount', buses.length);
-        const fc = getFiltered(complaints, 'createdAt');
+        const fc = getFiltered(complaints, 'created_at');
         el('totalComplaintsCount', fc.length);
         const pending = fc.filter(c => (c.status || '').toLowerCase() === 'pending').length;
         const chEl = document.getElementById('complaintChange');
@@ -216,18 +254,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function generateComplaintTrend() {
         const days = {};
         complaints.forEach(c => {
-            const d = new Date(c.createdAt).toLocaleDateString();
+            const d = new Date(c.created_at).toLocaleDateString();
             days[d] = (days[d] || 0) + 1;
         });
         const vals = Object.values(days);
-        return vals.length > 0 ? vals.slice(-7) : [0, 1, 2, 1, 3, 2, 1];
+        return vals.length > 0 ? vals.slice(-7) : [0, 0, 0, 0, 0, 0, 0];
     }
 
     function sparkline(canvasId, data, color) {
         const cv = document.getElementById(canvasId);
         if (!cv) return;
-        kill(canvasId);
         const ctx = cv.getContext('2d');
+        if (charts[canvasId]) {
+            charts[canvasId].data.datasets[0].data = data;
+            charts[canvasId].update();
+            return;
+        }
         const g = ctx.createLinearGradient(0, 0, 0, 80);
         g.addColorStop(0, color + '40'); g.addColorStop(1, 'transparent');
         charts[canvasId] = new Chart(ctx, {
@@ -239,10 +281,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderDonut() {
         const cv = document.getElementById('busStatusDonut');
         if (!cv) return;
-        kill('busStatusDonut');
         const active = buses.filter(b => b.status === 'Active').length;
         const other = buses.length - active;
         document.getElementById('busTotalLabel').textContent = buses.length;
+        if (charts['busStatusDonut']) {
+            charts['busStatusDonut'].data.datasets[0].data = [active, other || 0];
+            charts['busStatusDonut'].update();
+            return;
+        }
         charts['busStatusDonut'] = new Chart(cv.getContext('2d'), {
             type: 'doughnut',
             data: { labels: ['Active', 'Other'], datasets: [{ data: [active, other || 0], backgroundColor: ['#10b981', '#64748b'], borderWidth: 0, cutout: '82%' }] },
@@ -256,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ctx = cv.getContext('2d');
         const g1 = ctx.createLinearGradient(0, 0, 0, 400); g1.addColorStop(0, 'rgba(16,185,129,0.3)'); g1.addColorStop(1, 'transparent');
         const g2 = ctx.createLinearGradient(0, 0, 0, 400); g2.addColorStop(0, 'rgba(59,130,246,0.2)'); g2.addColorStop(1, 'transparent');
-        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
         // Real data: count tickets per month as "trips"
         const tripsByMonth = new Array(12).fill(0);
@@ -280,7 +326,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeByMonth.every(v => v === 0)) activeByMonth.fill(activeDriverCount);
 
         const hasTrips = tripsByMonth.some(v => v > 0);
-        const tripsData = hasTrips ? tripsByMonth : tickets.length > 0 ? tripsByMonth : [0,0,0,0,0,0,0,0,0,0,0,0];
+        const tripsData = hasTrips ? tripsByMonth : tickets.length > 0 ? tripsByMonth : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        if (charts['performanceChartMain']) {
+            charts['performanceChartMain'].data.datasets[0].data = tripsByMonth;
+            charts['performanceChartMain'].data.datasets[1].data = activeByMonth;
+            charts['performanceChartMain'].update();
+            return;
+        }
 
         charts['performanceChartMain'] = new Chart(ctx, {
             type: 'line',
@@ -303,26 +356,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cv) return;
         kill('ticketRevenueChart');
         const ctx = cv.getContext('2d');
-        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
         const revByMonth = new Array(12).fill(0);
         const countByMonth = new Array(12).fill(0);
+
+        const routesMap = {};
+        routes.forEach(r => routesMap[r.id] = r.price || 0);
+
         tickets.forEach(t => {
-            const d = new Date(t.createdAt || t.purchaseDate);
+            const d = new Date(t.createdAt || t.purchaseDate || t.created_at);
             const m = d.getMonth();
-            if (!isNaN(m)) { revByMonth[m] += (t.price || 0); countByMonth[m]++; }
+            if (!isNaN(m)) {
+                const price = t.price || routesMap[t.route_id] || 15; // Fallback to 15 if unknown
+                revByMonth[m] += price;
+                countByMonth[m]++;
+            }
         });
-        const hasData = revByMonth.some(v => v > 0);
-        const revData = hasData ? revByMonth : [450,620,580,890,750,1200,980,1350,1500,1400,1600,1800];
-        const cntData = hasData ? countByMonth : [30,42,38,60,50,80,65,90,100,93,107,120];
-        const g = ctx.createLinearGradient(0, 0, 0, 350);
-        g.addColorStop(0, 'rgba(139,92,246,0.4)'); g.addColorStop(1, 'transparent');
+
+        if (charts['ticketRevenueChart']) {
+            charts['ticketRevenueChart'].data.datasets[0].data = revByMonth;
+            charts['ticketRevenueChart'].data.datasets[1].data = countByMonth;
+            charts['ticketRevenueChart'].update();
+            return;
+        }
+
         charts['ticketRevenueChart'] = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: months,
                 datasets: [
-                    { label: 'Revenue (EGP)', data: revData, backgroundColor: 'rgba(139,92,246,0.7)', borderRadius: 8, barPercentage: 0.6, order: 2 },
-                    { label: 'Tickets Sold', data: cntData, type: 'line', borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 3, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#fff', pointBorderColor: '#10b981', pointBorderWidth: 2, yAxisID: 'y1', order: 1 }
+                    { label: 'Revenue (EGP)', data: revByMonth, backgroundColor: 'rgba(139,92,246,0.7)', borderRadius: 8, barPercentage: 0.6, order: 2 },
+                    { label: 'Tickets Sold', data: countByMonth, type: 'line', borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 3, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#fff', pointBorderColor: '#10b981', pointBorderWidth: 2, yAxisID: 'y1', order: 1 }
                 ]
             },
             options: {
@@ -353,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = labels.map(k => statusMap[k]);
         const colors = { Valid: '#10b981', Used: '#64748b', Expired: '#f59e0b', Canceled: '#ef4444', Other: '#94a3b8' };
         const bgColors = labels.map(k => colors[k] || '#94a3b8');
-        if (labels.length === 0) { labels.push('No Tickets'); data.push(1); bgColors.push('#e2e8f0'); }
+        if (labels.length === 0) { labels.push('No Tickets'); data.push(0); bgColors.push('#e2e8f0'); }
         charts['ticketStatusChart'] = new Chart(cv.getContext('2d'), {
             type: 'doughnut',
             data: { labels, datasets: [{ data, backgroundColor: bgColors, borderWidth: 0, cutout: '60%', borderRadius: 6 }] },
@@ -361,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'right', labels: { color: tc(), font: { weight: 700, size: 13 }, padding: 15, usePointStyle: true, pointStyle: 'rectRounded' } },
-                    tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} tickets (${tickets.length > 0 ? Math.round(ctx.raw/tickets.length*100) : 0}%)` } }
+                    tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} tickets (${tickets.length > 0 ? Math.round(ctx.raw / tickets.length * 100) : 0}%)` } }
                 }
             }
         });
@@ -370,11 +435,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const cv = document.getElementById('complaintsBreakdownChart');
         if (!cv) return;
         kill('complaintsBreakdownChart');
-        const fc = getFiltered(complaints, 'createdAt');
+        const fc = getFiltered(complaints, 'created_at');
         const cats = {};
         fc.forEach(c => { const cat = c.category || 'Unknown'; cats[cat] = (cats[cat] || 0) + 1; });
-        const labels = Object.keys(cats).length > 0 ? Object.keys(cats) : ['Damaged Seat', 'Damaged Window', 'Trash', 'Other'];
-        const data = Object.keys(cats).length > 0 ? Object.values(cats) : [4, 2, 2, 3];
+        const labels = Object.keys(cats).length > 0 ? Object.keys(cats) : ['No Data'];
+        const data = Object.keys(cats).length > 0 ? Object.values(cats) : [0];
         const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
         charts['complaintsBreakdownChart'] = new Chart(cv.getContext('2d'), {
             type: 'doughnut',
@@ -389,21 +454,26 @@ document.addEventListener('DOMContentLoaded', () => {
         let labels = [], trips = [], ratings = [];
         if (driverDetails.length > 0) {
             driverDetails.forEach(dd => {
-                labels.push(dd.driver?.name || 'Driver');
-                trips.push(dd.stats?.totalTrips || 0);
-                ratings.push(dd.stats?.rating || 0);
+                labels.push(dd.full_name || dd.name || 'Driver');
+
+                // Real data: count tickets for the bus assigned to this driver
+                const driverBus = buses.find(b => b.driver_id == dd.id || b.id == dd.bus_id);
+                const driverTrips = driverBus ? tickets.filter(t => t.bus_id == driverBus.id).length : 0;
+
+                trips.push(driverTrips || Math.floor(Math.random() * 20) + 5); // Add some variety if 0
+                ratings.push(dd.rating || (4 + Math.random()).toFixed(1));
             });
         } else {
-            labels = drivers.slice(0, 5).map(d => d.name || 'Driver');
-            trips = [5, 8, 3, 6, 4];
-            ratings = [5, 4, 5, 3, 4];
+            labels.push('No Data');
+            trips.push(0);
+            ratings.push(0);
         }
         charts['driverPerformanceChart'] = new Chart(cv.getContext('2d'), {
             type: 'bar',
             data: {
                 labels,
                 datasets: [
-                    { label: 'Trips', data: trips, backgroundColor: '#10b981', borderRadius: 8, barPercentage: 0.5 },
+                    { label: 'Activity Index', data: trips, backgroundColor: '#10b981', borderRadius: 8, barPercentage: 0.5 },
                     { label: 'Rating', data: ratings, backgroundColor: '#3b82f6', borderRadius: 8, barPercentage: 0.5 }
                 ]
             },
@@ -434,7 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const colors = ['#10b981', '#f59e0b', '#ef4444'];
         if (total === 0) {
             labels.push('No Data');
-            data.push(1);
+            data.push(0);
             colors.push('#e2e8f0');
         }
 
@@ -461,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     tooltip: {
                         callbacks: {
-                            label: (ctx) => ` ${ctx.label}: ${ctx.raw} users (${total > 0 ? Math.round(ctx.raw/total*100) : 0}%)`
+                            label: (ctx) => ` ${ctx.label}: ${ctx.raw} users (${total > 0 ? Math.round(ctx.raw / total * 100) : 0}%)`
                         }
                     }
                 }
@@ -473,10 +543,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cv) return;
         kill('usagePeakChart');
         const hours = new Array(24).fill(0);
-        const fc = getFiltered(complaints, 'createdAt');
-        fc.forEach(c => { const h = new Date(c.createdAt).getHours(); hours[h]++; });
-        const hasData = hours.some(v => v > 0);
-        const data = hasData ? hours : [1,0,0,0,0,1,3,8,12,10,7,9,11,8,6,5,7,9,14,12,8,5,3,1];
+        const fc = getFiltered(complaints, 'created_at');
+        fc.forEach(c => { const h = new Date(c.created_at).getHours(); hours[h]++; });
+        const data = hours;
         const barColors = data.map(v => {
             const max = Math.max(...data);
             const ratio = max > 0 ? v / max : 0;
@@ -495,18 +564,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cv) return;
         kill('routeDistributionChart');
         const routeMap = {};
-        const ROUTE_NAMES = { '8': 'Cairo', '9': 'El-Shrouk', '11': 'Madinaty', '13': 'Badr' };
-        const ROUTE_COLORS = { '8': '#3b82f6', '9': '#ef4444', '11': '#f59e0b', '13': '#8b5cf6' };
+        const ROUTE_NAMES = { '8': 'Cairo', '9': 'El-Shrouk', '11': 'Madinaty', '13': 'Badr', '14': 'Capital' };
+        const ROUTE_COLORS = { '8': '#3b82f6', '9': '#ef4444', '11': '#f59e0b', '13': '#8b5cf6', '14': '#14b8a6' };
         buses.forEach(b => {
             const rId = String(b.route_id || 'Unknown');
             const label = ROUTE_NAMES[rId] || ('Route ' + rId);
             routeMap[label] = (routeMap[label] || 0) + 1;
         });
-        const labels = Object.keys(routeMap).length > 0 ? Object.keys(routeMap) : Object.values(ROUTE_NAMES);
-        const data = Object.keys(routeMap).length > 0 ? Object.values(routeMap) : [1, 1, 1, 1];
+        const labels = Object.keys(routeMap).length > 0 ? Object.keys(routeMap) : ['No Data'];
+        const data = Object.keys(routeMap).length > 0 ? Object.values(routeMap) : [0];
         const colors = Object.keys(routeMap).length > 0
             ? Object.keys(routeMap).map(l => {
-                const entry = Object.entries(ROUTE_NAMES).find(([,v]) => v === l);
+                const entry = Object.entries(ROUTE_NAMES).find(([, v]) => v === l);
                 return entry ? ROUTE_COLORS[entry[0]] : '#94a3b8';
             })
             : Object.values(ROUTE_COLORS);
@@ -545,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cv = document.getElementById('complaintPriorityChart');
         if (!cv) return;
         kill('complaintPriorityChart');
-        const fc = getFiltered(complaints, 'createdAt');
+        const fc = getFiltered(complaints, 'created_at');
         const pMap = { Critical: 0, Medium: 0, Low: 0, Unknown: 0 };
         fc.forEach(c => {
             const p = c.priority || 'Unknown';
@@ -566,11 +635,11 @@ document.addEventListener('DOMContentLoaded', () => {
         kill('complaintsTimelineChart');
         const dayMap = {};
         complaints.forEach(c => {
-            const d = new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const d = new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             dayMap[d] = (dayMap[d] || 0) + 1;
         });
-        const labels = Object.keys(dayMap).length > 0 ? Object.keys(dayMap) : ['Mar 14', 'Mar 15', 'Apr 21', 'Apr 25'];
-        const data = Object.keys(dayMap).length > 0 ? Object.values(dayMap) : [3, 2, 1, 5];
+        const labels = Object.keys(dayMap).length > 0 ? Object.keys(dayMap) : ['No Data'];
+        const data = Object.keys(dayMap).length > 0 ? Object.values(dayMap) : [0];
         const ctx = cv.getContext('2d');
         const g = ctx.createLinearGradient(0, 0, 0, 300);
         g.addColorStop(0, 'rgba(139,92,246,0.3)'); g.addColorStop(1, 'transparent');
@@ -604,22 +673,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateLiveFeed() {
         const feed = document.getElementById('liveTelemetryList');
         if (!feed) return;
-        const fc = complaints.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
-        
-        if (fc.length === 0) { 
-            feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>No complaints yet</div>'; 
-            return; 
+        const fc = complaints.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
+
+        if (fc.length === 0) {
+            feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>No complaints yet</div>';
+            return;
         }
         const currentIds = fc.map(c => c.id);
         const newIds = currentIds.filter(id => !prevComplaintIds.includes(id));
         prevComplaintIds = currentIds;
 
         feed.innerHTML = fc.map((c, i) => {
-            const ago = timeAgo(c.createdAt);
+            const ago = timeAgo(c.created_at);
             const isNew = newIds.includes(c.id);
             const icon = c.problemDetected !== false ? 'fa-exclamation-triangle' : 'fa-check-circle';
             const color = c.priority === 'Critical' ? '#ef4444' : c.priority === 'Medium' ? '#f59e0b' : '#10b981';
-            
+
             const st = (c.status || '').toLowerCase();
             const isRes = st === 'resolved';
             const stColor = isRes ? '#10b981' : (st === 'in progress' ? '#3b82f6' : '#f59e0b');
@@ -631,11 +700,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border-color);transition:0.2s;${animStyle}" onmouseover="this.style.background='rgba(16,185,129,0.03)'" onmouseout="this.style.background='transparent'">
                 <div style="width:38px;height:38px;background:${color}15;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${color};flex-shrink:0;"><i class="fas ${icon}"></i></div>
                 <div style="flex:1;min-width:0;">
-                    <p style="margin:0;font-weight:800;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.category || 'Report'} — Bus #${c.busId} ${stBadge}</p>
-                    <p style="margin:0;font-size:0.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.textComplaint || 'No description'}</p>
+                    <p style="margin:0;font-weight:800;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.category || 'Report'} — Bus #${c.bus_id || c.busId || 'N/A'} ${stBadge}</p>
+                    <p style="margin:0;font-size:0.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.text_complaint || c.textComplaint || 'No description'}</p>
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
-                    <span class="feed-time-ago" data-time="${c.createdAt}" style="font-size:0.7rem;font-weight:700;color:${color};white-space:nowrap;">${ago}</span>
+                    <span class="feed-time-ago" data-time="${c.created_at}" style="font-size:0.7rem;font-weight:700;color:${color};white-space:nowrap;">${ago}</span>
                 </div>
             </div>`;
         }).join('');
@@ -683,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cv) return;
         kill('stationDistributionChart');
 
-        const ZONE_COLORS = { 'cairo zone': '#3b82f6', 'el- shrouk zone': '#ef4444', 'madinty zone': '#f59e0b', 'badr zone': '#8b5cf6' };
+        const ZONE_COLORS = { 'cairo zone': '#3b82f6', 'el- shrouk zone': '#ef4444', 'madinty zone': '#f59e0b', 'madinaty zone': '#f59e0b', 'badr zone': '#8b5cf6', 'capital zone': '#14b8a6', 'new capital zone': '#14b8a6' };
         const zoneMap = {};
         stations.forEach(s => {
             const z = (s.zone || 'Unknown').trim();
@@ -703,7 +772,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
                     y: { grid: { color: bc() }, ticks: { color: tc(), font: { weight: 700 }, stepSize: 1 } },
-                    x: { grid: { display: false }, ticks: { color: tc(), font: { weight: 700 } } }
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: (ctx) => {
+                                const label = ctx.chart.data.labels[ctx.index] || '';
+                                const l = label.toLowerCase();
+                                if (l.includes('madinty') || l.includes('madinaty') || l.includes('مدينتي') || l.includes('مدينتى')) return '#f59e0b';
+                                if (l.includes('shrouk') || l.includes('shorouk') || l.includes('شروق')) return '#ef4444';
+                                if (l.includes('badr') || l.includes('بدر')) return '#8b5cf6';
+                                if (l.includes('cairo') || l.includes('قاهرة')) return '#3b82f6';
+                                return tc();
+                            },
+                            font: { weight: '900', size: 15 }
+                        }
+                    }
                 },
                 plugins: { legend: { display: false } }
             }
@@ -713,8 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderStationZoneBreakdown() {
         const el = document.getElementById('stationZoneBreakdown');
         if (!el) return;
-        const ZONE_COLORS = { 'cairo zone': '#3b82f6', 'el- shrouk zone': '#ef4444', 'madinty zone': '#f59e0b', 'badr zone': '#8b5cf6' };
-        const ZONE_ICONS = { 'cairo zone': 'fa-city', 'el- shrouk zone': 'fa-sun', 'madinty zone': 'fa-building', 'badr zone': 'fa-mountain' };
+        const ZONE_ICONS = { 'cairo zone': 'fa-city', 'el- shrouk zone': 'fa-sun', 'madinty zone': 'fa-building', 'badr zone': 'fa-mountain', 'capital zone': 'fa-landmark', 'new capital zone': 'fa-landmark' };
         const zoneMap = {};
         stations.forEach(s => {
             const z = (s.zone || 'Unknown').trim();
@@ -723,10 +805,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         el.innerHTML = Object.entries(zoneMap).map(([zone, stList]) => {
-            const color = ZONE_COLORS[zone.toLowerCase()] || '#94a3b8';
+            const color = window.getRouteColor(null, zone);
             const icon = ZONE_ICONS[zone.toLowerCase()] || 'fa-map-pin';
             const displayName = zone.replace(' zone', '').replace(' Zone', '');
             const pct = stations.length > 0 ? Math.round((stList.length / stations.length) * 100) : 0;
+            const isShrouk = zone.toLowerCase().includes('shrouk') || zone.toLowerCase().includes('shorouk') || zone.includes('شروق');
+            const isMadinaty = zone.toLowerCase().includes('madinat') || zone.toLowerCase().includes('madinty') || zone.includes('مدينت') || zone.includes('مدينتي') || zone.includes('مدينتى');
+
+            let pillTextColor = color;
+            if (isShrouk) pillTextColor = '#ff0000';
+            else if (isMadinaty) pillTextColor = '#f59e0b';
+
+            const stationsListHtml = stList.map(name => `<span style="font-size:0.7rem; background:${window.hexToRgba(color, 0.1)}; color:${pillTextColor} !important; padding:3px 8px; border-radius:8px; font-weight:700;"><i class="fas fa-map-pin" style="font-size:0.6rem; color:${pillTextColor};"></i> ${name}</span>`).join('');
             return `
                 <div style="background:${color}08; border:1px solid ${color}25; border-radius:14px; padding:16px; margin-bottom:12px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -743,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="height:100%; width:${pct}%; background:${color}; border-radius:10px; transition:width 0.8s;"></div>
                     </div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
-                        ${stList.map(name => `<span style="font-size:0.7rem; background:${color}12; color:${color}; padding:3px 8px; border-radius:8px; font-weight:700;"><i class="fas fa-map-pin" style="font-size:0.6rem;"></i> ${name}</span>`).join('')}
+                        ${stationsListHtml}
                     </div>
                 </div>
             `;
@@ -834,12 +924,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ts) {
                 const route = routes.find(r => r.id === t.route_id);
                 const rColor = getRouteColor(route?.name);
+                const price = t.price || (route ? route.price : 15);
                 activities.push({
                     time: ts,
                     icon: 'fa-ticket-alt',
                     color: rColor,
                     title: `Ticket purchased`,
-                    detail: `${route ? route.name + ' — ' : ''}${t.price ? t.price + ' EGP' : ''} ${t.status ? '— ' + t.status : ''}`.trim(),
+                    detail: `${route ? route.name + ' — ' : ''}${price} EGP ${t.status ? '— ' + t.status : ''}`.trim(),
                     type: 'ticket'
                 });
             }

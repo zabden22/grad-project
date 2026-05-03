@@ -4,7 +4,7 @@
         const initTheme = () => {
             const currentTheme = localStorage.getItem('siteTheme') || 'light';
             document.documentElement.setAttribute('data-theme', currentTheme);
-            injectNeuralBackground();
+            if (window.injectNeuralBackground) window.injectNeuralBackground();
         };
         initTheme();
 
@@ -12,55 +12,85 @@
         const themeObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.attributeName === 'data-theme') {
-                    const newTheme = document.documentElement.getAttribute('data-theme');
-                    if (newTheme === 'dark') injectNeuralBackground();
+                    if (window.injectNeuralBackground) window.injectNeuralBackground();
                 }
             });
         });
         themeObserver.observe(document.documentElement, { attributes: true });
 
+        // INJECT CSS FOR USER DROPDOWN
+        const udStyles = document.createElement('style');
+        udStyles.innerHTML = `
+            .user-dropdown {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                width: 280px;
+                background: var(--bg-card);
+                border: 1px solid var(--border-color);
+                border-radius: 16px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                opacity: 0;
+                visibility: hidden;
+                transform: translateY(10px);
+                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                z-index: 9999;
+                margin-top: 15px;
+            }
+            .user-dropdown.show {
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(0);
+            }
+            .ud-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                color: var(--text-main);
+                font-size: 0.9rem;
+                font-weight: 700;
+                text-decoration: none;
+                transition: background 0.2s;
+            }
+            .ud-item:hover {
+                background: var(--bg-main);
+            }
+        `;
+        document.head.appendChild(udStyles);
+
         const triggers = document.querySelectorAll('.user-info, .profile-pill, .dropdown-trigger');
         
-        triggers.forEach(trigger => {
-            const adminName = localStorage.getItem('activeAdminName') || localStorage.getItem('adminName') || 'Admin';
-            const adminEmail = localStorage.getItem('activeAdminEmail') || localStorage.getItem('adminEmail') || '';
-            const adminRole = localStorage.getItem('adminRole') || 'Admin';
+        triggers.forEach((trigger, index) => {
+            const adminName = localStorage.getItem('activeAdminName') || localStorage.getItem('adminName') || 'Commander';
+            const adminEmail = localStorage.getItem('activeAdminEmail') || localStorage.getItem('adminEmail') || 'admin@transitway.com';
             const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true';
-            let adminPhoto = '';
-
-            const updateAvatarUI = (url) => {
-                const avatarImg = trigger.querySelector('.admin-avatar-small, #topAvatar');
-                if (avatarImg) avatarImg.src = url;
-                const udAvatar = trigger.querySelector('.ud-avatar');
-                if (udAvatar) udAvatar.src = url;
-            };
-
-            const initialAvatarUrl = adminPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=568e74&color=fff&size=80&bold=true`;
             
-            // Sync from DB
-            if (adminEmail && typeof supabase !== 'undefined') {
-                supabase.from('admins').select('photo_url, photo').eq('email', adminEmail).single().then(({data}) => {
-                    if (data) {
-                        const dbPhoto = data.photo_url || data.photo;
-                        if (dbPhoto) {
-                            adminPhoto = dbPhoto;
-                            updateAvatarUI(dbPhoto);
-                        }
-                    }
-                }).catch(e => console.warn('Dropdown sync error:', e));
-            }
-
             const roleColor = isSuperAdmin ? '#8b5cf6' : '#10b981';
             const roleIcon = isSuperAdmin ? 'fa-crown' : 'fa-shield-alt';
             const roleText = isSuperAdmin ? 'Super Administrator' : 'Administrator';
 
+            const currentLang = localStorage.getItem('transitLang') || 'en';
+            const langLabel = currentLang === 'ar' ? 'العربية' : 'English';
+            const langNext = currentLang === 'ar' ? 'EN' : 'AR';
+
+            // Ensure unique ID if multiple triggers exist
+            const dropId = 'udDrop_' + index;
+            trigger.setAttribute('data-target-drop', dropId);
+            trigger.style.cursor = 'pointer';
+
             const dropdown = document.createElement('div');
             dropdown.className = 'user-dropdown';
+            dropdown.id = dropId;
+            
+            // Default avatar
+            const initialAvatarUrl = localStorage.getItem('adminProfilePhoto') || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=568e74&color=fff&size=80&bold=true`;
+
             dropdown.innerHTML = `
                 <div class="ud-header" style="background: linear-gradient(135deg, ${roleColor}15 0%, ${roleColor}08 100%); padding: 20px; border-radius: 16px 16px 0 0; text-align: center; border-bottom: 1px solid var(--border-color);">
                     <div style="position:relative; display:inline-block;">
                         <img class="ud-avatar" src="${initialAvatarUrl}" alt="${adminName}" style="width: 72px; height: 72px; border-radius: 50%; border: 3px solid ${roleColor}; margin-bottom: 10px; object-fit: cover; box-shadow: 0 4px 15px ${roleColor}30;">
-                        <span style="position:absolute; bottom:8px; right:-2px; width:14px; height:14px; background:#22c55e; border:2.5px solid var(--bg-card); border-radius:50;"></span>
+                        <span style="position:absolute; bottom:8px; right:-2px; width:14px; height:14px; background:#22c55e; border:2.5px solid var(--bg-card); border-radius:50%;"></span>
                     </div>
                     <div>
                         <p class="ud-name" style="font-weight: 900; font-size: 1.1rem; margin: 0; color: var(--text-main);">${adminName}</p>
@@ -71,50 +101,121 @@
                     </div>
                 </div>
                 <div style="padding: 8px;">
+                    <a href="settings.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-user-circle" style="width:20px; color:#06b6d4;"></i> My Profile</a>
                     <a href="dashboard.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-th-large" style="width:20px; color:#3b82f6;"></i> Dashboard</a>
-                    <a href="settings.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-user-circle" style="width:20px; color:#10b981;"></i> My Profile</a>
-                    <a href="settings.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-cog" style="width:20px; color:#8b5cf6;"></i> System Settings</a>
-                    <a href="admins.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-users-cog" style="width:20px; color:#f59e0b;"></i> Management Panel</a>
+                    <a href="settings.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-cog" style="width:20px; color:#8b5cf6;"></i> Settings</a>
                     <div class="ud-divider" style="height: 1px; background: var(--border-color); margin: 6px 12px;"></div>
-                    <div class="ud-item" id="udLangToggle" style="border-radius:10px; cursor:pointer;"><i class="fas fa-globe" style="width:20px; color:#64748b;"></i> Change Language</div>
-                    <div class="ud-item danger" id="udLogout" style="color: #ef4444; font-weight: 700; cursor: pointer; border-radius:10px;"><i class="fas fa-sign-out-alt" style="width: 20px;"></i> Log Out</div>
+                    <div class="ud-item ud-lang-switch" style="border-radius:10px; cursor:pointer; justify-content:space-between;">
+                        <div style="display:flex; align-items:center; gap:10px;"><i class="fas fa-globe" style="width:20px; color:#f59e0b;"></i> Language</div>
+                        <span style="background:rgba(245,158,11,0.1); color:#f59e0b; font-size:0.72rem; font-weight:900; padding:3px 10px; border-radius:20px; border:1px solid rgba(245,158,11,0.2);">${langLabel} → ${langNext}</span>
+                    </div>
+                    <div class="ud-item ud-theme-switch" style="border-radius:10px; cursor:pointer; justify-content:space-between;">
+                        <div style="display:flex; align-items:center; gap:10px;"><i class="fas ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'fa-sun' : 'fa-moon'}" style="width:20px; color:#a855f7;"></i> Theme</div>
+                        <span style="background:rgba(168,85,247,0.1); color:#a855f7; font-size:0.72rem; font-weight:900; padding:3px 10px; border-radius:20px; border:1px solid rgba(168,85,247,0.2);">${document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️ Light' : '🌙 Dark'}</span>
+                    </div>
+                    <div class="ud-divider" style="height: 1px; background: var(--border-color); margin: 6px 12px;"></div>
+                    <div class="ud-item danger ud-logout-btn" style="color: #ef4444; font-weight: 700; cursor: pointer; border-radius:10px;"><i class="fas fa-sign-out-alt" style="width: 20px;"></i> Log Out</div>
                 </div>
             `;
+            
+            // Append to trigger
             trigger.appendChild(dropdown);
-            trigger.style.cursor = 'pointer';
 
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                document.querySelectorAll('.user-dropdown.show').forEach(d => {
-                    if (d !== dropdown) d.classList.remove('show');
+            // Fetch Live Photo
+            const updateAvatarUI = (url) => {
+                localStorage.setItem('adminProfilePhoto', url);
+                const avatars = document.querySelectorAll('.admin-avatar-small, #topAvatar, #welcomeAvatar, .ud-avatar');
+                avatars.forEach(img => {
+                    if (img) img.src = url;
                 });
-                dropdown.classList.toggle('show');
-            });
-            dropdown.addEventListener('click', (e) => {
+                // Also update header-right profile pill if it exists
+                const pillImg = trigger.querySelector('img');
+                if (pillImg) pillImg.src = url;
+            };
+
+            if (typeof window.supabaseAuth !== 'undefined' && window.supabaseAuth) {
+                // 1. Try Supabase Auth metadata first
+                try {
+                    window.supabaseAuth.auth.getUser().then(({data: {user}}) => {
+                        if (user?.user_metadata?.avatar_url) {
+                            updateAvatarUI(user.user_metadata.avatar_url);
+                        }
+                    }).catch(()=>{});
+                } catch(e){}
+
+                // 2. Try Database record
+                if (adminEmail && adminEmail !== 'admin@transitway.com') {
+                    supabase.from('admins').select('photo_url, photo').eq('email', adminEmail).single().then(({data}) => {
+                        if (data && (data.photo_url || data.photo)) {
+                            const dbPhoto = data.photo_url || data.photo;
+                            updateAvatarUI(dbPhoto);
+                        }
+                    }).catch(()=>{});
+                }
+
+                // 3. Real-time listener for profile changes
+                if (adminEmail) {
+                    supabase.channel('admin_profile_sync')
+                        .on('postgres_changes', { 
+                            event: 'UPDATE', 
+                            schema: 'public', 
+                            table: 'admins',
+                            filter: `email=eq.${adminEmail}`
+                        }, (payload) => {
+                            if (payload.new && (payload.new.photo_url || payload.new.photo)) {
+                                updateAvatarUI(payload.new.photo_url || payload.new.photo);
+                            }
+                        })
+                        .subscribe();
+                }
+            }
+        });
+
+        // Simpler Event Delegation for Toggle
+        document.addEventListener('click', (e) => {
+            const isClickInsideTrigger = e.target.closest('.profile-pill, .dropdown-trigger');
+            const isClickInsideDropdown = e.target.closest('.user-dropdown');
+            
+            // Close all dropdowns if clicking outside
+            if (!isClickInsideTrigger && !isClickInsideDropdown) {
+                document.querySelectorAll('.user-dropdown.show').forEach(d => d.classList.remove('show'));
+                return;
+            }
+
+            // If clicked on trigger, toggle the specific dropdown
+            if (isClickInsideTrigger) {
+                // If the click is actually INSIDE an already open dropdown, let it pass (don't toggle)
+                if (isClickInsideDropdown) return;
+                
+                e.preventDefault();
                 e.stopPropagation();
-            });
+                
+                const dropdown = isClickInsideTrigger.querySelector('.user-dropdown');
+                if (dropdown) {
+                    const wasShowing = dropdown.classList.contains('show');
+                    document.querySelectorAll('.user-dropdown.show').forEach(d => d.classList.remove('show'));
+                    if (!wasShowing) dropdown.classList.add('show');
+                }
+            }
         });
 
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.user-dropdown.show').forEach(d => d.classList.remove('show'));
-        });
-
-        const logoutBtn = document.getElementById('udLogout');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
+        // Event Delegation for Dropdown Actions
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.ud-logout-btn')) {
                 if (typeof window.confirmLogout === 'function') window.confirmLogout();
-            });
-        }
-
-        const udLangBtn = document.getElementById('udLangToggle');
-        if (udLangBtn) {
-            udLangBtn.addEventListener('click', () => {
-                const currentLang = localStorage.getItem('transitLang') || 'en';
-                const nextLang = currentLang === 'en' ? 'ar' : 'en';
+            }
+            if (e.target.closest('.ud-lang-switch')) {
+                const nextLang = (localStorage.getItem('transitLang') || 'en') === 'en' ? 'ar' : 'en';
                 localStorage.setItem('transitLang', nextLang);
                 window.location.reload();
-            });
-        }
+            }
+            if (e.target.closest('.ud-theme-switch')) {
+                const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('siteTheme', newTheme);
+                document.querySelectorAll('.user-dropdown.show').forEach(d => d.classList.remove('show'));
+            }
+        });
 
         const sidebar = document.querySelector('.sidebar');
         const sidebarToggle = document.getElementById('sidebarToggle');
@@ -285,15 +386,46 @@
         }
     };
 
-    function injectNeuralBackground() {
-        if (document.querySelector('.neural-bg')) return;
+    window.injectNeuralBackground = function() {
+        const particlesEnabled = localStorage.getItem('particlesEnabled') !== 'false';
+        const existingBg = document.querySelector('.neural-bg');
+        
+        if (!particlesEnabled) {
+            if (existingBg) existingBg.remove();
+            return;
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const baseColor = '#10b981';
+        const rgbColor = '16, 185, 129';
+
+        if (existingBg) {
+            const particles = existingBg.querySelectorAll('.neural-particle');
+            particles.forEach(p => {
+                const glowIntensity = p.dataset.glowIntensity || (Math.random() * 15 + 10);
+                const secondaryGlow = glowIntensity * 2;
+                const opacity = p.dataset.opacity || (Math.random() * 0.5 + 0.3);
+                
+                p.style.backgroundColor = baseColor;
+                p.style.boxShadow = `0 0 ${glowIntensity}px ${baseColor}, 0 0 ${secondaryGlow}px rgba(${rgbColor}, ${opacity})`;
+            });
+            return;
+        }
+
         const bg = document.createElement('div');
         bg.className = 'neural-bg';
+        bg.style.position = 'fixed';
+        bg.style.inset = '0';
+        bg.style.pointerEvents = 'none';
+        bg.style.zIndex = '-1';
+        bg.style.overflow = 'hidden';
         
         const particleCount = 40; // Increased for a more immersive feel
         for (let i = 0; i < particleCount; i++) {
             const p = document.createElement('div');
             p.className = 'neural-particle';
+            p.style.position = 'absolute';
+            p.style.borderRadius = '50%';
             
             // Randomize properties for a high-end feel
             const size = Math.random() * 10 + 2; // 2px to 12px
@@ -313,7 +445,12 @@
             const glowIntensity = (Math.random() * 15 + 10);
             const secondaryGlow = glowIntensity * 2;
             const opacity = (Math.random() * 0.5 + 0.3);
-            p.style.boxShadow = `0 0 ${glowIntensity}px #10b981, 0 0 ${secondaryGlow}px rgba(16, 185, 129, ${opacity})`;
+            
+            p.dataset.glowIntensity = glowIntensity;
+            p.dataset.opacity = opacity;
+            
+            p.style.backgroundColor = baseColor;
+            p.style.boxShadow = `0 0 ${glowIntensity}px ${baseColor}, 0 0 ${secondaryGlow}px rgba(${rgbColor}, ${opacity})`;
             
             bg.appendChild(p);
         }

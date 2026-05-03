@@ -12,15 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.currentViewingDriverId = null;
 
     // Helper: Colors
-    window.getRouteColor = function(routeId) {
-        if (!routeId) return '#568e74';
-        const id = String(routeId);
-        if (id === '8') return '#2563eb';
-        if (id === '11') return '#f97316';
-        if (id === '9') return '#dc2626';
-        if (id === '13') return '#8b5cf6';
-        return '#568e74';
-    };
+    function getDriverRouteColor(driver) {
+        if (!driver || !driver.routeId) return '#64748b';
+        const routeObj = (window.routesData || []).find(r => String(r.id) === String(driver.routeId));
+        const routeName = routeObj ? routeObj.name : null;
+        return window.getRouteColor(driver.routeId, routeName);
+    }
 
     // Helper: Populate Dropdowns
     window.populateAssignDropdowns = function() {
@@ -57,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (!silent) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px;"><i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:var(--primary-color);"></i><p style="margin-top:15px; font-weight:900;">Establishing Neural Link...</p></td></tr>`;
+                tbody.innerHTML = Array(5).fill('<tr><td colspan="7"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
             }
 
             await window.loadBusesAndRoutes();
@@ -91,6 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    let currentFilter = 'all';
+
     window.renderDriverTable = function(list = window.driversData) {
         const tbody = document.getElementById('driverTableBody');
         if(!tbody) return;
@@ -100,13 +99,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.getElementById('sumOnDutyDrivers')) document.getElementById('sumOnDutyDrivers').textContent = window.driversData.filter(d => d.busId).length;
         if (document.getElementById('sumUnassignedDrivers')) document.getElementById('sumUnassignedDrivers').textContent = window.driversData.filter(d => !d.busId).length;
 
-        if (list.length === 0) {
+        let filteredList = list;
+        if (currentFilter === 'active') filteredList = list.filter(d => (d.status || '').toLowerCase() === 'active');
+        else if (currentFilter === 'inactive') filteredList = list.filter(d => (d.status || '').toLowerCase() !== 'active');
+        else if (currentFilter === 'onduty') filteredList = list.filter(d => d.busId);
+        else if (currentFilter === 'standby') filteredList = list.filter(d => !d.busId);
+
+        if (filteredList.length === 0) {
             tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:80px; color:var(--text-muted); font-weight:800;"><i class="fas fa-user-astronaut" style="font-size:4rem; display:block; margin-bottom:20px; opacity:0.2;"></i>No personnel detected.<br><button class="btn-primary" style="margin-top:20px; padding:10px 25px;" onclick="window.openModal('addDriverModal')"><i class="fas fa-plus"></i> Register</button></td></tr>`;
             return;
         }
 
         tbody.innerHTML = '';
-        list.forEach((driver, index) => {
+        filteredList.forEach((driver, index) => {
             const serialNum = String(index + 1).padStart(4, '0');
             const isActive  = (driver.status || '').toLowerCase() === 'active';
             const statusBadge = isActive ? `<span class="status-badge status-active"><div class="pulse-dot"></div> OPERATIONAL</span>` : `<span class="status-badge status-inactive">STANDBY</span>`;
@@ -138,6 +143,29 @@ document.addEventListener('DOMContentLoaded', () => {
             tbody.appendChild(tr);
         });
     };
+
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+            const h3 = card.querySelector('h3');
+            if (!h3) return;
+            const id = h3.id;
+            
+            statCards.forEach(c => c.style.border = '1px solid var(--border-color)');
+            card.style.border = '1px solid var(--primary-color)';
+            
+            if (id === 'sumTotalDrivers') currentFilter = 'all';
+            else if (id === 'sumActiveDrivers') currentFilter = 'active';
+            else if (id === 'sumOnDutyDrivers') currentFilter = 'onduty';
+            else if (id === 'sumUnassignedDrivers') currentFilter = 'standby';
+            
+            const sInput = document.getElementById('driverSearchInput');
+            const query = sInput ? sInput.value.toLowerCase().trim() : '';
+            const filtered = window.driversData.filter(d => d.name.toLowerCase().includes(query) || d.license.toLowerCase().includes(query));
+            window.renderDriverTable(filtered);
+        });
+    });
 
     // --- Dynamic Modal Content ---
     let efficiencyChart = null;
@@ -401,4 +429,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.loadDrivers();
+
+    if (window.supabaseAuth) {
+        window.supabaseAuth.channel('drivers_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => {
+                window.loadDrivers(true);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'buses' }, () => {
+                window.loadDrivers(true);
+            })
+            .subscribe();
+    }
 });

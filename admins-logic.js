@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('adminSearchInput');
 
     async function loadAdmins() {
+        if (grid && adminsData.length === 0) {
+            grid.innerHTML = Array(4).fill('<div class="admin-card"><div class="skeleton" style="width:100%;height:300px;border-radius:16px;"></div></div>').join('');
+        }
         try {
             const { data, error } = await supabase.from('admins').select('*');
             if (error) throw error;
@@ -34,14 +37,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.getElementById('admStatSuper')) document.getElementById('admStatSuper').innerText = superAdmins;
     }
 
+    let currentFilter = 'all';
+
     function renderAdmins() {
         if (!grid) return;
         const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
         const isAr = (typeof getLang === 'function' && getLang() === 'ar');
 
         let filtered = adminsData;
+
+        // Apply Status Filter
+        if (currentFilter === 'active') {
+            filtered = filtered.filter(a => {
+                const s = (a.status || '').toLowerCase();
+                return !s || s === 'online' || s === 'active';
+            });
+        } else if (currentFilter === 'inactive') {
+            filtered = filtered.filter(a => {
+                const s = (a.status || '').toLowerCase();
+                return s && s !== 'online' && s !== 'active';
+            });
+        } else if (currentFilter === 'super') {
+            filtered = filtered.filter(a => a.role === 'Super Admin');
+        }
+
         if (query) {
-            filtered = adminsData.filter(a => 
+            filtered = filtered.filter(a => 
                 (a.full_name || '').toLowerCase().includes(query) ||
                 (a.email || '').toLowerCase().includes(query) ||
                 (a.role || '').toLowerCase().includes(query) ||
@@ -119,6 +140,26 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (searchInput) searchInput.addEventListener('input', renderAdmins);
+
+    const statCards = document.querySelectorAll('.admin-stat-card');
+    statCards.forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+            const h3 = card.querySelector('h3');
+            if (!h3) return;
+            const id = h3.id;
+            
+            statCards.forEach(c => c.style.border = '1px solid var(--border-color)');
+            card.style.border = '2px solid var(--primary-color)';
+            
+            if (id === 'admStatTotal') currentFilter = 'all';
+            else if (id === 'admStatActive') currentFilter = 'active';
+            else if (id === 'admStatInactive') currentFilter = 'inactive';
+            else if (id === 'admStatSuper') currentFilter = 'super';
+            
+            renderAdmins();
+        });
+    });
 
     window.viewAdmin = (id) => {
         const admin = adminsData.find(a => a.id === id);
@@ -288,4 +329,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loadAdmins();
+
+    if (window.supabaseAuth) {
+        window.supabaseAuth.channel('admins_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'admins' }, () => {
+                loadAdmins();
+            })
+            .subscribe();
+    }
 });

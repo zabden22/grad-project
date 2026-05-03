@@ -54,11 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadRoutes();
 
-    function getRouteInfo(routeId) {
-        const name = routesMap[routeId] || '';
-        if (name.toLowerCase().includes('blue')) return { line: name, color: '#3b82f6' };
-        if (name.toLowerCase().includes('orange')) return { line: name, color: '#f59e0b' };
-        return { line: name || 'Route', color: 'var(--primary-color)' };
+    function getRouteInfo(routeId, zoneName) {
+        const rName = routesMap[routeId] || '';
+        // Prioritize zone-based coloring for visual distinction as requested
+        const color = window.getRouteColor(routeId, zoneName || rName);
+        return { line: rName || 'Route', color: color };
     }
 
     async function loadStations(silent = false) {
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             stationsData = data.map(s => {
                 const rId = s.route_id || 0;
-                const routeInfo = getRouteInfo(rId);
+                const routeInfo = getRouteInfo(rId, s.zone);
                 return {
                     id: s.id,
                     name: s.name || 'Unknown Station',
@@ -148,11 +148,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr>
                     <td style="font-weight:bold; color:var(--text-muted);" data-id="${st.id}">#ST-${serialNum}</td>
                     <td>
-                        <div style="display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.05rem;">
-                            <i class="fas fa-map-marker-alt" style="color:${st.color}; font-size:1.2rem;"></i>
+                        <div style="display:flex; align-items:center; gap:10px; font-weight:900; font-size:1.1rem; color:${st.color};">
+                            <i class="fas fa-map-marker-alt" style="font-size:1.2rem;"></i>
                             ${st.name}
                         </div>
-                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px; padding-left:28px;">Zone: ${st.zone}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px; padding-left:28px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">
+                            <span style="background:${st.color}15; color:${st.color}; padding:2px 8px; border-radius:4px; border:1px solid ${st.color}25;">${st.zone}</span>
+                        </div>
                     </td>
                     <td style="font-family:monospace; color:var(--text-muted); font-size:0.9rem;">
                         <i class="fas fa-location-arrow" style="font-size:0.8rem; margin-right:5px;"></i>
@@ -196,7 +198,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loadStations();
-    setInterval(() => loadStations(true), 10000);
+    
+    if (window.supabaseAuth) {
+        window.supabaseAuth.channel('stations_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, (payload) => {
+                const mapStationData = (s) => {
+                    const rId = s.route_id || 0;
+                    const routeInfo = getRouteInfo(rId, s.zone);
+                    return {
+                        id: s.id,
+                        name: s.name || 'Unknown Station',
+                        lat: parseFloat(s.latitude) || 0,
+                        lng: parseFloat(s.longitude) || 0,
+                        zone: s.zone || '—',
+                        routeId: rId,
+                        line: routeInfo.line,
+                        color: routeInfo.color,
+                        status: s.status || 'Active'
+                    };
+                };
+                if (payload.eventType === 'INSERT') {
+                    stationsData.unshift(mapStationData(payload.new));
+                } else if (payload.eventType === 'UPDATE') {
+                    const idx = stationsData.findIndex(s => s.id === payload.new.id);
+                    if (idx !== -1) stationsData[idx] = mapStationData(payload.new);
+                } else if (payload.eventType === 'DELETE') {
+                    const idx = stationsData.findIndex(s => s.id === payload.old.id);
+                    if (idx !== -1) stationsData.splice(idx, 1);
+                }
+                renderTable();
+            })
+            .subscribe();
+    }
 
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {

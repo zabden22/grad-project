@@ -80,10 +80,13 @@
                 
                 <div class="v-card modern-welcome-banner" style="grid-column: span 4; display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:25px;">
-                        <img id="welcomeAvatar" src="https://ui-avatars.com/api/?name=Admin&background=10b981&color=fff" style="width:75px; height:75px; border-radius:50%; border:3px solid var(--primary-color); box-shadow: 0 0 20px var(--primary-glow);">
+                        <a href="settings.html" style="position:relative; display:inline-block; transition:0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                            <img id="welcomeAvatar" src="https://ui-avatars.com/api/?name=Admin&background=10b981&color=fff" style="width:75px; height:75px; border-radius:50%; border:3px solid var(--primary-color); box-shadow: 0 0 20px var(--primary-glow); object-fit: cover;">
+                            <div style="position:absolute; bottom:0; right:0; width:22px; height:22px; background:var(--primary-color); border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; color:#fff; font-size:0.7rem;"><i class="fas fa-pen"></i></div>
+                        </a>
                         <div>
                             <h2 style="font-weight:900; margin:0; font-size:2rem;"><span data-i18n="welcome_back">Welcome, </span><span id="heroAdminName">Commander</span></h2>
-                            <p style="color:var(--text-muted); font-weight:600;"><span data-i18n="fleet_status">Fleet Status: </span><span id="fleetStatusIndicator" style="color:#10b981;" data-i18n="all_systems_operational">? ALL SYSTEMS OPERATIONAL</span></p>
+                            <p style="color:var(--text-muted); font-weight:600;"><span data-i18n="fleet_status">Fleet Status: </span><span id="fleetStatusIndicator" style="color:#10b981;" data-i18n="all_systems_operational">● ALL SYSTEMS OPERATIONAL</span></p>
                         </div>
                     </div>
                     <div style="text-align:right;">
@@ -109,7 +112,7 @@
                         <i class="fas fa-arrow-up"></i> <span data-i18n="in_fleet">In Fleet</span>
                     </div>
                 </div>
-                <div class="v-card metric-card">
+                <div class="v-card metric-card" style="cursor:pointer;" onclick="window.location.href='reports.html'">
                     <div class="metric-header"><span data-i18n="complaints">COMPLAINTS</span><i class="fas fa-exclamation-circle" style="color:#f59e0b;"></i></div>
                     <div class="metric-value-box"><h3 id="totalComplaintsCount">--</h3></div>
                     <div class="sparkline-box"><canvas id="complaintSparkChart"></canvas></div>
@@ -159,7 +162,7 @@
                 </div>
 
                 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='reports.html'">
                     <div class="metric-header">
                         <h4 style="font-weight:900;"><i class="fas fa-chart-pie" style="color:var(--primary-color); margin-right:8px;"></i>Complaints Breakdown</h4>
                     </div>
@@ -215,7 +218,7 @@
 
                 
                 <div class="v-card" style="grid-column: span 2; display:flex; flex-direction:column;">
-                    <div class="metric-header">
+                    <div class="metric-header" style="cursor:pointer;" onclick="window.location.href='reports.html'">
                         <h4 style="font-weight:900;"><i class="fas fa-rss" style="color:#10b981; margin-right:8px;"></i>Live Complaints Feed</h4>
                         <span class="status-badge-pulse" style="font-size:0.7rem; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:20px; display:flex; align-items:center; gap:5px;"><span style="width:6px; height:6px; background:#10b981; border-radius:50%; animation: pulse 1.5s infinite;"></span> LIVE</span>
                     </div>
@@ -242,7 +245,7 @@
                     <div style="height:220px;"><canvas id="networkRadarChart"></canvas></div>
                 </div>
 
-                <div class="v-card" style="grid-column: span 1;">
+                <div class="v-card" style="grid-column: span 1; cursor:pointer;" onclick="window.location.href='reports.html'">
                     <h4 style="font-weight:900; margin-bottom:20px;"><i class="fas fa-fire" style="color:#ef4444; margin-right:8px;"></i>Complaint Priority</h4>
                     <div style="height:220px;"><canvas id="complaintPriorityChart"></canvas></div>
                 </div>
@@ -262,7 +265,7 @@
                 </div>
 
                 
-                <div class="v-card" style="grid-column: span 3;">
+                <div class="v-card" style="grid-column: span 3; cursor:pointer;" onclick="window.location.href='reports.html'">
                     <div class="metric-header">
                         <h4 style="font-weight:900;"><i class="fas fa-chart-area" style="color:#8b5cf6; margin-right:8px;"></i>Complaints Timeline</h4>
                     </div>

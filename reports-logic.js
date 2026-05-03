@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const adminName = localStorage.getItem('activeAdminName') || 'Admin';
+    const adminName = localStorage.getItem('activeAdminName') || localStorage.getItem('adminName') || 'Commander';
     if (document.getElementById('topBarName')) document.getElementById('topBarName').innerText = adminName;
+    const adminPhoto = localStorage.getItem('adminProfilePhoto');
+    if (adminPhoto && document.getElementById('topAvatar')) document.getElementById('topAvatar').src = adminPhoto;
+
     const currentTheme = localStorage.getItem('siteTheme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
 
@@ -206,5 +209,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.loadReports();
-    setInterval(window.loadReports, 8000);
+    
+    if (window.supabaseAuth) {
+        window.supabaseAuth.channel('reports_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    reportsData.unshift(payload.new);
+                } else if (payload.eventType === 'UPDATE') {
+                    const idx = reportsData.findIndex(r => r.id === payload.new.id);
+                    if (idx !== -1) reportsData[idx] = { ...reportsData[idx], ...payload.new };
+                } else if (payload.eventType === 'DELETE') {
+                    const idx = reportsData.findIndex(r => r.id === payload.old.id);
+                    if (idx !== -1) reportsData.splice(idx, 1);
+                }
+                updateStats();
+                filterReports();
+            })
+            .subscribe();
+    }
 });

@@ -113,6 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             const nowActive = btn.classList.toggle('active');
             localStorage.setItem(key, nowActive);
+            if (key === 'particlesEnabled' && typeof window.injectNeuralBackground === 'function') {
+                window.injectNeuralBackground();
+            }
         });
     });
 
@@ -125,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = async (ev) => {
             const photoData = ev.target.result;
             document.getElementById('profileAvatar').src = photoData;
-            document.getElementById('topAvatar').src = photoData;
+            localStorage.setItem('adminProfilePhoto', photoData);
             
             // Fixed: use 'photo_url' column and correct order (eq before update)
             const { error } = await supabase.from('admins').eq('id', adminId).update({ photo_url: photoData });
@@ -133,6 +136,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error(error);
                 Swal.fire('Portrait Error', error.message, 'error');
             } else {
+                // Manually trigger a UI refresh for other avatars on this page
+                document.querySelectorAll('.admin-avatar-small, #topAvatar, #welcomeAvatar, .ud-avatar').forEach(img => {
+                    if (img) img.src = photoData;
+                });
                 Swal.fire({ icon: 'success', title: 'Portrait Updated', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
             }
         };

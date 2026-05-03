@@ -25,10 +25,10 @@
             z-index: 1000; background: rgba(var(--bg-card-rgb, 255,255,255), 0.92);
             backdrop-filter: blur(12px);
             
-            padding: 16px 24px; border-radius: 16px;
-            display: flex; gap: 16px; align-items: flex-end;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            border: 1px solid var(--border-color); width: 80%; max-width: 780px;
+            padding: 12px 24px; border-radius: 20px;
+            display: flex; gap: 20px; align-items: center;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+            border: 1px solid var(--border-color); width: 90%; max-width: 980px;
         }
         .search-field { flex: 1; display: flex; flex-direction: column; gap: 6px; }
         .search-field label { font-size: 11px; font-weight: 800; color: var(--primary-color); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -91,7 +91,14 @@
         body.full-map-mode .top-header { display: none !important; }
         body.full-map-mode .main-viewport { margin-left: 0 !important; padding: 0 !important; width: 100% !important; height: 100vh !important; }
         body.full-map-mode .map-wrapper { border-radius: 0; border: none; height: 100vh !important; }
-        body.full-map-mode .map-search-panel { top: 20px; }
+        
+        body.full-map-mode #mapStats,
+        body.full-map-mode #heatToggle,
+        body.full-map-mode .map-search-panel,
+        body.full-map-mode #toggleSimBtn,
+        body.full-map-mode #cityLegend {
+            display: none !important;
+        }
 
         /* --- Bus marker base --- */
         .bus-marker-icon { display: flex; align-items: center; justify-content: center; position: relative; }
@@ -162,15 +169,22 @@
 
         /* --- Toggle Simulation Button --- */
         #toggleSimBtn {
-            position: absolute; top: 90px; left: 16px; z-index: 1001;
-            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-            color: #fff; border: none; border-radius: 14px;
-            padding: 12px 20px; font-weight: 800; font-size: 0.85rem;
-            cursor: pointer; display: flex; align-items: center; gap: 10px;
-            box-shadow: 0 6px 20px rgba(34,197,94,0.35);
-            transition: all 0.3s ease;
+            background: #22c55e;
+            color: #fff; border: none; border-radius: 12px;
+            padding: 8px 16px; font-weight: 800; font-size: 0.85rem;
+            cursor: pointer; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 4px 15px rgba(34,197,94,0.3);
+            transition: 0.3s;
             font-family: 'Plus Jakarta Sans', sans-serif;
+            white-space: nowrap; height: 46px;
         }
+        .sim-icon-circle {
+            width: 28px; height: 28px; background: #fff; color: #22c55e;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; flex-shrink: 0;
+        }
+        #toggleSimBtn.paused .sim-icon-circle { color: #ef4444; }
+        #toggleSimBtn.paused { background: #ef4444; box-shadow: 0 4px 15px rgba(239,68,68,0.3); }
         #toggleSimBtn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 28px rgba(34,197,94,0.45);
@@ -184,14 +198,44 @@
         }
         #toggleSimBtn i { font-size: 1rem; }
 
+        /* --- Route Info Panel --- */
+        #routeInfoPanel {
+            position: absolute; top: 16px; left: 16px; z-index: 1100;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 16px; width: 320px; padding: 0;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+            display: none; flex-direction: column; overflow: hidden;
+            animation: slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .rip-header { padding: 20px; background: var(--primary-color); color: #fff; position: relative; }
+        .rip-header h3 { margin: 0; font-size: 1.2rem; font-weight: 800; }
+        .rip-close { position: absolute; top: 15px; right: 15px; color: #fff; font-size: 1.2rem; cursor: pointer; opacity: 0.8; transition: 0.2s; }
+        .rip-close:hover { opacity: 1; transform: scale(1.1); }
+        
+        .rip-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .rip-stat { display: flex; align-items: center; gap: 12px; }
+        .rip-stat-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+        .rip-stat-info { display: flex; flex-direction: column; }
+        .rip-label { font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .rip-value { font-size: 1rem; font-weight: 900; color: var(--text-main); }
+        
+        .rip-stations { max-height: 200px; overflow-y: auto; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 15px; }
+        .rip-station-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 0.85rem; font-weight: 700; color: var(--text-main); border-bottom: 1px dashed var(--border-color); }
+        .rip-station-item:last-child { border-bottom: none; }
+        
         /* City Legend */
         #cityLegend {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             z-index: 1000; background: var(--bg-card); border: 1px solid var(--border-color);
             padding: 8px 16px; border-radius: 40px; display: flex; gap: 20px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15); align-items: center;
+            transition: all 0.3s ease;
         }
-        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-main); }
+        #cityLegend.hidden { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(20px); }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-main); cursor: pointer; transition: 0.2s; padding: 4px 8px; border-radius: 20px; }
+        .legend-item:hover { background: var(--bg-main); transform: scale(1.05); }
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
 
         /* Real bus badge glow */
@@ -253,6 +297,13 @@
             <div class="map-wrapper">
                 
                 <div class="map-search-panel">
+                    <button id="toggleSimBtn" onclick="toggleSimulation()">
+                        <div class="sim-icon-circle">
+                            <i class="fa-solid fa-play" style="margin-left: 2px;"></i>
+                        </div>
+                        <span>Simulation ON 🚀</span>
+                    </button>
+                    <div style="width:2px; height:40px; background:rgba(0,0,0,0.05); margin: 0 5px;"></div>
                     <div class="search-field">
                         <label data-i18n-text="Departure Station">Departure Station</label>
                         <select id="startStationId"><option>Loading...</option></select>
@@ -270,10 +321,6 @@
                 <div id="map"></div>
 
                 
-                <button id="toggleSimBtn" onclick="toggleSimulation()">
-                    <i class="fas fa-play-circle"></i>
-                    <span>Simulation ON 🚀</span>
-                </button>
 
                 
                 <div id="layerSwitcher">
@@ -308,10 +355,41 @@
 
                 
                 <div id="cityLegend">
-                    <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span> 🏙️ Cairo Zone</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> 🏠 El Shorouk</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#ff6b00;"></span> 🛍️ Madinaty</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#8b5cf6;"></span> 🌵 Badr Zone</div>
+                    <!-- Populated dynamically via JS -->
+                    <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700;"><i class="fas fa-spinner fa-spin"></i> Syncing Zones...</div>
+                </div>
+
+                <div id="routeInfoPanel">
+                    <div class="rip-header" id="ripHeader">
+                        <h3 id="ripTitle">Route Details</h3>
+                        <i class="fas fa-times rip-close" onclick="closeRoutePanel()"></i>
+                    </div>
+                    <div class="rip-body">
+                        <div class="rip-stat">
+                            <div class="rip-stat-icon" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-route"></i></div>
+                            <div class="rip-stat-info">
+                                <span class="rip-label">Identifier</span>
+                                <span class="rip-value" id="ripId">#00</span>
+                            </div>
+                        </div>
+                        <div class="rip-stat">
+                            <div class="rip-stat-icon" style="background:rgba(16,185,129,0.1); color:#10b981;"><i class="fas fa-coins"></i></div>
+                            <div class="rip-stat-info">
+                                <span class="rip-label">Ticket Price</span>
+                                <span class="rip-value" id="ripPrice">0.00 EGP</span>
+                            </div>
+                        </div>
+                        <div class="rip-stat">
+                            <div class="rip-stat-icon" style="background:rgba(139,92,246,0.1); color:#8b5cf6;"><i class="fas fa-map-pin"></i></div>
+                            <div class="rip-stat-info">
+                                <span class="rip-label">Network Nodes</span>
+                                <span class="rip-value" id="ripStationsCount">0 Stations</span>
+                            </div>
+                        </div>
+                        <div class="rip-stations" id="ripStationsList">
+                            <!-- List of stations -->
+                        </div>
+                    </div>
                 </div>
 
                 
@@ -382,6 +460,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
+    <script src="user-dropdown.js"></script>
     <script src="auth.js"></script>
     <script src="map-logic.js?v=2.0"></script>
 <script src="notifications.js?v=2.0"></script>
