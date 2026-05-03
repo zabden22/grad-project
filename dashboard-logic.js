@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateThemeIcon();
         initCalendar();
         loadAllData();
-        setInterval(loadAllData, 2000);
+        setInterval(loadAllData, 1000);
 
         const sb = document.getElementById('sidebarToggle');
         if (sb) sb.onclick = () => document.querySelector('.sidebar').classList.toggle('collapsed');

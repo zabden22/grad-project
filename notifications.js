@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         pollNotifications();
-        setInterval(pollNotifications, 5000);
+        setInterval(pollNotifications, 1000);
     }
 
     initNotifications();
