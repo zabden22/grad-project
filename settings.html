@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - Core System Settings</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard-style.css?v=21.0">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="i18n.js?v=1.1"></script>
+    <script src="user-dropdown.js"></script>
+    <style>
+        .settings-layout { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 280px 1fr; gap: 35px; }
+        
+        .settings-nav { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 28px; padding: 20px; height: fit-content; position: sticky; top: 100px; box-shadow: var(--card-shadow); }
+        .nav-item { display: flex; align-items: center; gap: 15px; padding: 16px 20px; border-radius: 16px; color: var(--text-muted); font-weight: 800; cursor: pointer; transition: 0.3s; margin-bottom: 8px; border: 1px solid transparent; }
+        .nav-item:hover { background: var(--bg-main); color: var(--text-main); }
+        .nav-item.active { background: rgba(86, 142, 116, 0.1); color: var(--primary-color); border-color: rgba(86,142,116,0.2); }
+        .nav-item i { font-size: 1.1rem; width: 24px; text-align: center; }
+
+        .settings-content-wrap { display: none; animation: slideUp 0.4s ease-out; }
+        .settings-content-wrap.active { display: block; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .settings-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 32px; padding: 35px; box-shadow: var(--card-shadow); margin-bottom: 30px; }
+        .card-header { display: flex; align-items: center; gap: 18px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+        .card-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+
+        .profile-hero-premium { display: flex; align-items: center; gap: 30px; margin-bottom: 40px; background: var(--bg-card); padding: 35px; border-radius: 32px; border: 1px solid var(--border-color); box-shadow: var(--card-shadow); }
+        .hero-avatar-wrap { position: relative; }
+        .hero-avatar-wrap img { width: 120px; height: 120px; border-radius: 32px; border: 4px solid var(--bg-main); object-fit: cover; box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
+        .avatar-edit-btn { position: absolute; bottom: -10px; right: -10px; width: 40px; height: 40px; border-radius: 12px; background: var(--primary-color); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 3px solid var(--bg-card); box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: 0.3s; }
+        .avatar-edit-btn:hover { transform: scale(1.1); }
+
+        .input-box { display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px; }
+        .input-box label { font-size: 0.75rem; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .input-box input, .input-box select { padding: 16px 20px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main); font-weight: 700; font-size: 0.95rem; outline: none; transition: 0.3s; }
+        .input-box input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(86,142,116,0.1); }
+
+        .option-row { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: var(--bg-main); border-radius: 20px; margin-bottom: 15px; border: 1px solid transparent; transition: 0.3s; }
+        .option-row:hover { border-color: var(--border-color); }
+        .option-info h4 { margin: 0; font-weight: 900; font-size: 1rem; color: var(--text-main); }
+        .option-info p { margin: 5px 0 0; font-size: 0.8rem; color: var(--text-muted); font-weight: 700; }
+
+        .toggle-btn { width: 54px; height: 28px; background: var(--border-color); border-radius: 50px; position: relative; cursor: pointer; transition: 0.4s; }
+        .toggle-btn::before { content: ''; position: absolute; width: 22px; height: 22px; background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: 0.4s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .toggle-btn.active { background: var(--primary-color); }
+        .toggle-btn.active::before { transform: translateX(26px); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        
+        .theme-selection { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .theme-option { cursor: pointer; border: 2px solid var(--border-color); border-radius: 24px; padding: 25px; text-align: center; transition: 0.3s; background: var(--bg-main); position: relative; overflow: hidden; }
+        .theme-option.active { border-color: var(--primary-color); background: var(--bg-card); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .theme-visual { width: 60px; height: 60px; border-radius: 16px; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+
+        .danger-card { border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.02); }
+        .btn-destructive { background: #ef4444; color: #fff; padding: 14px 28px; border-radius: 14px; font-weight: 900; border: none; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(239, 68, 68, 0.2); }
+        .btn-destructive:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3); }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="Logo">
+                <h1 data-i18n="brand_name">TRANSITWAY</h1>
+            </div>
+            <nav class="nav-group">
+                <a href="dashboard.html" class="nav-link" data-i18n="dashboard"><i class="fas fa-th-large"></i> Dashboard</a>
+                <a href="map.html" class="nav-link" data-i18n="live_map"><i class="fas fa-map-marked-alt"></i> Live Map</a>
+                <a href="admins.html" class="nav-link" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
+                <a href="buses.html" class="nav-link" data-i18n="buses"><i class="fas fa-bus"></i> Buses</a>
+                <a href="drivers.html" class="nav-link" data-i18n="drivers"><i class="fas fa-users"></i> Drivers</a>
+                <a href="stations.html" class="nav-link" data-i18n="stations"><i class="fas fa-map-marker-alt"></i> Stations</a>
+                <a href="tickets.html" class="nav-link" data-i18n="tickets"><i class="fas fa-ticket-alt"></i> Tickets</a>
+                <a href="routes.html" class="nav-link" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
+                <a href="reports.html" class="nav-link" data-i18n="reports"><i class="fas fa-exclamation-triangle"></i> Reports</a>
+                <a href="users.html" class="nav-link" data-i18n="users"><i class="fas fa-user-friends"></i> Users</a>
+            </nav>
+            <div class="sidebar-footer">
+                <nav class="nav-group">
+                    <a href="settings.html" class="nav-link active" data-i18n="settings"><i class="fas fa-cog"></i> Settings</a>
+                    <a onclick="confirmLogout()" class="nav-link" style="cursor:pointer; color:#ef4444;" data-i18n="logout"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main-viewport">
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                    <h2 data-i18n="settings_title">Tactical Console Configuration</h2>
+                </div>
+                <div class="header-right">
+                    <div class="profile-pill dropdown-trigger">
+                        <img id="topAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff">
+                        <span id="topBarName">Admin</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="settings-layout">
+                <!-- Side Nav -->
+                <nav class="settings-nav">
+                    <div class="nav-item active" data-tab="profile" data-i18n="nav_profile"><i class="fas fa-user-shield"></i> Command Profile</div>
+                    <div class="nav-item" data-tab="appearance" data-i18n="nav_appearance"><i class="fas fa-paint-brush"></i> UI Appearance</div>
+                    <div class="nav-item" data-tab="alerts" data-i18n="nav_alerts"><i class="fas fa-bell"></i> Signal Alerts</div>
+                    <div class="nav-item" data-tab="security" data-i18n="nav_security"><i class="fas fa-key"></i> Protocol Security</div>
+                    <div class="nav-item" data-tab="system" data-i18n="nav_system"><i class="fas fa-microchip"></i> System Core</div>
+                </nav>
+
+                <!-- Content Area -->
+                <div class="settings-content">
+                    
+                    <!-- Profile Tab -->
+                    <div class="settings-content-wrap active" id="tab-profile">
+                        <div class="profile-hero-premium">
+                            <div class="hero-avatar-wrap">
+                                <img id="profileAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff">
+                                <label for="adminPhotoInput" class="avatar-edit-btn" title="Update Tactical Portrait"><i class="fas fa-camera"></i></label>
+                                <input type="file" id="adminPhotoInput" style="display:none;">
+                            </div>
+                            <div class="hero-info">
+                                <h2 id="sideProfileName" style="margin:0; font-weight:900; font-size:1.8rem; letter-spacing:-0.5px;">Commander Name</h2>
+                                <p style="margin:5px 0 0; font-weight:800; color:var(--primary-color); text-transform:uppercase; font-size:0.75rem; letter-spacing:1px;"><i class="fas fa-crown"></i> Fleet Administrator</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <div class="card-header"><div class="card-icon" style="background:rgba(86,142,116,0.1); color:var(--primary-color);"><i class="fas fa-user-cog"></i></div><h3 style="margin:0; font-weight:900;" data-i18n="profile_dossier">Intelligence Dossier</h3></div>
+                            <form id="profileForm">
+                                <div class="grid-2">
+                                    <div class="input-box"><label data-i18n="full_name_label">Full Command Name</label><input type="text" id="adminNameInput" placeholder="Enter Full Name" data-i18n-ph="enter_full_name"></div>
+                                    <div class="input-box"><label data-i18n="email_label">Signal Email</label><input type="email" id="adminEmailInput" readonly style="opacity:0.6; cursor:not-allowed;"></div>
+                                    <div class="input-box"><label data-i18n="phone_label">Phone Frequency</label><input type="tel" id="adminPhoneInput" placeholder="+20 XXX XXX XXXX" data-i18n-ph="phone_placeholder"></div>
+                                    <div class="input-box"><label data-i18n="location_label">Command Post (Location)</label><input type="text" id="adminLocationInput" placeholder="e.g. Cairo Headquarters" data-i18n-ph="location_placeholder"></div>
+                                </div>
+                                <button type="submit" class="btn-primary" style="width:100%; padding:18px; margin-top:10px;" data-i18n="update_btn"><i class="fas fa-save" style="margin-right:8px;"></i> Update Dossier</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Appearance Tab -->
+                    <div class="settings-content-wrap" id="tab-appearance">
+                        <div class="settings-card">
+                            <div class="card-header"><div class="card-icon" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-palette"></i></div><h3 style="margin:0; font-weight:900;" data-i18n="appearance_title">Visual Environment</h3></div>
+                            <div class="theme-selection">
+                                <div class="theme-option active" data-theme-val="light">
+                                    <div class="theme-visual" style="background:#fff; color:#f59e0b; border:1px solid #e2e8f0;"><i class="fas fa-sun"></i></div>
+                                    <h4 style="margin:0; font-weight:900;" data-i18n="light_mode">Solar Protocol</h4>
+                                    <p style="margin:5px 0 0; font-size:0.75rem; color:var(--text-muted); font-weight:700;" data-i18n="light_mode_desc">Clean & Precise (Light)</p>
+                                </div>
+                                <div class="theme-option" data-theme-val="dark">
+                                    <div class="theme-visual" style="background:#0f172a; color:#3b82f6;"><i class="fas fa-moon"></i></div>
+                                    <h4 style="margin:0; font-weight:900;" data-i18n="dark_mode">Void Protocol</h4>
+                                    <p style="margin:5px 0 0; font-size:0.75rem; color:var(--text-muted); font-weight:700;" data-i18n="dark_mode_desc">Stealth & Focus (Dark)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <div class="card-header"><div class="card-icon" style="background:rgba(16,185,129,0.1); color:#10b981;"><i class="fas fa-language"></i></div><h3 style="margin:0; font-weight:900;" data-i18n="language_title">Neural Language</h3></div>
+                            <div class="theme-selection">
+                                <div class="theme-option active" data-lang-val="en">
+                                    <div class="theme-visual" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-font"></i></div>
+                                    <h4 style="margin:0; font-weight:900;" data-i18n="lang_en">English (US)</h4>
+                                </div>
+                                <div class="theme-option" data-lang-val="ar">
+                                    <div class="theme-visual" style="background:rgba(16,185,129,0.1); color:#10b981;"><i class="fas fa-globe-africa"></i></div>
+                                    <h4 style="margin:0; font-weight:900;" data-i18n="lang_ar">العربية (EG)</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alerts Tab -->
+                    <div class="settings-content-wrap" id="tab-alerts">
+                        <div class="settings-card">
+                            <div class="card-header"><div class="card-icon" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><i class="fas fa-satellite-dish"></i></div><h3 style="margin:0; font-weight:900;" data-i18n="nav_alerts">Signal Alerts</h3></div>
+                            <div class="option-row">
+                                <div class="option-info"><h4 data-i18n="alert_incidents">Sector Incidents</h4><p data-i18n="notif_complaints_desc">Receive signals for new complaints and reports</p></div>
+                                <div class="toggle-btn active" data-toggle="notif_complaints"></div>
+                            </div>
+                            <div class="option-row">
+                                <div class="option-info"><h4 data-i18n="alert_fleet">Fleet Status Shifts</h4><p data-i18n="notif_fleet_desc">Alerts for breakdown or delay sequences</p></div>
+                                <div class="toggle-btn active" data-toggle="notif_busStatus"></div>
+                            </div>
+                            <div class="option-row">
+                                <div class="option-info"><h4 data-i18n="alert_personnel">Personnel Deployment</h4><p data-i18n="notif_drivers_desc">Signals for new driver registrations</p></div>
+                                <div class="toggle-btn" data-toggle="notif_newDriver"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Tab -->
+                    <div class="settings-content-wrap" id="tab-security">
+                        <div class="settings-card">
+                            <div class="card-header"><div class="card-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-shield-virus"></i></div><h3 style="margin:0; font-weight:900;" data-i18n="security_title">Access Encryption</h3></div>
+                            <div class="input-box"><label data-i18n="current_pass_label">Current Security Key</label><input type="password" id="currentPassword" placeholder="••••••••"></div>
+                            <div class="grid-2">
+                                <div class="input-box"><label data-i18n="new_pass_label">New Encryption Key</label><input type="password" id="newPassword" placeholder="New Password" data-i18n-ph="new_pass_ph"></div>
+                                <div class="input-box"><label data-i18n="confirm_pass_label">Confirm Key</label><input type="password" id="confirmPassword" placeholder="Confirm Password" data-i18n-ph="confirm_pass_ph"></div>
+                            </div>
+                            <button class="btn-primary" onclick="handlePasswordChange()" style="width:100%; padding:18px; background:#ef4444; margin-top:10px;" data-i18n="update_pass_btn"><i class="fas fa-lock" style="margin-right:8px;"></i> Rotate Access Protocol</button>
+                        </div>
+                    </div>
+
+                    <!-- System Tab -->
+                    <div class="settings-content-wrap" id="tab-system">
+                        <div class="settings-card danger-card">
+                            <div class="card-header"><div class="card-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-radiation"></i></div><h3 style="margin:0; font-weight:900; color:#ef4444;" data-i18n="danger_zone_title">Terminal Zero</h3></div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div><h4 style="margin:0; font-weight:900;" data-i18n="reset_title">Neural Reset</h4><p data-i18n="reset_desc">Purge all local cache and protocol overrides</p></div>
+                                <button class="btn-destructive" onclick="confirmClearData()" data-i18n="reset_btn">WIPE CONSOLE</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth.js"></script>
+    <script src="settings-logic.js?v=3.0"></script>
+    <script src="notifications.js?v=2.0"></script>
+</body>
+</html>

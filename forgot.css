@@ -1,0 +1,201 @@
+
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background-color: #f4f6f9;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    direction: ltr; 
+}
+
+.auth-wrapper {
+    width: 100%;
+    max-width: 1050px;
+    padding: 20px;
+}
+
+.auth-card {
+    display: flex;
+    background: #fff;
+    border-radius: 40px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.12);
+    min-height: 720px;
+    overflow: hidden;
+}
+
+.form-side {
+    flex: 1.2;
+    padding: 40px 60px;
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-header {
+    margin-bottom: 50px;
+}
+
+.main-logo {
+    height: 110px; 
+    width: auto;
+    object-fit: contain;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: #76a08a;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: 0.3s;
+}
+
+.back-btn:hover {
+    transform: translateX(-5px);
+}
+
+.login-box h1 {
+    font-size: 34px;
+    color: #222;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    color: #888;
+    font-size: 15px;
+    margin-bottom: 35px;
+}
+
+.input-container {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.input-container i {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+    font-size: 18px;
+}
+
+.input-container input {
+    width: 100%;
+    padding: 18px 20px 18px 55px; 
+    background: #f9fafb;
+    border: 1px solid #eee;
+    border-radius: 15px;
+    outline: none;
+    font-size: 16px;
+    transition: 0.3s;
+}
+
+.input-container input:focus {
+    border-color: #76a08a;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(118, 160, 138, 0.1);
+}
+
+.btn-continue {
+    width: 100%;
+    padding: 18px;
+    background-color: #1a1a1a; 
+    color: #fff;
+    border: none;
+    border-radius: 15px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-continue:hover {
+    background-color: #333;
+    transform: translateY(-2px);
+}
+
+.image-side {
+    flex: 1;
+    background-color: #76a08a; 
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.gov-header {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.gov-logo-img {
+    height: 150px; 
+    width: auto;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1));
+}
+
+.illustration-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.illustration-box img {
+    max-width: 110%; 
+    height: auto;
+    transform: translateX(-15px);
+}
+
+.glass-welcome {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(12px); 
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 30px;
+    border-radius: 25px;
+    text-align: center;
+    color: #fff;
+    width: 100%;
+}
+
+.glass-welcome h3 {
+    font-size: 22px;
+    margin-bottom: 10px;
+}
+
+.glass-welcome p {
+    font-size: 14px;
+    line-height: 1.5;
+    opacity: 0.9;
+}
+
+@media (max-width: 850px) {
+    .auth-card {
+        flex-direction: column;
+        min-height: auto;
+    }
+    .image-side {
+        display: none; 
+    }
+    .form-side {
+        padding: 40px 30px;
+    }
+}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - Change Password</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="change.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+</head>
+<body>
+
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            
+            <div class="form-side">
+                <div class="brand-header">
+                    <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="TransitWay" class="main-logo">
+                </div>
+
+                <div class="login-box">
+                    <button class="back-btn" onclick="window.history.back()">
+                        <i class="fas fa-chevron-left"></i> Back
+                    </button>
+                    
+                    <h1>Change Password</h1>
+                    <p class="subtitle">Please enter a new password to secure your account</p>
+
+                    <form id="changePasswordForm">
+                        <div class="input-container">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" placeholder="New Password" id="newPass" required>
+                            <i class="far fa-eye toggle-pass" onclick="togglePassword('newPass')"></i>
+                        </div>
+
+                        <div class="input-container">
+                            <i class="fas fa-check-circle"></i>
+                            <input type="password" placeholder="Confirm Password" id="confirmPass" required>
+                            <i class="far fa-eye toggle-pass" onclick="togglePassword('confirmPass')"></i>
+                        </div>
+
+                        <button type="submit" class="btn-continue">Reset Password</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="image-side">
+                <div class="gov-header">
+                    <img src="aad2dd876dee8682b5a218c7eae46b04e55935c5.png" alt="Government" class="gov-logo-img">
+                </div>
+
+                <div class="illustration-box">
+                    <img src="c6bc24ce6ce5646be98a1b2706a043336062c044.png" alt="Reset Password Illustration">
+                </div>
+
+                <div class="glass-welcome">
+                    <h3>Security First!</h3>
+                    <p>Make sure your new password is strong and contains a mix of letters, numbers, and symbols.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="change.js?v=1.1"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - Forgot Password</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="forgot.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+</head>
+<body>
+
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            
+            <div class="form-side">
+                <div class="brand-header">
+                    <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="TransitWay" class="main-logo">
+                </div>
+
+                <div class="login-box">
+                    <button class="back-btn" onclick="window.history.back()">
+                        <i class="fas fa-chevron-left"></i> Back
+                    </button>
+                    
+                    <h1>Forgot Password?</h1>
+                    <p class="subtitle">Enter your email to receive a password reset link</p>
+
+                    <form id="forgetForm">
+                        <div class="input-container">
+                            <i class="far fa-envelope"></i>
+                            <input type="email" placeholder="Enter your Email" id="userEmail" required>
+                        </div>
+
+                        <button type="submit" id="sendBtn" class="btn-continue">Send Reset Link</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="image-side">
+                <div class="gov-header">
+                    <img src="aad2dd876dee8682b5a218c7eae46b04e55935c5.png" alt="Government" class="gov-logo-img">
+                </div>
+
+                <div class="illustration-box">
+                    <img src="cb011edc52d914ae6cffcd21b0f5e98ad1e032a4.png" alt="Forgot Password Illustration">
+                </div>
+
+                <div class="glass-welcome">
+                    <h3>Secure Your Account</h3>
+                    <p>We will send a password reset link to your email address.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="forgot.js?v=1.1"></script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - Station Intelligence</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard-style.css?v=20.5">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="i18n.js?v=1.1"></script>
+    <script src="user-dropdown.js"></script>
+    <style>
+        .table-container { background: var(--bg-card); border-radius: 20px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: var(--card-shadow); }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { background: var(--bg-main); padding: 15px; text-align: left; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; border-bottom: 1px solid var(--border-color); }
+        .data-table td { padding: 18px 15px; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; font-weight: 700; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 3000; backdrop-filter: blur(5px); }
+        .modal-overlay.active { display: flex; }
+        .modal-card { background: var(--bg-card); padding: 30px; border-radius: 24px; width: 500px; border: 1px solid var(--border-color); }
+        .modal-input { margin-bottom: 12px; }
+        .modal-input input, .modal-input select { width: 100%; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main); font-weight: 600; padding:12px; outline:none; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="Logo">
+                <h1 data-i18n="brand_name">TRANSITWAY</h1>
+            </div>
+            <nav class="nav-group">
+                <a href="dashboard.html" class="nav-link" data-i18n="dashboard"><i class="fas fa-th-large"></i> Dashboard</a>
+                <a href="map.html" class="nav-link" data-i18n="live_map"><i class="fas fa-map-marked-alt"></i> Live Map</a>
+                <a href="admins.html" class="nav-link" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
+                <a href="buses.html" class="nav-link" data-i18n="buses"><i class="fas fa-bus"></i> Buses</a>
+                <a href="drivers.html" class="nav-link" data-i18n="drivers"><i class="fas fa-users"></i> Drivers</a>
+                <a href="stations.html" class="nav-link active" data-i18n="stations"><i class="fas fa-map-marker-alt"></i> Stations</a>
+                <a href="tickets.html" class="nav-link" data-i18n="tickets"><i class="fas fa-ticket-alt"></i> Tickets</a>
+                <a href="routes.html" class="nav-link" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
+                <a href="reports.html" class="nav-link" data-i18n="reports"><i class="fas fa-exclamation-triangle"></i> Reports</a>
+                <a href="users.html" class="nav-link" data-i18n="users"><i class="fas fa-user-friends"></i> Users</a>
+            </nav>
+        <div class="sidebar-footer">
+                <nav class="nav-group">
+                    <a href="settings.html" class="nav-link" data-i18n="settings"><i class="fas fa-cog"></i> Settings</a>
+                    <a onclick="confirmLogout()" class="nav-link" style="cursor:pointer; color:#ef4444;" data-i18n="logout"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main-viewport">
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                    <h2 data-i18n="stations">Node Intelligence</h2>
+                </div>
+                <div class="header-right">
+                    <div class="search-bar" style="width:300px;"><i class="fas fa-search"></i><input type="text" id="stationSearchInput" placeholder="Search hubs..." data-i18n-ph="search_hubs"></div>
+                    <div class="profile-pill dropdown-trigger">
+                        <img id="topAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff">
+                        <span id="topBarName">Admin</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="v-card modern-welcome-banner" style="background: linear-gradient(135deg, #10b981 0%, #064e3b 100%); margin-bottom: 25px;">
+                <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 5px;" data-i18n="regional_logistics">Regional Logistics</h2>
+                <p style="color: rgba(255,255,255,0.8); font-weight: 600;" data-i18n="stations_desc">Manage and monitor all regional transit hubs and terminal nodes.</p>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+                <h4 style="font-weight: 800;" data-i18n="infrastructure_dir">Infrastructure Directory</h4>
+                <button class="btn-primary" id="openAddStationModalBtn" data-i18n="add_station_btn"><i class="fas fa-plus"></i> Add New Station</button>
+            </div>
+
+            <section class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr><th data-i18n="id">ID</th><th data-i18n="station_name">Station Name</th><th data-i18n="coordinates">Coordinates</th><th data-i18n="assigned_route">Assigned Route</th><th data-i18n="status">Status</th><th data-i18n="actions">Actions</th></tr>
+                    </thead>
+                    <tbody id="stationTableBody"></tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    
+    <div class="modal-overlay" id="addStationModal">
+        <div class="modal-card">
+            <h2>Add New Station</h2>
+            <form id="addStationForm">
+                <div class="modal-input"><input type="text" name="name" placeholder="Station Name" required></div>
+                <div class="modal-input"><input type="text" name="zone" placeholder="Regional Zone (e.g., Zone A)" required></div>
+                <div class="modal-input" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><input type="text" name="latitude" placeholder="Lat" required><input type="text" name="longitude" placeholder="Long" required></div>
+                <div class="modal-input"><select name="route" id="routeSelect" required><option value="">Loading Routes...</option></select></div>
+                <div class="modal-actions" style="display:flex; gap:10px; margin-top:10px;"><button type="submit" class="btn-primary" style="flex:1;">Save Station</button><button type="button" class="btn-outline" onclick="closeModal('addStationModal')" style="flex:1;">Cancel</button></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth.js"></script>
+    <script src="stations-logic.js?v=2.1"></script>
+    <script>function closeModal(id){document.getElementById(id).classList.remove('active');}</script>
+<script src="notifications.js?v=2.0"></script>
+</body>
+</html>
+

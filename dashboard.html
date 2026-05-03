@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - Fleet Command Center</title>
+    <meta name="description" content="TransitWay Fleet Command Center � Real-time analytics dashboard for fleet management, driver performance, and complaint tracking.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard-style.css?v=30.0">
+    <script src="i18n.js"></script>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <aside class="sidebar" id="mainSidebar">
+            <div class="sidebar-logo">
+                <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="Logo">
+                <h1 data-i18n="brand_name">TRANSITWAY</h1>
+            </div>
+
+            <nav class="nav-group">
+                <a href="dashboard.html" data-i18n="dashboard" class="nav-link active"><i class="fas fa-th-large"></i> Dashboard</a>
+                <a href="map.html" data-i18n="live_map" class="nav-link"><i class="fas fa-map-marked-alt"></i> Live Map</a>
+                <a href="admins.html" data-i18n="admins" class="nav-link"><i class="fas fa-user-shield"></i> Admins</a>
+                <a href="buses.html" data-i18n="buses" class="nav-link"><i class="fas fa-bus"></i> Buses</a>
+                <a href="drivers.html" data-i18n="drivers" class="nav-link"><i class="fas fa-users"></i> Drivers</a>
+                <a href="stations.html" data-i18n="stations" class="nav-link"><i class="fas fa-map-marker-alt"></i> Stations</a>
+                <a href="tickets.html" data-i18n="tickets" class="nav-link"><i class="fas fa-ticket-alt"></i> Tickets</a>
+                <a href="routes.html" data-i18n="routes" class="nav-link"><i class="fas fa-route"></i> Routes</a>
+                <a href="reports.html" data-i18n="reports" class="nav-link"><i class="fas fa-exclamation-triangle"></i> Reports</a>
+                <a href="users.html" data-i18n="users" class="nav-link"><i class="fas fa-user-friends"></i> Users</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <nav class="nav-group">
+                    <a href="settings.html" data-i18n="settings" class="nav-link"><i class="fas fa-cog"></i> Settings</a>
+                    <a onclick="confirmLogout()" data-i18n="logout" class="nav-link" style="cursor:pointer; color:#ef4444;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main-viewport" id="mainContent">
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                    <h2 data-i18n="fleet_command_center">Fleet Command Center</h2>
+                </div>
+                <div class="header-right">
+                    
+                    <div class="calendar-trigger" id="dashboardCalendar">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span id="currentDateRange" data-i18n="select_date_range">Select Date Range</span>
+                        <i class="fas fa-chevron-down" style="font-size:0.7rem; opacity:0.5;"></i>
+                    </div>
+
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Deep search assets..." id="globalSearch" data-i18n-ph="search_assets">
+                    </div>
+                    
+                    <button class="theme-toggle-btn" id="headerThemeToggle" title="Toggle Visual Mode">
+                        <i class="fas fa-moon"></i>
+                    </button>
+
+                    <div class="profile-pill dropdown-trigger">
+                        <img id="topAvatar" src="https://ui-avatars.com/api/?name=Admin&background=10b981&color=fff">
+                        <span id="topBarName">Admin</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="dashboard-grid">
+                
+                <div class="v-card modern-welcome-banner" style="grid-column: span 4; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:25px;">
+                        <img id="welcomeAvatar" src="https://ui-avatars.com/api/?name=Admin&background=10b981&color=fff" style="width:75px; height:75px; border-radius:50%; border:3px solid var(--primary-color); box-shadow: 0 0 20px var(--primary-glow);">
+                        <div>
+                            <h2 style="font-weight:900; margin:0; font-size:2rem;"><span data-i18n="welcome_back">Welcome, </span><span id="heroAdminName">Commander</span></h2>
+                            <p style="color:var(--text-muted); font-weight:600;"><span data-i18n="fleet_status">Fleet Status: </span><span id="fleetStatusIndicator" style="color:#10b981;" data-i18n="all_systems_operational">? ALL SYSTEMS OPERATIONAL</span></p>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <p style="font-size:0.75rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;" data-i18n="last_sync">Last Sync</p>
+                        <h4 id="lastSyncTime" style="color:#10b981; font-weight:900; margin:0;" data-i18n="connecting"><i class="fas fa-satellite-dish"></i> Connecting...</h4>
+                    </div>
+                </div>
+
+                
+                <div class="v-card metric-card">
+                    <div class="metric-header"><span data-i18n="total_drivers">TOTAL DRIVERS</span><i class="fas fa-users" style="color:var(--primary-color);"></i></div>
+                    <div class="metric-value-box"><h3 id="totalDriversCount">--</h3></div>
+                    <div class="sparkline-box"><canvas id="driverSparkChart"></canvas></div>
+                    <div class="metric-change positive" id="driverChange">
+                        <i class="fas fa-arrow-up"></i> <span data-i18n="active_now">Active Now</span>
+                    </div>
+                </div>
+                <div class="v-card metric-card">
+                    <div class="metric-header"><span data-i18n="total_buses">TOTAL BUSES</span><i class="fas fa-bus" style="color:#3b82f6;"></i></div>
+                    <div class="metric-value-box"><h3 id="totalBusesCount">--</h3></div>
+                    <div class="sparkline-box"><canvas id="busSparkChart"></canvas></div>
+                    <div class="metric-change positive" id="busChange">
+                        <i class="fas fa-arrow-up"></i> <span data-i18n="in_fleet">In Fleet</span>
+                    </div>
+                </div>
+                <div class="v-card metric-card">
+                    <div class="metric-header"><span data-i18n="complaints">COMPLAINTS</span><i class="fas fa-exclamation-circle" style="color:#f59e0b;"></i></div>
+                    <div class="metric-value-box"><h3 id="totalComplaintsCount">--</h3></div>
+                    <div class="sparkline-box"><canvas id="complaintSparkChart"></canvas></div>
+                    <div class="metric-change negative" id="complaintChange">
+                        <i class="fas fa-exclamation-triangle"></i> <span data-i18n="pending">Pending</span>
+                    </div>
+                </div>
+                <div class="v-card donut-box">
+                    <div class="metric-header"><span data-i18n="bus_status">BUS STATUS</span></div>
+                    <div class="donut-container">
+                        <canvas id="busStatusDonut"></canvas>
+                        <div class="donut-center-text"><h4 id="busTotalLabel">--</h4><span data-i18n="buses">Buses</span></div>
+                    </div>
+                </div>
+
+                
+                <div class="v-card" style="grid-column: span 4;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900; font-size:1.4rem;" data-i18n="performance_engine">Performance Intelligence Engine</h4>
+                        <div style="display:flex; gap:20px;">
+                            <span style="font-size:0.85rem; font-weight:800; color:#10b981;"><i class="fas fa-circle" style="font-size:0.5rem;"></i> <span data-i18n="trips">Trips</span></span>
+                            <span style="font-size:0.85rem; font-weight:800; color:#3b82f6;"><i class="fas fa-circle" style="font-size:0.5rem;"></i> <span data-i18n="drivers">Drivers</span></span>
+                        </div>
+                    </div>
+                    <div class="chart-container-large">
+                        <canvas id="performanceChartMain"></canvas>
+                    </div>
+                </div>
+
+                
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;" data-i18n="revenue_analytics"><i class="fas fa-ticket-alt" style="color:#8b5cf6; margin-right:8px;"></i>Ticket Revenue Analytics</h4>
+                    </div>
+                    <div style="height:320px; position:relative;">
+                        <canvas id="ticketRevenueChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-chart-bar" style="color:#06b6d4; margin-right:8px;"></i>Ticket Status Overview</h4>
+                    </div>
+                    <div style="height:320px; position:relative;">
+                        <canvas id="ticketStatusChart"></canvas>
+                    </div>
+                </div>
+
+                
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-chart-pie" style="color:var(--primary-color); margin-right:8px;"></i>Complaints Breakdown</h4>
+                    </div>
+                    <div style="height:320px; position:relative;">
+                        <canvas id="complaintsBreakdownChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-user-friends" style="color:#06b6d4; margin-right:8px;"></i>User Analytics</h4>
+                        <span style="font-size:0.7rem; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:20px; font-weight:800; display:flex; align-items:center; gap:5px;"><span style="width:6px; height:6px; background:#10b981; border-radius:50%; animation:pulse 1.5s infinite;"></span>LIVE</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px; margin:16px 0;">
+                        <div style="background:rgba(59,130,246,0.08); padding:14px; border-radius:12px; text-align:center;">
+                            <div style="font-size:1.6rem; font-weight:900; color:#3b82f6;" id="dashTotalUsers">--</div>
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-top:4px;">TOTAL</div>
+                        </div>
+                        <div style="background:rgba(16,185,129,0.08); padding:14px; border-radius:12px; text-align:center;">
+                            <div style="font-size:1.6rem; font-weight:900; color:#10b981;" id="dashActiveUsers">--</div>
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-top:4px;">ACTIVE</div>
+                        </div>
+                        <div style="background:rgba(239,68,68,0.08); padding:14px; border-radius:12px; text-align:center;">
+                            <div style="font-size:1.6rem; font-weight:900; color:#ef4444;" id="dashBannedUsers">--</div>
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-top:4px;">BANNED</div>
+                        </div>
+                        <div style="background:rgba(245,158,11,0.08); padding:14px; border-radius:12px; text-align:center;">
+                            <div style="font-size:1.6rem; font-weight:900; color:#f59e0b;" id="dashWarnedUsers">--</div>
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-top:4px;">WARNED</div>
+                        </div>
+                    </div>
+                    <div style="height:200px; position:relative;">
+                        <canvas id="userAnalyticsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-trophy" style="color:#f59e0b; margin-right:8px;"></i>Top Drivers Performance</h4>
+                    </div>
+                    <div style="height:320px; position:relative;">
+                        <canvas id="driverPerformanceChart"></canvas>
+                    </div>
+                </div>
+
+                
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header"><h4 style="font-weight:900;"><i class="fas fa-clock" style="color:#8b5cf6; margin-right:8px;"></i>24h Activity Distribution</h4></div>
+                    <div class="chart-container-large" style="height:320px;">
+                        <canvas id="usagePeakChart"></canvas>
+                    </div>
+                </div>
+
+                
+                <div class="v-card" style="grid-column: span 2; display:flex; flex-direction:column;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-rss" style="color:#10b981; margin-right:8px;"></i>Live Complaints Feed</h4>
+                        <span class="status-badge-pulse" style="font-size:0.7rem; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:20px; display:flex; align-items:center; gap:5px;"><span style="width:6px; height:6px; background:#10b981; border-radius:50%; animation: pulse 1.5s infinite;"></span> LIVE</span>
+                    </div>
+                    <div id="liveTelemetryList" class="telemetry-feed" style="margin-top:15px; flex-grow:1; overflow-y:auto; max-height:290px;">
+                        <div style="text-align:center; padding:50px; color:var(--text-muted);">
+                            <i class="fas fa-satellite-dish fa-spin" style="font-size:1.5rem;"></i>
+                            <p style="font-size:0.8rem; margin-top:10px;">Synchronizing feed...</p>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-route" style="color:#06b6d4; margin-right:8px;"></i>Route Distribution</h4>
+                    </div>
+                    <div style="height:300px; position:relative;">
+                        <canvas id="routeDistributionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="v-card" style="grid-column: span 1;">
+                    <h4 style="font-weight:900; margin-bottom:20px;"><i class="fas fa-broadcast-tower" style="color:#10b981; margin-right:8px;"></i>System Radar</h4>
+                    <div style="height:220px;"><canvas id="networkRadarChart"></canvas></div>
+                </div>
+
+                <div class="v-card" style="grid-column: span 1;">
+                    <h4 style="font-weight:900; margin-bottom:20px;"><i class="fas fa-fire" style="color:#ef4444; margin-right:8px;"></i>Complaint Priority</h4>
+                    <div style="height:220px;"><canvas id="complaintPriorityChart"></canvas></div>
+                </div>
+
+                <!-- Recent Activity Feed -->
+                <div class="v-card" style="grid-column: span 2; display:flex; flex-direction:column;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-bolt" style="color:#f59e0b; margin-right:8px;"></i>Recent Activity</h4>
+                        <span style="font-size:0.7rem; background:rgba(245,158,11,0.1); color:#f59e0b; padding:4px 10px; border-radius:20px; font-weight:800; display:flex; align-items:center; gap:5px;"><span style="width:6px; height:6px; background:#f59e0b; border-radius:50%; animation:pulse 1.5s infinite;"></span>LIVE</span>
+                    </div>
+                    <div id="recentActivityFeed" style="margin-top:12px; flex-grow:1; overflow-y:auto; max-height:220px;">
+                        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                            <i class="fas fa-satellite-dish fa-spin" style="font-size:1.5rem;"></i>
+                            <p style="font-size:0.8rem; margin-top:10px;">Loading activity...</p>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div class="v-card" style="grid-column: span 3;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-chart-area" style="color:#8b5cf6; margin-right:8px;"></i>Complaints Timeline</h4>
+                    </div>
+                    <div style="height:300px; position:relative;">
+                        <canvas id="complaintsTimelineChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="v-card" style="grid-column: span 1; display:flex; flex-direction:column; justify-content:space-between;">
+                    <h4 style="font-weight:900; margin-bottom:20px;"><i class="fas fa-heartbeat" style="color:#ef4444; margin-right:8px;"></i>Fleet Vitals</h4>
+                    <div class="data-list" id="fleetVitalsList">
+                        
+                    </div>
+                    <button class="btn-primary" style="width:100%; margin-top:20px;" onclick="window.location.href='reports.html'"><i class="fas fa-file-alt"></i> Full Reports</button>
+                </div>
+
+                <!-- Station Analytics Section -->
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-map-marker-alt" style="color:#10b981; margin-right:8px;"></i>Station Analytics</h4>
+                        <span style="font-size:0.7rem; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:20px; font-weight:800; display:flex; align-items:center; gap:5px;"><span style="width:6px; height:6px; background:#10b981; border-radius:50%; animation:pulse 1.5s infinite;"></span>LIVE</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin:16px 0;">
+                        <div style="background:rgba(16,185,129,0.08); padding:16px; border-radius:14px; text-align:center;">
+                            <div style="font-size:2rem; font-weight:900; color:#10b981;" id="dashTotalStations">--</div>
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-top:4px;">TOTAL STATIONS</div>
+                        </div>
+                        <div style="background:rgba(59,130,246,0.08); padding:16px; border-radius:14px; text-align:center;">
+                            <div style="font-size:2rem; font-weight:900; color:#3b82f6;" id="dashTotalRoutes">--</div>
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-top:4px;">TOTAL ROUTES</div>
+                        </div>
+                        <div style="background:rgba(139,92,246,0.08); padding:16px; border-radius:14px; text-align:center;">
+                            <div style="font-size:2rem; font-weight:900; color:#8b5cf6;" id="dashAvgStationsPerRoute">--</div>
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-top:4px;">AVG / ROUTE</div>
+                        </div>
+                    </div>
+                    <div style="height:250px; position:relative;">
+                        <canvas id="stationDistributionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="v-card" style="grid-column: span 2;">
+                    <div class="metric-header">
+                        <h4 style="font-weight:900;"><i class="fas fa-layer-group" style="color:#f59e0b; margin-right:8px;"></i>Stations Per Zone</h4>
+                    </div>
+                    <div id="stationZoneBreakdown" style="margin-top:16px;"></div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    
+    <div class="deep-analysis-overlay" id="deepAnalysisModal">
+        <div class="deep-analysis-card">
+            <i class="fas fa-times close-deep" onclick="closeDeepAnalysis()"></i>
+            <h2 id="deepTitle" style="font-weight:900; font-size:2.5rem; margin-bottom:10px;">Deep Intelligence</h2>
+            <p id="deepSubtitle" style="color:var(--text-muted); font-weight:700; margin-bottom:40px;">Detailed telemetry breakdown and historical analysis.</p>
+            
+            <div id="deepContentGrid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:30px; margin-bottom:40px;">
+                
+            </div>
+
+            <div class="v-card" style="margin-top:20px; min-height:400px;">
+                <h4 style="font-weight:900; margin-bottom:20px;">Trend Analysis</h4>
+                <div style="height:350px;"><canvas id="deepAnalysisChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="user-dropdown.js"></script>
+    <script src="auth.js"></script>
+    <script src="dashboard-logic.js?v=32.0"></script>
+    <script src="notifications.js?v=2.0"></script>
+</body>
+</html>

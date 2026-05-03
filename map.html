@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - Live Map</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard-style.css?v=20.5">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="i18n.js?v=1.1"></script>
+    
+    <style>
+        .map-wrapper {
+            position: relative; flex: 1; border-radius: 16px;
+            overflow: hidden; border: 1px solid var(--border-color);
+            display: flex; flex-direction: column; min-height: 0;
+        }
+        #map { flex: 1; width: 100%; z-index: 1; }
+
+        /* --- Search Panel --- */
+        .map-search-panel {
+            position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: rgba(var(--bg-card-rgb, 255,255,255), 0.92);
+            backdrop-filter: blur(12px);
+            
+            padding: 16px 24px; border-radius: 16px;
+            display: flex; gap: 16px; align-items: flex-end;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            border: 1px solid var(--border-color); width: 80%; max-width: 780px;
+        }
+        .search-field { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        .search-field label { font-size: 11px; font-weight: 800; color: var(--primary-color); text-transform: uppercase; letter-spacing: 0.5px; }
+        .search-field select { padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main); outline: none; font-weight: 600; font-size: 0.9rem; }
+        .track-btn { background: var(--primary-color); color: white; border: none; padding: 11px 26px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.3s; white-space: nowrap; font-size: 0.9rem;}
+        .track-btn:hover { filter: brightness(1.1); transform: translateY(-2px); }
+
+        /* --- Layer Switcher --- */
+        #layerSwitcher {
+            position: absolute; bottom: 30px; left: 20px; z-index: 1000;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 14px; overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: flex; flex-direction: column; gap: 0;
+        }
+        .layer-btn {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 18px; border: none; background: transparent;
+            color: var(--text-main); font-weight: 700; font-size: 0.85rem;
+            cursor: pointer; transition: background 0.2s; text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .layer-btn:last-child { border-bottom: none; }
+        .layer-btn:hover { background: var(--bg-main); }
+        .layer-btn.active { background: var(--primary-color); color: #fff; }
+        .layer-btn .layer-thumb {
+            width: 36px; height: 28px; border-radius: 6px; object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.3); flex-shrink: 0;
+        }
+
+        /* --- Heatmap Toggle --- */
+        #heatToggle {
+            position: absolute; bottom: 30px; right: 20px; z-index: 1000;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 10px 18px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: flex; align-items: center; gap: 10px;
+            cursor: pointer; font-weight: 700; font-size: 0.85rem;
+            color: var(--text-main); transition: 0.2s;
+        }
+        #heatToggle:hover { background: var(--bg-main); }
+        #heatToggle.on { background: rgba(239,68,68,0.1); border-color: #ef4444; color: #ef4444; }
+        #heatToggle .heat-dot { width: 12px; height: 12px; border-radius: 50%; background: conic-gradient(#22c55e, #f59e0b, #ef4444); flex-shrink: 0; }
+
+        /* --- Full Screen Toggle --- */
+        #fullScreenToggle {
+            position: absolute; bottom: 30px; right: 180px; z-index: 1000;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 10px 18px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: flex; align-items: center; gap: 10px;
+            cursor: pointer; font-weight: 700; font-size: 0.85rem;
+            color: var(--text-main); transition: 0.2s;
+        }
+        #fullScreenToggle:hover { background: var(--bg-main); transform: scale(1.05); }
+        #fullScreenToggle.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+
+        /* Full Screen UI Overrides */
+        body.full-map-mode .sidebar { display: none !important; }
+        body.full-map-mode .top-header { display: none !important; }
+        body.full-map-mode .main-viewport { margin-left: 0 !important; padding: 0 !important; width: 100% !important; height: 100vh !important; }
+        body.full-map-mode .map-wrapper { border-radius: 0; border: none; height: 100vh !important; }
+        body.full-map-mode .map-search-panel { top: 20px; }
+
+        /* --- Bus marker base --- */
+        .bus-marker-icon { display: flex; align-items: center; justify-content: center; position: relative; }
+
+        /* --- REAL Bus pulse (only real buses get this class) --- */
+        .bus-pulse {
+            width: 38px; height: 38px; border-radius: 50%;
+            position: absolute; animation: pulse-heartbeat 1.5s ease-in-out infinite;
+            opacity: 0.55;
+        }
+        @keyframes pulse-heartbeat {
+            0%   { transform: scale(0.6); opacity: 0.8; }
+            25%  { transform: scale(1.3); opacity: 0.5; }
+            40%  { transform: scale(0.9); opacity: 0.65; }
+            60%  { transform: scale(1.5); opacity: 0.3; }
+            100% { transform: scale(0.6); opacity: 0; }
+        }
+
+        /* Simulated buses have NO pulse at all */
+        .bus-no-pulse { /* intentionally empty � no animation */ }
+
+        /* -- Stats Panel -- */
+        #mapStats {
+            position: absolute; top: 90px; right: 16px; z-index: 1000;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color); border-radius: 16px;
+            padding: 16px; width: 240px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+        }
+        [data-theme="dark"] #mapStats {
+            background: rgba(30,41,59,0.96);
+        }
+        #mapStats h4 {
+            margin: 0 0 12px; font-size: 0.8rem; font-weight: 800;
+            color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px;
+        }
+        .map-stat-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 9px 12px; border-radius: 10px; margin-bottom: 8px;
+            background: var(--bg-main);
+        }
+        .map-stat-item:last-child { margin-bottom: 0; }
+        .map-stat-left { display: flex; align-items: center; gap: 10px; }
+        .map-stat-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+        }
+        .map-stat-label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
+        .map-stat-value { font-size: 1.1rem; font-weight: 900; color: var(--text-main); }
+
+        /* Simulation mode banner */
+        #simBanner {
+            display: none;
+            position: absolute; top: 16px; right: 16px; z-index: 1001;
+            background: #3b82f6; color: #fff;
+            border-radius: 12px; padding: 10px 16px;
+            font-weight: 800; font-size: 0.85rem;
+            box-shadow: 0 4px 16px rgba(59,130,246,0.4);
+            display: none; align-items: center; gap: 10px;
+        }
+        #stopSimBtn {
+            background: #fff; color: #3b82f6;
+            border: none; border-radius: 8px; padding: 5px 12px;
+            font-weight: 800; font-size: 0.8rem; cursor: pointer;
+        }
+
+        /* --- Toggle Simulation Button --- */
+        #toggleSimBtn {
+            position: absolute; top: 90px; left: 16px; z-index: 1001;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: #fff; border: none; border-radius: 14px;
+            padding: 12px 20px; font-weight: 800; font-size: 0.85rem;
+            cursor: pointer; display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 6px 20px rgba(34,197,94,0.35);
+            transition: all 0.3s ease;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        #toggleSimBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(34,197,94,0.45);
+        }
+        #toggleSimBtn.paused {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 6px 20px rgba(239,68,68,0.35);
+        }
+        #toggleSimBtn.paused:hover {
+            box-shadow: 0 8px 28px rgba(239,68,68,0.45);
+        }
+        #toggleSimBtn i { font-size: 1rem; }
+
+        /* City Legend */
+        #cityLegend {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: var(--bg-card); border: 1px solid var(--border-color);
+            padding: 8px 16px; border-radius: 40px; display: flex; gap: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); align-items: center;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-main); }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* Real bus badge glow */
+        .real-bus-badge {
+            animation: badge-glow 2s ease-in-out infinite;
+        }
+        @keyframes badge-glow {
+            0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+            50% { box-shadow: 0 2px 18px rgba(255,255,255,0.5), 0 0 30px currentColor; }
+        }
+    </style>
+    <script src="user-dropdown.js"></script>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="TransitWay Logo">
+                <h1>TRANSITWAY</h1>
+            </div>
+            <nav class="nav-group">
+                <a href="dashboard.html" class="nav-link" data-i18n="dashboard"><i class="fas fa-th-large"></i> Dashboard</a>
+                <a href="map.html" class="nav-link active" data-i18n="live_map"><i class="fas fa-map-marked-alt"></i> Live Map</a>
+                <a href="admins.html" class="nav-link" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
+                <a href="buses.html" class="nav-link" data-i18n="buses"><i class="fas fa-bus"></i> Buses</a>
+                <a href="drivers.html" class="nav-link" data-i18n="drivers"><i class="fas fa-users"></i> Drivers</a>
+                <a href="users.html" data-i18n="users" class="nav-link"><i class="fas fa-user-friends"></i> Users</a>
+                <a href="stations.html" class="nav-link" data-i18n="stations"><i class="fas fa-map-marker-alt"></i> Stations</a>
+                <a href="tickets.html" class="nav-link" data-i18n="tickets"><i class="fas fa-ticket-alt"></i> Tickets</a>
+                <a href="routes.html" class="nav-link" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
+                <a href="reports.html" class="nav-link" data-i18n="reports"><i class="fas fa-exclamation-triangle"></i> Reports</a>
+            </nav>
+            <div class="sidebar-footer">
+                <nav class="nav-group">
+                    <a href="settings.html" data-i18n="settings" class="nav-link"><i class="fas fa-cog"></i> Settings</a>
+                    <a onclick="confirmLogout()" data-i18n="logout" class="nav-link" style="cursor:pointer; color:#ef4444;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main-viewport" style="display:flex; flex-direction:column; height:100vh; overflow:hidden; padding:20px;">
+            <header class="top-header" style="margin-bottom:16px; flex-shrink:0;">
+                <div class="header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 data-i18n="live_map">Live Tracking Intelligence</h2>
+                </div>
+                <div class="header-right">
+                    <div class="profile-pill dropdown-trigger">
+                        <img id="topAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff" alt="Avatar">
+                        <span id="topBarName">Loading...</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="map-wrapper">
+                
+                <div class="map-search-panel">
+                    <div class="search-field">
+                        <label data-i18n-text="Departure Station">Departure Station</label>
+                        <select id="startStationId"><option>Loading...</option></select>
+                    </div>
+                    <div class="search-field">
+                        <label data-i18n-text="Destination Station">Destination Station</label>
+                        <select id="endStationId"><option>Loading...</option></select>
+                    </div>
+                    <button id="searchRouteBtn" class="track-btn">
+                        <i class="fas fa-route"></i> TRACK ROUTE
+                    </button>
+                </div>
+
+                
+                <div id="map"></div>
+
+                
+                <button id="toggleSimBtn" onclick="toggleSimulation()">
+                    <i class="fas fa-play-circle"></i>
+                    <span>Simulation ON</span>
+                </button>
+
+                
+                <div id="layerSwitcher">
+                    <button class="layer-btn active" data-layer="default" onclick="switchLayer('default', this)">
+                        <span style="font-size:1.1rem;">???</span> Default
+                    </button>
+                    <button class="layer-btn" data-layer="satellite" onclick="switchLayer('satellite', this)">
+                        <span style="font-size:1.1rem;">???</span> Satellite
+                    </button>
+                    <button class="layer-btn" data-layer="dark" onclick="switchLayer('dark', this)">
+                        <span style="font-size:1.1rem;">??</span> Dark
+                    </button>
+                    <button class="layer-btn" data-layer="terrain" onclick="switchLayer('terrain', this)">
+                        <span style="font-size:1.1rem;">???</span> Terrain
+                    </button>
+                    <button class="layer-btn" data-layer="traffic" onclick="switchLayer('traffic', this)">
+                        <span style="font-size:1.1rem;">??</span> Traffic
+                    </button>
+                </div>
+
+                
+                <div id="heatToggle" onclick="toggleHeatmap()">
+                    <div class="heat-dot"></div>
+                    <span data-i18n-text="Crowd Heatmap">Crowd Heatmap</span>
+                </div>
+
+                
+                <div id="fullScreenToggle" onclick="toggleFullMap()">
+                    <i class="fas fa-expand-arrows-alt"></i>
+                    <span data-i18n-text="Full View">Full View</span>
+                </div>
+
+                
+                <div id="cityLegend">
+                    <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span> Ain Shams - Al Asmarat</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> El Shrouk Sports Clup - Academy</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#ff6b00;"></span> Madinaty - Open Air Mall</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#8b5cf6;"></span> El Haram - Al Horeyya Rd</div>
+                </div>
+
+                
+                <div id="mapStats">
+                    <h4>Live Overview</h4>
+                    <div class="map-stat-item">
+                        <div class="map-stat-left">
+                            <div class="map-stat-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6;">
+                                <i class="fas fa-bus"></i>
+                            </div>
+                            <div class="map-stat-label">Active Buses</div>
+                        </div>
+                        <div class="map-stat-value" id="statActiveBuses">�</div>
+                    </div>
+                    <div class="map-stat-item">
+                        <div class="map-stat-left">
+                            <div class="map-stat-icon" style="background:rgba(16,185,129,0.12);color:#10b981;">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div class="map-stat-label">Stations</div>
+                        </div>
+                        <div class="map-stat-value" id="statTotalStations">�</div>
+                    </div>
+                    <div class="map-stat-item">
+                        <div class="map-stat-left">
+                            <div class="map-stat-icon" style="background:rgba(139,92,246,0.12);color:#8b5cf6;">
+                                <i class="fas fa-route"></i>
+                            </div>
+                            <div class="map-stat-label">Routes</div>
+                        </div>
+                        <div class="map-stat-value" id="statTotalRoutes">�</div>
+                    </div>
+                    <div class="map-stat-item">
+                        <div class="map-stat-left">
+                            <div class="map-stat-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="map-stat-label">Drivers</div>
+                        </div>
+                        <div class="map-stat-value" id="statTotalDrivers">�</div>
+                    </div>
+                    <div class="map-stat-item">
+                        <div class="map-stat-left">
+                            <div class="map-stat-icon" style="background:rgba(239,68,68,0.12);color:#ef4444;">
+                                <i class="fas fa-fire"></i>
+                            </div>
+                            <div class="map-stat-label">Crowded</div>
+                        </div>
+                        <div class="map-stat-value" id="statCrowdedStations">�</div>
+                    </div>
+                </div>
+
+                
+                <div id="simBanner">
+                    <i class="fas fa-bus" style="animation: spin 1s linear infinite;"></i>
+                    Route Simulation Active
+                    <button id="stopSimBtn" onclick="stopRouteSimulation()">? Stop</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    
+    <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth.js"></script>
+    <script src="map-logic.js?v=2.0"></script>
+<script src="notifications.js?v=2.0"></script>
+</body>
+</html>

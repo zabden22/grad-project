@@ -1,0 +1,73 @@
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+body { background-color: #fff; direction: ltr; }
+
+.dashboard-wrapper { display: flex; min-height: 100vh; }
+
+.sidebar {
+    width: 260px;
+    border-right: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+    padding: 30px 0;
+    position: fixed;
+    height: 100vh;
+}
+
+.side-logo { text-align: center; margin-bottom: 40px; }
+.side-logo img { height: 140px; }
+
+.side-nav { flex: 1; }
+.side-nav a {
+    display: flex;
+    align-items: center;
+    padding: 15px 30px;
+    text-decoration: none;
+    color: #888;
+    font-size: 16px;
+    gap: 15px;
+    transition: 0.3s;
+}
+
+.side-nav a.active {
+    background-color: #76a08a; 
+    color: #fff;
+    border-radius: 0 10px 10px 0;
+    margin-right: 20px;
+}
+
+.logout-btn { color: #ff4d4d !important; margin-top: auto; }
+
+.main-content { flex: 1; margin-left: 260px; padding: 20px 40px; }
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f5f5f5;
+    margin-bottom: 30px;
+}
+
+.user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+
+.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+
+.actions { display: flex; gap: 15px; align-items: center; }
+
+.search-box { position: relative; }
+.search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #aaa; }
+.search-box input { padding: 10px 10px 10px 35px; border: 1px solid #eee; border-radius: 8px; background: #f9f9f9; }
+
+.assign-btn { padding: 10px 20px; border: 1px solid #76a08a; background: #fff; color: #76a08a; border-radius: 8px; cursor: pointer; }
+.add-btn { padding: 10px 20px; background: #76a08a; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+
+.buses-table { width: 100%; border-collapse: collapse; text-align: left; }
+.buses-table th { padding: 15px; color: #aaa; font-weight: 500; border-bottom: 1px solid #eee; }
+.buses-table td { padding: 20px 15px; border-bottom: 1px solid #f5f5f5; color: #333; }
+
+.status { padding: 5px 15px; border-radius: 6px; font-size: 14px; }
+.status.active { background: #e6f4ed; color: #76a08a; }
+.status.inactive { background: #ffebeb; color: #ff4d4d; }
+
+.delete-icon { color: #ff4d4d; cursor: pointer; }

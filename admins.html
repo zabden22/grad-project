@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - Admins Command Center</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard-style.css?v=20.5">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="i18n.js?v=1.1"></script>
+    <script src="user-dropdown.js"></script>
+    <style>
+        /* -- Hero Banner -- */
+        .admins-hero {
+            padding: 35px 40px; border-radius: 24px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #fff; margin-bottom: 30px;
+            display: flex; align-items: center; gap: 25px;
+            position: relative; overflow: hidden;
+            border: 1px solid rgba(16,185,129,0.15);
+        }
+        .admins-hero::before {
+            content:''; position:absolute; top:-50%; right:-30%; width:400px; height:400px;
+            background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%);
+            pointer-events:none;
+        }
+        .admins-hero-icon {
+            width: 65px; height: 65px; background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 18px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem; box-shadow: 0 8px 25px rgba(16,185,129,0.3); flex-shrink:0;
+        }
+        .admins-hero h2 { font-size: 1.4rem; font-weight: 900; margin: 0 0 4px; letter-spacing: -0.5px; color: #ffffff !important; }
+        .admins-hero p { color: #e2e8f0 !important; margin: 0; font-weight: 600; font-size: 0.9rem; }
+
+        /* -- Stats Bar -- */
+        .admin-stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+        .admin-stat-card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 18px; padding: 22px; position: relative; overflow: hidden;
+            transition: 0.3s; box-shadow: var(--card-shadow);
+        }
+        .admin-stat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 35px rgba(0,0,0,0.08); }
+        .admin-stat-card .stat-icon {
+            width: 42px; height: 42px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 1rem; margin-bottom: 12px;
+        }
+        .admin-stat-card h3 { font-size: 1.8rem; font-weight: 900; margin: 0; }
+        .admin-stat-card p { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin: 4px 0 0; }
+        .admin-stat-card::after {
+            content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px;
+            border-radius: 0 18px 0 50%; opacity: 0.06;
+        }
+
+        /* -- Cards Grid -- */
+        .admin-cards-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 24px;
+        }
+
+        /* -- Admin Card -- */
+        .admin-card {
+            position: relative; background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 20px; overflow: hidden; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--card-shadow);
+        }
+        .admin-card:hover { transform: translateY(-5px); border-color: var(--primary-color); box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
+        
+        .admin-card-banner {
+            height: 80px; position: relative;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+        .admin-card-banner::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(59,130,246,0.1));
+        }
+        
+        .admin-card-body { padding: 0 24px 24px; position: relative; }
+        
+        .admin-card-avatar-wrap {
+            width: 72px; height: 72px; border-radius: 50%; border: 4px solid var(--bg-card);
+            margin-top: -36px; position: relative; z-index: 2; overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .admin-card-avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
+        .admin-card-name { font-weight: 900; font-size: 1.1rem; margin: 10px 0 2px; }
+        .admin-card-code { font-size: 0.75rem; font-family: monospace; font-weight: 700; color: var(--text-muted); }
+        .admin-card-role {
+            display: inline-block; padding: 3px 10px; border-radius: 20px;
+            font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+            margin-top: 6px;
+        }
+        .role-superadmin { background: rgba(139,92,246,0.1); color: #8b5cf6; }
+        .role-admin { background: rgba(59,130,246,0.1); color: #3b82f6; }
+
+        .admin-card-details {
+            display: flex; flex-direction: column; gap: 8px;
+            margin: 18px 0; padding: 15px; border-radius: 14px;
+            background: var(--bg-main); border: 1px solid var(--border-color);
+        }
+        .admin-card-detail {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.85rem; font-weight: 600; color: var(--text-main);
+        }
+        .admin-card-detail i { color: var(--primary-color); width: 18px; text-align: center; font-size: 0.85rem; }
+        .admin-card-detail span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .admin-card-actions { display: flex; gap: 10px; }
+        .admin-card-actions button { flex: 1; padding: 10px; border-radius: 12px; font-weight: 800; font-size: 0.8rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .admin-card-actions .btn-view { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+        .admin-card-actions .btn-view:hover { background: #10b981; color: #fff; }
+        .admin-card-actions .btn-del { background: rgba(239,68,68,0.08); color: #ef4444; border: 1px solid rgba(239,68,68,0.15); padding: 10px 14px; flex: 0; }
+        .admin-card-actions .btn-del:hover { background: #ef4444; color: #fff; }
+
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; top: 24px; right: 24px; z-index: 3; border: 2px solid var(--bg-card); }
+        .status-dot.online { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+        .status-dot.offline { background: #ef4444; }
+
+        /* -- Modal Styles -- */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 3000; backdrop-filter: blur(8px); }
+        .modal-overlay.active { display: flex; }
+        .modal-card {
+            background: var(--bg-card); padding: 35px; border-radius: 24px;
+            width: 480px; max-width: 95vw; box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color); animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn { from { transform: scale(0.9) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+        .modal-card h2 { margin: 0 0 6px; font-weight: 900; }
+        .modal-card .modal-subtitle { color: var(--text-muted); margin-bottom: 24px; font-size: 0.88rem; font-weight: 600; }
+        .modal-input { margin-bottom: 14px; }
+        .modal-input label { display: block; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.5px; }
+        .modal-input input, .modal-input select {
+            width: 100%; padding: 12px 16px; border-radius: 12px; border: 1.5px solid var(--border-color);
+            background: var(--bg-main); color: var(--text-main); outline: none; font-weight: 600; font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .modal-input input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+
+        /* -- Profile Modal -- */
+        /* -- Premium Profile Modal -- */
+        .profile-modal-card {
+            background: var(--bg-card); border-radius: 28px; width: 500px; max-width: 95vw;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4), 0 0 40px rgba(16,185,129,0.15); border: 1px solid var(--border-color);
+            overflow: hidden; animation: modalIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+        }
+        .profile-modal-header {
+            padding: 50px 35px 35px; text-align: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #fff; position: relative; overflow: hidden;
+        }
+        .profile-modal-header::before {
+            content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%;
+            background: radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 60%);
+            animation: slowRotate 20s linear infinite; pointer-events: none;
+        }
+        @keyframes slowRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .profile-modal-header::after {
+            content:''; position:absolute; bottom:0; left:0; width:100%; height:4px;
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+        }
+        .profile-avatar-container {
+            position: relative; width: 120px; height: 120px; margin: 0 auto 20px; z-index: 2;
+        }
+        .profile-avatar-container::before {
+            content: ''; position: absolute; inset: -5px; border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #3b82f6); z-index: -1;
+            animation: pulseGlow 2s infinite alternate;
+        }
+        @keyframes pulseGlow { from { opacity: 0.6; transform: scale(0.98); } to { opacity: 1; transform: scale(1.05); box-shadow: 0 0 25px rgba(16,185,129,0.5); } }
+        .profile-modal-header img { width: 100%; height: 100%; border-radius: 50%; border: 4px solid #0f172a; object-fit: cover; background: #fff; }
+        
+        .profile-modal-header h2 { margin: 0; font-weight: 900; font-size: 1.6rem; letter-spacing: -0.5px; position:relative; z-index:2; text-shadow: 0 2px 10px rgba(0,0,0,0.5); color: #fff; }
+        .profile-modal-header .profile-role { display: inline-block; font-size: 0.75rem; color: #fff; background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.5); padding: 5px 14px; border-radius: 20px; font-weight: 800; margin-top: 12px; text-transform: uppercase; letter-spacing: 1px; position:relative; z-index:2; backdrop-filter: blur(4px); }
+        
+        .profile-modal-body { padding: 35px; background: var(--bg-card); position: relative; }
+        .profile-modal-body::before {
+            content: "\f2c2"; font-family: "Font Awesome 6 Free"; font-weight: 900;
+            position: absolute; right: 20px; bottom: 20px; font-size: 12rem; color: var(--text-muted);
+            opacity: 0.03; pointer-events: none; transform: rotate(-15deg);
+        }
+        .profile-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; position: relative; z-index: 2; }
+        .profile-detail-item { background: var(--bg-main); padding: 18px 20px; border-radius: 16px; border: 1px solid var(--border-color); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 6px; position: relative; overflow: hidden; }
+        .profile-detail-item:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .profile-detail-item::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--primary-color); opacity:0; transition:0.3s; }
+        .profile-detail-item:hover::before { opacity:1; }
+        
+        .profile-detail-item .label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px; }
+        .profile-detail-item .label i { font-size: 0.9rem; padding: 6px; border-radius: 8px; background: var(--bg-card); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .profile-detail-item .value { font-weight: 800; font-size: 1rem; color: var(--text-main); word-break: break-word; }
+        .profile-detail-item.full { grid-column: span 2; flex-direction: row; align-items: center; justify-content: space-between; }
+        .profile-detail-item.full .label { margin-bottom: 0; }
+        .profile-detail-item.full .value { text-align: right; }
+
+        /* -- Photo Upload -- */
+        .photo-upload-wrap {
+            display: flex; align-items: center; gap: 15px; margin-bottom: 14px;
+            padding: 12px 16px; background: var(--bg-main); border-radius: 12px; border: 1px dashed var(--border-color);
+        }
+        .photo-upload-wrap img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--primary-color); object-fit: cover; }
+        .photo-upload-wrap label { cursor: pointer; color: var(--primary-color); font-weight: 700; font-size: 0.85rem; }
+        .photo-upload-wrap label:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="Logo">
+                <h1 data-i18n="brand_name">TRANSITWAY</h1>
+            </div>
+            <nav class="nav-group">
+                <a href="dashboard.html" class="nav-link" data-i18n="dashboard"><i class="fas fa-th-large"></i> Dashboard</a>
+                <a href="map.html" class="nav-link" data-i18n="live_map"><i class="fas fa-map-marked-alt"></i> Live Map</a>
+                <a href="admins.html" class="nav-link active" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
+                <a href="buses.html" class="nav-link" data-i18n="buses"><i class="fas fa-bus"></i> Buses</a>
+                <a href="drivers.html" class="nav-link" data-i18n="drivers"><i class="fas fa-users"></i> Drivers</a>
+                <a href="stations.html" class="nav-link" data-i18n="stations"><i class="fas fa-map-marker-alt"></i> Stations</a>
+                <a href="tickets.html" class="nav-link" data-i18n="tickets"><i class="fas fa-ticket-alt"></i> Tickets</a>
+                <a href="routes.html" class="nav-link" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
+                <a href="reports.html" class="nav-link" data-i18n="reports"><i class="fas fa-exclamation-triangle"></i> Reports</a>
+                <a href="users.html" data-i18n="users" class="nav-link"><i class="fas fa-user-friends"></i> Users</a>
+            </nav>
+            <div class="sidebar-footer">
+                <nav class="nav-group">
+                    <a href="settings.html" data-i18n="settings" class="nav-link"><i class="fas fa-cog"></i> Settings</a>
+                    <a onclick="confirmLogout()" data-i18n="logout" class="nav-link" style="cursor:pointer; color:#ef4444;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main-viewport">
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                    <h2 data-i18n="admins">Admins Command Center</h2>
+                </div>
+                <div class="header-right">
+                    <div class="profile-pill dropdown-trigger">
+                        <img id="topAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff" alt="Avatar">
+                        <span id="topBarName">Admin</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            
+            <div class="admins-hero">
+                <div class="admins-hero-icon"><i class="fas fa-user-shield"></i></div>
+                <div>
+                    <h2 data-i18n="system_admins">System Administrators</h2>
+                    <p>Manage administrator accounts, permissions & system access control</p>
+                </div>
+            </div>
+
+            
+            <div class="admin-stats-bar">
+                <div class="admin-stat-card">
+                    <div class="stat-icon" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-users"></i></div>
+                    <h3 id="admStatTotal" style="color:#3b82f6;">0</h3>
+                    <p>Total Admins</p>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-icon" style="background:rgba(16,185,129,0.1); color:#10b981;"><i class="fas fa-check-circle"></i></div>
+                    <h3 id="admStatActive" style="color:#10b981;">0</h3>
+                    <p>Active</p>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-ban"></i></div>
+                    <h3 id="admStatInactive" style="color:#ef4444;">0</h3>
+                    <p>Inactive</p>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-icon" style="background:rgba(139,92,246,0.1); color:#8b5cf6;"><i class="fas fa-crown"></i></div>
+                    <h3 id="admStatSuper" style="color:#8b5cf6;">0</h3>
+                    <p>Super Admins</p>
+                </div>
+            </div>
+
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+                <div class="search-bar" style="width: 400px;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="adminSearchInput" placeholder="Search by name, ID or email...">
+                </div>
+                <button class="btn-primary" id="openModalBtn"><i class="fas fa-plus"></i> Add New Admin</button>
+            </div>
+
+            
+            <div class="admin-cards-grid" id="adminCardsGrid"></div>
+        </main>
+    </div>
+
+    
+    <div class="modal-overlay" id="adminModal">
+        <div class="modal-card">
+            <h2><i class="fas fa-user-plus" style="color:var(--primary-color); margin-right:8px;"></i>New Administrator</h2>
+            <p class="modal-subtitle">Create a new administrator account with system access.</p>
+            <form id="addAdminForm">
+                <div class="photo-upload-wrap" style="margin-bottom:20px; justify-content: center; flex-direction: column; text-align: center; border: 2px dashed var(--border-color); padding: 20px;">
+                    <img id="newAdminPhotoPreview" src="https://ui-avatars.com/api/?name=New+Admin&background=10b981&color=fff&size=100" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary-color); margin-bottom: 10px; object-fit:cover;">
+                    <label for="newAdminPhotoInput" style="cursor: pointer; color: var(--primary-color); font-weight: 800; font-size: 0.9rem;"><i class="fas fa-camera"></i> Upload Photo</label>
+                    <input type="file" id="newAdminPhotoInput" accept="image/*" style="display:none;">
+                </div>
+                <div class="modal-input">
+                    <label>Full Name</label>
+                    <input type="text" id="adminFormName" placeholder="Enter full name" required>
+                </div>
+                <div class="modal-input">
+                    <label>Email Address</label>
+                    <input type="email" id="adminFormEmail" placeholder="admin@transitway.com" required>
+                </div>
+                <div class="modal-input">
+                    <label>Phone Number</label>
+                    <input type="tel" id="adminFormPhone" placeholder="+20 10X XXX XXXX" required>
+                </div>
+                <div class="modal-input">
+                    <label>Password</label>
+                    <input type="password" id="adminFormPassword" placeholder="Create secure password" required>
+                </div>
+                <div class="modal-input">
+                    <label>Role</label>
+                    <select id="adminFormRole" required>
+                        <option value="Admin">Admin</option>
+                        <option value="Super Admin">Super Admin</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:24px;">
+                    <button type="submit" class="btn-primary" id="adminSubmitBtn" style="flex: 1;"><i class="fas fa-check"></i> Create Admin</button>
+                    <button type="button" class="btn-outline" id="closeModalBtn" style="flex:1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    
+    <div class="modal-overlay" id="adminProfileModal">
+        <div class="profile-modal-card">
+            <button onclick="document.getElementById('adminProfileModal').classList.remove('active')" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.1); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:1.2rem; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); transition:0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'"><i class="fas fa-times"></i></button>
+            <div class="profile-modal-header">
+                <div class="profile-avatar-container">
+                    <img id="profileModalAvatar" src="">
+                    <label for="editAdminPhotoInput" id="editAdminPhotoLabel" style="position:absolute; bottom:2px; right:2px; background:var(--primary-color); color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:1rem; box-shadow:0 4px 15px rgba(0,0,0,0.3); border:3px solid #0f172a; transition:0.3s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"><i class="fas fa-camera"></i></label>
+                    <input type="file" id="editAdminPhotoInput" accept="image/*" style="display:none;">
+                </div>
+                <h2 id="profileModalName">--</h2>
+                <div class="profile-role" id="profileModalRole">Administrator</div>
+            </div>
+            <div class="profile-modal-body">
+                <div class="profile-detail-grid">
+                    <div class="profile-detail-item full">
+                        <div class="label"><i class="fas fa-envelope" style="color:#3b82f6;"></i> Email Address</div>
+                        <div class="value" id="profileModalEmail" style="font-size:1.05rem;">--</div>
+                    </div>
+                    <div class="profile-detail-item">
+                        <div class="label"><i class="fas fa-fingerprint" style="color:#8b5cf6;"></i> System ID</div>
+                        <div class="value" id="profileModalCode" style="font-family:monospace; font-size:1.15rem; color:#8b5cf6;">--</div>
+                    </div>
+                    <div class="profile-detail-item">
+                        <div class="label"><i class="fas fa-circle" style="color:#10b981;"></i> Status</div>
+                        <div class="value" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                            <span id="profileModalStatus">--</span>
+                            <button id="toggleAdminStatusBtn" class="btn-outline" style="padding:6px 10px; font-size:0.75rem; border-radius:8px; border-width:2px;" title="Toggle Status"><i class="fas fa-sync-alt"></i></button>
+                        </div>
+                    </div>
+                    <div class="profile-detail-item full" style="flex-direction: column; align-items: flex-start;">
+                        <div class="label" style="margin-bottom:10px;"><i class="fas fa-phone" style="color:#f59e0b;"></i> Contact Number</div>
+                        <div class="value" style="display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left;">
+                            <span id="profileModalPhone" style="font-size:1.2rem; letter-spacing:1px;">--</span>
+                            <button id="editAdminPhoneBtn" class="btn-outline" style="padding:8px 16px; font-size:0.8rem; border-radius:10px; border-width:2px; display:none;"><i class="fas fa-edit"></i> Edit</button>
+                        </div>
+                    </div>
+                    <div class="profile-detail-item full" style="flex-direction: column; align-items: flex-start; background: rgba(139,92,246,0.05); border-color: rgba(139,92,246,0.2);">
+                        <div class="label" style="margin-bottom:10px;"><i class="fas fa-user-shield" style="color:#8b5cf6;"></i> Access Privileges</div>
+                        <div class="value" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                            <span id="profileModalRoleDetail" style="font-size:1.05rem;">--</span>
+                            <button id="editAdminRoleBtn" class="btn-primary" style="padding:8px 16px; font-size:0.8rem; border-radius:10px; background:#8b5cf6; display:none;"><i class="fas fa-shield-alt"></i> Change Role</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-outline" style="width:100%; padding:14px; font-size:1rem; border-radius:14px; border-width:2px;" onclick="document.getElementById('adminProfileModal').classList.remove('active')">
+                    Close Profile
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth.js"></script>
+    <script src="admins-logic.js?v=3.0"></script>
+    <script src="notifications.js?v=2.0"></script>
+</body>
+</html>
+
