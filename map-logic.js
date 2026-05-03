@@ -385,7 +385,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function syncFleet() {
-        if (isSimulationActive || isGlobalSimulationActive) return;
+        if (isSimulationActive || isGlobalSimulationActive) {
+            // Hide any existing real markers if they somehow persist
+            Object.values(busMarkers).forEach(m => { if (map.hasLayer(m)) map.removeLayer(m); });
+            Object.values(realBusRouteMarkers).forEach(m => { if (map.hasLayer(m)) map.removeLayer(m); });
+            return;
+        }
 
         try {
             const token = localStorage.getItem('adminToken');
@@ -449,6 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
 
             if (busMarkers[bId]) {
+                if (!map.hasLayer(busMarkers[bId])) busMarkers[bId].addTo(map);
                 smoothMoveMarker(busMarkers[bId], [lat, lng], 800, bId);
                 busMarkers[bId].getPopup().setContent(popupHtml);
                 const el = busMarkers[bId].getElement();
@@ -506,7 +512,10 @@ async function placeRealBusesOnRoutes() {
     Object.values(realBusRouteMarkers).forEach(m => { try { map.removeLayer(m); } catch (e) { } });
     realBusRouteMarkers = {};
 
-    if (isGlobalSimulationActive || isSimulationActive) return;
+    if (isGlobalSimulationActive || isSimulationActive) {
+        Object.values(realBusRouteMarkers).forEach(m => { try { map.removeLayer(m); } catch (e) { } });
+        return;
+    }
 
     let placed = 0;
     for (const bus of allRealBuses) {
@@ -813,12 +822,13 @@ window.toggleSimulation = function () {
             btn.classList.add('paused');
             btn.innerHTML = '<i class="fas fa-pause-circle"></i><span>Simulation OFF</span>';
         }
-        Object.values(busMarkers).forEach(m => { try { map.removeLayer(m); } catch (e) { } });
-        busMarkers = {};
+        
+        // Hide Real Fleet
+        hideFleet();
+        // Also hide route-based real buses
+        Object.values(realBusRouteMarkers).forEach(m => { try { map.removeLayer(m); } catch (e) { } });
         realBusRouteIntervals.forEach(id => clearInterval(id));
         realBusRouteIntervals = [];
-        Object.values(realBusRouteMarkers).forEach(m => { try { map.removeLayer(m); } catch (e) { } });
-        realBusRouteMarkers = {};
 
         startGlobalSimulation();
     } else {
@@ -828,6 +838,7 @@ window.toggleSimulation = function () {
         }
 
         stopGlobalSimulation();
+        showFleet(); // Re-add hidden markers
         syncFleet();
         placeRealBusesOnRoutes();
     }

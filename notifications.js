@@ -27,6 +27,92 @@ document.addEventListener('DOMContentLoaded', () => {
                 notifDropdown.classList.remove('active');
             }
         });
+        const notifSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_78385764d7.mp3');
+        notifSound.volume = 0.5;
+
+        let baselineTime = Date.now();
+        let alertedIds = new Set();
+
+        async function initIntelligence() {
+            if (typeof supabase === 'undefined') return;
+            
+            // 1. Fetch latest report to set a solid baseline
+            try {
+                const { data } = await supabase
+                    .from('complaints')
+                    .select('created_at, id')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                
+                if (data && data.length > 0) {
+                    baselineTime = new Date(data[0].created_at).getTime();
+                    // Mark existing ones as already "seen" for alerts
+                    alertedIds.add(data[0].id);
+                }
+                console.log('[TransitWay] Intelligence Link Established. Baseline:', new Date(baselineTime).toLocaleTimeString());
+            } catch (e) { 
+                console.warn('[TransitWay] Baseline sync failed, using client time.');
+            }
+
+            // 2. Start Polling
+            setInterval(pollNotifications, 3000);
+            pollNotifications();
+        }
+
+        function triggerAlert(report) {
+            const text = report.text_complaint || report.textComplaint || 'Signal anomaly detected';
+            const category = report.category || 'System Alert';
+            const user = report.user_name || report.userName || 'Anonymous User';
+            
+            console.log('[TransitWay] TRIGGERING ALERT for report:', report.id);
+
+            // Play sound
+            notifSound.play().then(() => console.log('[TransitWay] Alert sound played.'))
+                      .catch(e => console.warn('[TransitWay] Audio play blocked by browser. Interaction required.'));
+
+            // Ping the badge
+            if (badge) {
+                badge.classList.add('notif-ping');
+                setTimeout(() => badge.classList.remove('notif-ping'), 2000);
+            }
+
+            // Show High-End Popup
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: `<div style="display:flex; align-items:center; gap:10px; color:#ef4444; font-weight:900;">
+                                <i class="fas fa-satellite-dish fa-spin" style="font-size:1.2rem;"></i> 
+                                <span>INTELLIGENCE ALERT</span>
+                            </div>`,
+                    html: `
+                        <div style="text-align:left; padding:15px; background:rgba(239,68,68,0.03); border-radius:12px; border:1px solid rgba(239,68,68,0.1);">
+                            <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--primary-color); background:rgba(16,185,129,0.1); padding:4px 10px; border-radius:20px;">${category}</span>
+                                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;"><i class="far fa-user"></i> ${user}</span>
+                            </div>
+                            <p style="font-size:0.95rem; font-weight:600; line-height:1.6; color:var(--text-main); margin:0;">"${text}"</p>
+                        </div>
+                        <div style="margin-top:15px; font-size:0.75rem; color:var(--text-muted); text-align:center; font-weight:600;">Click to investigate signal source</div>
+                    `,
+                    toast: true,
+                    position: 'top-end',
+                    timer: 8000,
+                    timerProgressBar: true,
+                    showConfirmButton: false,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)',
+                    showClass: { popup: 'animate__animated animate__fadeInRight animate__faster' },
+                    hideClass: { popup: 'animate__animated animate__fadeOutRight animate__faster' },
+                    didOpen: (toast) => {
+                        toast.style.boxShadow = '0 10px 40px rgba(239,68,68,0.2), 0 0 0 1px rgba(239,68,68,0.1)';
+                        toast.style.borderRadius = '20px';
+                        toast.style.cursor = 'pointer';
+                        toast.onclick = () => window.location.href = 'reports.html';
+                    }
+                });
+            } else {
+                console.error('[TransitWay] SweetAlert2 (Swal) not found! Popup aborted.');
+            }
+        }
 
         async function pollNotifications() {
             if (typeof supabase === 'undefined') return;
@@ -34,16 +120,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 const { data, error } = await supabase
                     .from('complaints')
                     .select('*')
-                    .eq('status', 'Pending')
                     .order('created_at', { ascending: false })
-                    .limit(5);
+                    .limit(10);
 
                 if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    const pendingReports = data.filter(r => (r.status || '').toLowerCase() === 'pending');
+                    
+                    pendingReports.forEach(report => {
+                        const reportTime = new Date(report.created_at || report.createdAt).getTime();
+                        
+                        // LOG FOR DEBUGGING
+                        console.log(`[TransitWay] Checking Report ${report.id}: Time=${new Date(reportTime).toLocaleTimeString()}, Baseline=${new Date(baselineTime).toLocaleTimeString()}`);
+
+                        if (reportTime > baselineTime && !alertedIds.has(report.id)) {
+                            alertedIds.add(report.id);
+                            triggerAlert(report);
+                        }
+                    });
+                }
+
                 renderNotifications(data || []);
             } catch (err) {
-                console.error('Intelligence Link Failure:', err);
+                console.error('[TransitWay] Intelligence Feed Error:', err);
             }
         }
+
+        // Add a "Test Intelligence" hidden function
+        window.testIntelligenceAlert = () => {
+            triggerAlert({
+                id: 'TEST-' + Date.now(),
+                text_complaint: 'This is a test of the emergency broadcast system.',
+                category: 'DEBUG',
+                user_name: 'System Admin'
+            });
+        };
+
+        initIntelligence();
 
         function renderNotifications(items) {
             if (!notifList) return;

@@ -1,11 +1,10 @@
-
 (function () {
     document.addEventListener('DOMContentLoaded', () => {
         // --- GLOBAL THEME INITIALIZATION ---
         const initTheme = () => {
             const currentTheme = localStorage.getItem('siteTheme') || 'light';
             document.documentElement.setAttribute('data-theme', currentTheme);
-            if (currentTheme === 'dark') injectNeuralBackground();
+            injectNeuralBackground();
         };
         initTheme();
 
@@ -21,8 +20,7 @@
         themeObserver.observe(document.documentElement, { attributes: true });
 
         const triggers = document.querySelectorAll('.user-info, .profile-pill, .dropdown-trigger');
-        if (triggers.length === 0) return;
-
+        
         triggers.forEach(trigger => {
             const adminName = localStorage.getItem('activeAdminName') || localStorage.getItem('adminName') || 'Admin';
             const adminEmail = localStorage.getItem('activeAdminEmail') || localStorage.getItem('adminEmail') || '';
@@ -272,7 +270,6 @@
                 keysToRemove.forEach(k => localStorage.removeItem(k));
                 window.location.href = 'index.html';
             }
-            });
         }
     };
 
@@ -281,26 +278,30 @@
         const bg = document.createElement('div');
         bg.className = 'neural-bg';
         
-        const particleCount = 25; // Slightly fewer but larger and more premium
+        const particleCount = 40; // Increased for a more immersive feel
         for (let i = 0; i < particleCount; i++) {
             const p = document.createElement('div');
             p.className = 'neural-particle';
             
-            // Randomize properties
-            const size = Math.random() * 8 + 4; // 4px to 12px
-            const animIndex = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+            // Randomize properties for a high-end feel
+            const size = Math.random() * 10 + 2; // 2px to 12px
+            const animIndex = Math.floor(Math.random() * 3) + 1;
+            const duration = (Math.random() * 20 + 25) + 's';
+            const delay = (Math.random() * -40) + 's';
+            const blur = Math.random() * 2 + 1;
             
             p.style.width = `${size}px`;
             p.style.height = `${size}px`;
             p.style.left = Math.random() * 100 + 'vw';
             p.style.top = Math.random() * 100 + 'vh';
-            p.style.animationName = `neuralFloatVar${animIndex}`;
-            p.style.animationDuration = (Math.random() * 15 + 20) + 's';
-            p.style.animationDelay = (Math.random() * -30) + 's'; // Negative delay to start mid-animation
+            p.style.filter = `blur(${blur}px)`;
+            p.style.animation = `neuralFloatVar${animIndex} ${duration} linear infinite ${delay}`;
             
-            // Varied glow intensity
-            const glowOpacity = (Math.random() * 0.4 + 0.2);
-            p.style.boxShadow = `0 0 15px #10b981, 0 0 30px rgba(16, 185, 129, ${glowOpacity})`;
+            // Premium glow with varied intensity
+            const glowIntensity = (Math.random() * 15 + 10);
+            const secondaryGlow = glowIntensity * 2;
+            const opacity = (Math.random() * 0.5 + 0.3);
+            p.style.boxShadow = `0 0 ${glowIntensity}px #10b981, 0 0 ${secondaryGlow}px rgba(16, 185, 129, ${opacity})`;
             
             bg.appendChild(p);
         }

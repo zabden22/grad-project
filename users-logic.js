@@ -133,6 +133,19 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.addEventListener('input', filterUsers);
     }
 
+    async function sendUserNotification(userId, title, body, type) {
+        try {
+            await supabase.from('notifications').insert({
+                user_id: userId,
+                title: title,
+                body: body,
+                type: type
+            });
+        } catch (err) {
+            console.error('[Notifications] Failed to send signal:', err);
+        }
+    }
+
     window.warnUser = async (userId, userName) => {
         const userObj = usersData.find(u => String(u.id) === String(userId));
         const currentCount = userObj ? (userObj.warning_count || 0) : 0;
@@ -159,6 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (error) throw error;
                 
+                // Send notification to mobile app
+                await sendUserNotification(userId, 'warning ⚠️', reason, 'warning');
+
                 Swal.fire({ icon: 'success', title: 'Warning Sent!', text: `${userName || 'User'} has been warned.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                 loadUsers(true);
             } catch (err) {
@@ -200,6 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (error) throw error;
                 
+                // Send notification to mobile app
+                await sendUserNotification(userId, 'your acount has been banned 🚫', reason, 'ban');
+
                 banCounter++;
                 localStorage.setItem('banCounter', banCounter);
 
@@ -247,6 +266,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (error) throw error;
                 
+                // Send notification to mobile app
+                await sendUserNotification(userId, 'تم تفعيل حسابك ✅', 'لقد تمت إزالة الحظر عن حسابك، يمكنك الآن استخدام النظام بشكل طبيعي.', 'unban');
+
                 Swal.fire({ icon: 'success', title: 'User Unbanned!', text: `${userName || 'User'} can now access the system.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                 loadUsers(true);
             } catch (err) {
