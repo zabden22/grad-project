@@ -164,15 +164,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('isSuperAdmin', (adminData.role || '').toLowerCase().includes('super') ? 'true' : 'false');
 
                     Swal.fire({
-                        icon: 'success', title: 'Welcome Back!',
-                        text: 'Redirecting to dashboard...',
-                        showConfirmButton: false, timer: 800, timerProgressBar: true,
-                        didOpen: () => Swal.showLoading()
+                        icon: 'success',
+                        title: '<div style="font-weight:900; letter-spacing:-0.5px;">Welcome Back, Commander!</div>',
+                        html: `
+                            <div style="margin-top:10px; font-weight:700; color:var(--text-muted);">
+                                Secure link established. Redirecting to <span style="color:var(--primary-color);">Strategic Dashboard</span>...
+                            </div>
+                        `,
+                        showConfirmButton: false,
+                        timer: 2000,
+                        timerProgressBar: true,
+                        background: 'var(--bg-card)',
+                        color: 'var(--text-main)',
+                        showClass: { popup: 'animate__animated animate__zoomIn animate__faster' },
+                        hideClass: { popup: 'animate__animated animate__fadeOut animate__faster' },
+                        didOpen: () => {
+                            Swal.showLoading();
+                            const b = Swal.getHtmlContainer().querySelector('b');
+                            if (b) b.textContent = Swal.getTimerLeft();
+                        }
                     });
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
+                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
                 } else {
                     try { await window.supabaseAuth.auth.signOut(); } catch(e) {}
-                    Swal.fire({ icon: 'error', title: 'Login Failed', text: 'Invalid email or password.', confirmButtonColor: '#76a08a' });
+                    Swal.fire({
+                        icon: 'error',
+                        title: '<div style="font-weight:900; color:#ef4444;">Access Denied</div>',
+                        text: 'Invalid credentials detected. Please verify your identity.',
+                        confirmButtonColor: '#ef4444',
+                        background: 'var(--bg-card)',
+                        color: 'var(--text-main)',
+                        showClass: { popup: 'animate__animated animate__headShake' }
+                    });
                     resetBtn(submitBtn);
                 }
 

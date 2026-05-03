@@ -72,9 +72,11 @@
                 </div>
                 <div style="padding: 8px;">
                     <a href="dashboard.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-th-large" style="width:20px; color:#3b82f6;"></i> Dashboard</a>
-                    <a href="settings.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-cog" style="width:20px; color:#8b5cf6;"></i> Settings</a>
-                    <a href="admins.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-users-cog" style="width:20px; color:#f59e0b;"></i> Admin Panel</a>
+                    <a href="settings.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-user-circle" style="width:20px; color:#10b981;"></i> My Profile</a>
+                    <a href="settings.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-cog" style="width:20px; color:#8b5cf6;"></i> System Settings</a>
+                    <a href="admins.html" class="ud-item" style="border-radius:10px;"><i class="fas fa-users-cog" style="width:20px; color:#f59e0b;"></i> Management Panel</a>
                     <div class="ud-divider" style="height: 1px; background: var(--border-color); margin: 6px 12px;"></div>
+                    <div class="ud-item" id="udLangToggle" style="border-radius:10px; cursor:pointer;"><i class="fas fa-globe" style="width:20px; color:#64748b;"></i> Change Language</div>
                     <div class="ud-item danger" id="udLogout" style="color: #ef4444; font-weight: 700; cursor: pointer; border-radius:10px;"><i class="fas fa-sign-out-alt" style="width: 20px;"></i> Log Out</div>
                 </div>
             `;
@@ -101,6 +103,16 @@
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 if (typeof window.confirmLogout === 'function') window.confirmLogout();
+            });
+        }
+
+        const udLangBtn = document.getElementById('udLangToggle');
+        if (udLangBtn) {
+            udLangBtn.addEventListener('click', () => {
+                const currentLang = localStorage.getItem('transitLang') || 'en';
+                const nextLang = currentLang === 'en' ? 'ar' : 'en';
+                localStorage.setItem('transitLang', nextLang);
+                window.location.reload();
             });
         }
 

@@ -33,6 +33,9 @@ body {
     font-family: 'Plus Jakarta Sans', sans-serif !important;
     margin: 0;
     transition: 0.3s;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 .v-card, .status-card, .data-card, .table-container, .card, .profile-card {
@@ -42,10 +45,12 @@ body {
     box-shadow: var(--card-shadow) !important;
     padding: 24px;
     margin-bottom: 24px;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, box-shadow;
+    transform: translateZ(0);
 }
 
-.v-card:hover { transform: translateY(-4px); box-shadow: 0 10px 40px rgba(0,0,0,0.08) !important; }
+.v-card:hover { transform: translateY(-4px) translateZ(0); box-shadow: 0 10px 40px rgba(0,0,0,0.08) !important; }
 
 h1, h2, h3, h4, h5, h6, th, td, p, span {
     color: var(--text-main);

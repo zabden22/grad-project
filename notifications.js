@@ -76,6 +76,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => badge.classList.remove('notif-ping'), 2000);
             }
 
+            // Add Red Badge to Reports Sidebar Tab
+            const reportsLink = document.querySelector('a[href="reports.html"]');
+            if (reportsLink) {
+                let sBadge = reportsLink.querySelector('.sidebar-notif-badge');
+                if (!sBadge) {
+                    sBadge = document.createElement('span');
+                    sBadge.className = 'sidebar-notif-badge';
+                    sBadge.style.cssText = `
+                        background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: 900;
+                        padding: 2px 6px; border-radius: 50px; margin-left: auto;
+                        box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+                        animation: pulse-red-badge 1.5s infinite;
+                    `;
+                    reportsLink.appendChild(sBadge);
+                    
+                    if (!document.getElementById('badgePulseStyle')) {
+                        const style = document.createElement('style');
+                        style.id = 'badgePulseStyle';
+                        style.innerHTML = `@keyframes pulse-red-badge { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }`;
+                        document.head.appendChild(style);
+                    }
+                }
+                const currentCount = parseInt(sBadge.innerText || '0');
+                sBadge.innerText = currentCount + 1;
+            }
+
             // Show High-End Popup
             if (typeof Swal !== 'undefined') {
                 Swal.fire({

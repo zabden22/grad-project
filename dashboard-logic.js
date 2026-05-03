@@ -104,6 +104,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- PERFORMANCE OPTIMIZATION ---
+    // Globally disable expensive animations for high-frequency updates
+    if (typeof Chart !== 'undefined') {
+        Chart.defaults.animation = { duration: 400, easing: 'easeOutQuart' };
+        Chart.defaults.elements.line.tension = 0.4;
+        Chart.defaults.elements.point.hoverRadius = 6;
+        Chart.defaults.responsive = true;
+        Chart.defaults.maintainAspectRatio = false;
+    }
+
     async function loadAllData() {
         try {
             /* ── Supabase parallel queries ── */
@@ -139,10 +149,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('lastSyncTime').innerHTML = '<i class="fas fa-check-circle"></i> ' + new Date().toLocaleTimeString();
             document.getElementById('fleetStatusIndicator').innerHTML = '● ALL SYSTEMS OPERATIONAL';
+            
+            // Use requestAnimationFrame for smoother UI updates
+            requestAnimationFrame(rebuildAll);
         } catch (e) {
             console.warn('Data load error:', e);
         }
-        rebuildAll();
     }
 
     function getFiltered(arr, dateKey) {

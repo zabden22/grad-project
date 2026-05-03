@@ -121,6 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const tr = document.createElement('tr');
+            tr.style.borderLeft = `4px solid ${rColor}`;
+            tr.style.background = `linear-gradient(to right, ${rColor}05, transparent)`;
             tr.innerHTML = `
                 <td><div style="font-family:monospace; font-weight:900; color:${rColor};">#${String(tck.id).substring(0, 8)}</div></td>
                 <td><div style="font-weight:800; cursor:pointer; color:var(--text-main);" onclick="window.jumpToUser('${tck.user_id}')" title="Jump to User Profile">${passenger} <i class="fas fa-external-link-alt" style="font-size:0.7rem; opacity:0.4; margin-left:4px;"></i></div></td>
@@ -130,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${statusBadge}</td>
                 <td>
                     <div style="display:flex; gap:8px;">
-                        <button class="btn-outline" style="width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:10px;" onclick="window.viewTicket('${tck.id}')"><i class="fas fa-eye"></i></button>
+                        <button class="btn-outline" style="width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:10px; border-color:${rColor}44; color:${rColor};" onclick="window.viewTicket('${tck.id}')"><i class="fas fa-eye"></i></button>
                         <button class="btn-outline" style="width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:10px; color:#ef4444; border-color:rgba(239,68,68,0.2);" onclick="window.deleteTicket('${tck.id}')"><i class="fas fa-trash"></i></button>
                     </div>
                 </td>
