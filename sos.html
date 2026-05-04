@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - SOS Intelligence Command</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard-style.css?v=120.0">
+    <script src="i18n.js"></script>
+    <style>
+        .banner-nexus {
+            background: #111b27;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px; padding: 25px 35px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .banner-left h1 { font-size: 2rem; font-weight: 900; color: #fff; margin-bottom: 5px; display: flex; align-items: center; gap: 15px; }
+        .banner-left p { color: rgba(255,255,255,0.5); font-weight: 600; font-size: 0.95rem; }
+
+        .banner-right { display: flex; flex-direction: column; gap: 10px; }
+        .count-badge {
+            padding: 6px 18px; border-radius: 50px; font-weight: 800; font-size: 0.75rem;
+            text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center;
+            min-width: 120px; border: 1px solid transparent;
+        }
+        .badge-critical { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); box-shadow: 0 0 15px rgba(239, 68, 68, 0.1); }
+        .badge-warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border-color: rgba(245, 158, 11, 0.2); box-shadow: 0 0 15px rgba(245, 158, 11, 0.1); }
+
+        .intel-center { text-align: center; padding-top: 100px; }
+        .radar-box {
+            width: 180px; height: 180px; margin: 0 auto 120px; border-radius: 50%;
+            position: relative; display: flex; align-items: center; justify-content: center;
+        }
+        .radar-pulse {
+            position: absolute; width: 100%; height: 100%;
+            border: 2px solid #10b981; border-radius: 50%;
+            animation: radarPulse 2s infinite;
+        }
+        @keyframes radarPulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(2); opacity: 0; } }
+        .shield-icon { font-size: 4rem; color: #10b981; filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.3)); }
+
+        .intel-center h2 { font-size: 2.2rem; font-weight: 900; margin-bottom: 10px; color: #fff; }
+        .intel-center p { color: rgba(255,255,255,0.4); font-weight: 700; font-size: 1.1rem; }
+
+        .status-row { display: flex; justify-content: center; gap: 30px; margin-top: 80px; }
+        .status-pill { color: rgba(255,255,255,0.4); font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+        .status-pill b { color: #10b981; margin-left: 5px; }
+
+        /* Conditional Visibility */
+        #sos-sidebar-link { display: none !important; }
+        body.on-reports #sos-sidebar-link, body.on-sos #sos-sidebar-link { display: flex !important; }
+    </style>
+</head>
+<body class="on-sos">
+
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="Logo">
+                <h1 data-i18n="brand_name">TRANSITWAY</h1>
+            </div>
+            <nav class="nav-group">
+                <a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i> <span data-i18n="dashboard">Dashboard</span></a>
+                <a href="map.html" class="nav-link"><i class="fas fa-map-marked-alt"></i> <span data-i18n="live_map">Live Map</span></a>
+                <a href="admins.html" class="nav-link"><i class="fas fa-user-shield"></i> <span data-i18n="admins">Admins</span></a>
+                <a href="buses.html" class="nav-link"><i class="fas fa-bus"></i> <span data-i18n="buses">Buses</span></a>
+                <a href="drivers.html" class="nav-link"><i class="fas fa-users"></i> <span data-i18n="drivers">Drivers</span></a>
+                <a href="stations.html" class="nav-link"><i class="fas fa-map-marker-alt"></i> <span data-i18n="stations">Stations</span></a>
+                <a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> <span data-i18n="tickets">Tickets</span></a>
+                <a href="routes.html" class="nav-link"><i class="fas fa-route"></i> <span data-i18n="routes">Routes</span></a>
+                <a href="reports.html" class="nav-link"><i class="fas fa-exclamation-triangle"></i> <span data-i18n="reports">Reports</span></a>
+                <a href="sos.html" id="sos-sidebar-link" class="nav-link active"><i class="fas fa-heartbeat"></i> <span data-i18n="sos_intelligence">SOS Intelligence</span></a>
+                <a href="users.html" class="nav-link"><i class="fas fa-user-friends"></i> <span data-i18n="users">Users</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <nav class="nav-group">
+                    <a href="settings.html" class="nav-link"><i class="fas fa-cog"></i> <span data-i18n="settings">Settings</span></a>
+                    <a onclick="confirmLogout()" class="nav-link" style="cursor:pointer; color:#ef4444;"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Log Out</span></a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main-viewport">
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                    <h2 data-i18n="sos_intelligence">SOS Intelligence Command</h2>
+                </div>
+                <div class="header-right">
+                    <div class="calendar-trigger" id="currentTime">
+                        <i class="far fa-clock"></i>
+                        <span>00:00:00</span>
+                    </div>
+                    <div class="profile-pill dropdown-trigger" style="display:flex !important;">
+                        <img id="topAvatar" src="https://ui-avatars.com/api/?name=Admin&background=10b981&color=fff">
+                        <span id="topBarName">Admin</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="banner-nexus">
+                <div class="banner-left">
+                    <h1><i class="fas fa-broadcast-tower"></i> Emergency Response Nexus</h1>
+                    <p>High-priority telemetry monitoring and fleet life-safety protocol management.</p>
+                </div>
+                <div class="banner-right">
+                    <div class="count-badge badge-critical"><span id="criticalCountDisplay">0</span> CRITICAL</div>
+                    <div class="count-badge badge-warning"><span id="warningCountDisplay">0</span> WARNING</div>
+                </div>
+            </div>
+
+            <div id="scanningState" class="intel-center">
+                <div class="radar-box">
+                    <div class="radar-pulse"></div>
+                    <div class="radar-pulse" style="animation-delay: 1s;"></div>
+                    <i class="fas fa-shield-alt shield-icon"></i>
+                </div>
+                <h2>Fleet Matrix Scanning</h2>
+                <p>All systems normal. Currently monitoring 142 fleet assets for distress signals.</p>
+                <div class="status-row">
+                    <div class="status-pill">AMBULANCE <b>Ready</b></div>
+                    <div class="status-pill">FIRE DEPT <b>Ready</b></div>
+                    <div class="status-pill">POLICE <b>Ready</b></div>
+                </div>
+            </div>
+
+            <div id="sosAlertsGrid"></div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="notifications.js?v=8.0"></script>
+    <script src="user-dropdown.js"></script>
+    <script src="auth.js"></script>
+    <script src="sos-logic.js?v=10.0"></script>
+    <script>
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('currentTime').querySelector('span').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+        }, 1000);
+    </script>
+</body>
+</html>

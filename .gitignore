@@ -1,0 +1,6 @@
+.vscode/
+scratch/
+temp_recovery/
+*.log
+node_modules/
+.env

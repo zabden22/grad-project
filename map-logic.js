@@ -625,6 +625,56 @@ document.addEventListener('DOMContentLoaded', () => {
         const statActive = document.getElementById('statActiveBuses');
         if (statActive) statActive.innerText = activeCount;
         if (heatmapOn) buildHeatmap();
+
+        // --- SOS Focus Mode Logic ---
+        handleSOSFocusMode();
+    }
+
+    function handleSOSFocusMode() {
+        const focusBusId = localStorage.getItem('sos_focus_bus');
+        if (!focusBusId) return;
+
+        // Hide all buses except the focused one
+        Object.keys(busMarkers).forEach(bId => {
+            if (String(bId) !== String(focusBusId)) {
+                if (map.hasLayer(busMarkers[bId])) map.removeLayer(busMarkers[bId]);
+            } else {
+                if (!map.hasLayer(busMarkers[bId])) busMarkers[bId].addTo(map);
+                
+                // Add a permanent special visual to the focused bus
+                const el = busMarkers[bId].getElement();
+                if (el) {
+                    el.classList.add('real-bus-badge'); // Reuse existing animation or add new one
+                    el.style.filter = 'drop-shadow(0 0 20px #ef4444)';
+                }
+            }
+        });
+
+        // Hide simulation markers
+        Object.values(realBusRouteMarkers).forEach(m => {
+            if (map.hasLayer(m)) map.removeLayer(m);
+        });
+
+        // Add a "Exit Focus Mode" button if it doesn't exist
+        if (!document.getElementById('exitSosFocusBtn')) {
+            const btn = document.createElement('button');
+            btn.id = 'exitSosFocusBtn';
+            btn.style = `
+                position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+                z-index: 10000; background: #ef4444; color: #fff;
+                border: none; border-radius: 50px; padding: 15px 30px;
+                font-weight: 900; font-size: 1rem; cursor: pointer;
+                box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+                animation: fadeSlideUp 0.5s both;
+            `;
+            btn.innerHTML = '<i class="fas fa-times-circle"></i> EXIT EMERGENCY FOCUS';
+            btn.onclick = () => {
+                localStorage.removeItem('sos_focus_bus');
+                btn.remove();
+                syncFleet(); // Re-render everything
+            };
+            document.querySelector('.map-wrapper').appendChild(btn);
+        }
     }
     async function buildRouteZoneMap() {
         try {
