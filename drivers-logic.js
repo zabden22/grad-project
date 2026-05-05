@@ -47,22 +47,29 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.warn('Buses/Routes link offline', e); }
     };
 
-    // Core Logic: Load Drivers
+    // Core Logic: Load All Data in Parallel
     window.loadDrivers = async function(silent = false) {
         const tbody = document.getElementById('driverTableBody');
         if(!tbody) return;
 
         try {
             if (!silent) {
-                tbody.innerHTML = Array(5).fill('<tr><td colspan="7"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
+                tbody.innerHTML = Array(5).fill('<tr><td colspan="7"><div class="skeleton" style="width:100%;height:45px;border-radius:12px;margin-bottom:10px;"></div></td></tr>').join('');
             }
 
-            await window.loadBusesAndRoutes();
+            // Fetch everything in parallel for maximum speed
+            const [driversRes, busesRes, routesRes] = await Promise.all([
+                supabase.from('drivers').select('*'),
+                supabase.from('buses').select('*'),
+                supabase.from('routes').select('*')
+            ]);
 
-            let { data, error } = await supabase.from('drivers').select('*');
-            if (error) throw error;
-
-            window.driversData = (data || []).map(d => {
+            if (driversRes.error) throw driversRes.error;
+            
+            window.busesData = busesRes.data || [];
+            window.routesData = routesRes.data || [];
+            
+            window.driversData = (driversRes.data || []).map(d => {
                 const busId = d.bus_id || null;
                 const busObj = busId ? window.busesData.find(b => b.id == busId) : null;
                 const routeObj = busObj ? window.routesData.find(r => r.id == busObj.route_id) : null;
@@ -84,7 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error('Personnel Error:', err);
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px; color:#ef4444;"><i class="fas fa-exclamation-triangle" style="font-size:2.5rem;"></i><p style="font-weight:900; margin-top:15px;">Personnel Intelligence Offline</p></td></tr>`;
+            const errorMsg = err.message || JSON.stringify(err);
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px; color:#ef4444;"><i class="fas fa-exclamation-triangle" style="font-size:2.5rem;"></i><p style="font-weight:900; margin-top:15px;">Personnel Intelligence Offline</p><p style="font-size:0.8rem; opacity:0.7;">Error: ${errorMsg}</p></td></tr>`;
         }
     };
 

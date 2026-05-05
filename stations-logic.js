@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${st.name}
                         </div>
                         <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px; padding-left:28px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">
-                            <span style="background:${st.color}15; color:${st.color}; padding:2px 8px; border-radius:4px; border:1px solid ${st.color}25;">${st.zone}</span>
+                            <span style="background:${st.color}; color:#fff !important; padding:3px 10px; border-radius:6px; box-shadow: 0 4px 8px ${st.color}40;">${st.zone}</span>
                         </div>
                     </td>
                     <td style="font-family:monospace; color:var(--text-muted); font-size:0.9rem;">
@@ -161,8 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${parseFloat(st.lat).toFixed(4)}, ${parseFloat(st.lng).toFixed(4)}
                     </td>
                     <td>
-                        <span style="background:${st.color}15; color:${st.color}; padding:6px 12px; border-radius:8px; font-weight:800; font-size:0.85rem; border:1px solid ${st.color}30;">
-                            ${st.line} ${t('line')}
+                        <span style="background:${st.color}; color:#fff !important; padding:6px 14px; border-radius:50px; font-weight:900; font-size:0.85rem; box-shadow: 0 4px 12px ${st.color}40; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-route" style="font-size:0.7rem; color:rgba(255,255,255,0.8);"></i> ${st.line} ${t('line')}
                         </span>
                     </td>
                     <td>${statusBadge}</td>
@@ -228,6 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 renderTable();
             })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => {
+                loadRoutes().then(() => loadStations(true));
+            })
             .subscribe();
     }
 
@@ -261,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const routeId = parseInt(formData.get('route'), 10) || 0;
 
             if (!routeId) {
-                Swal.fire({ icon: 'warning', title: 'Missing Route', text: 'Please select a route.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'warning', title: 'Missing Route', text: 'Please select a route.' });
                 btn.disabled = false;
                 btn.innerText = 'Save Station';
                 return;
@@ -273,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const longitude = lngRaw ? parseFloat(lngRaw)  : null;
 
             if (!latRaw || !lngRaw || isNaN(latitude) || isNaN(longitude)) {
-                Swal.fire({ icon: 'warning', title: 'Invalid Coordinates', text: 'Please enter valid Latitude and Longitude numbers.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'warning', title: 'Invalid Coordinates', text: 'Please enter valid Latitude and Longitude numbers.' });
                 btn.disabled = false;
                 btn.innerText = 'Save Station';
                 return;
@@ -281,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const stationName = formData.get('name') || '';
             if (!stationName.trim()) {
-                Swal.fire({ icon: 'warning', title: 'Missing Name', text: 'Please enter a station name.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'warning', title: 'Missing Name', text: 'Please enter a station name.' });
                 btn.disabled = false;
                 btn.innerText = 'Save Station';
                 return;
@@ -303,16 +306,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     html: `<p style="margin:0; font-weight:600;">"${stationName}" added to the network.</p>
                            <p style="margin:5px 0 0 0; color:var(--text-muted);">Route ID: ${routeId}</p>`,
                     timer: 2500,
-                    showConfirmButton: false,
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)'
+                    showConfirmButton: false
                 });
                 closeModal('addStationModal');
                 e.target.reset();
                 loadStations();
             } catch (err) {
                 console.error('Add station error:', err);
-                Swal.fire({ icon: 'error', title: 'Error!', text: `Failed to add station: ${err.message}`, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'error', title: 'Error!', text: `Failed to add station: ${err.message}` });
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Save Station';
@@ -336,17 +337,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     showCancelButton: true,
                     confirmButtonColor: '#ef4444',
                     cancelButtonColor: 'var(--text-muted)',
-                    confirmButtonText: 'Yes, delete it!',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)'
+                    confirmButtonText: 'Yes, delete it!'
                 }).then(async (result) => {
                     if (result.isConfirmed) {
                         try {
                             await supabase.from('stations').eq('id', stationId).delete();
-                            Swal.fire({ title: 'Deleted!', text: `"${stationName}" has been removed.`, icon: 'success', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                            Swal.fire({ title: 'Deleted!', text: `"${stationName}" has been removed.`, icon: 'success', timer: 2000, showConfirmButton: false });
                             loadStations();
                         } catch (err) {
-                            Swal.fire({ title: 'Error!', text: `Could not delete station: ${err.message}`, icon: 'error', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                            Swal.fire({ title: 'Error!', text: `Could not delete station: ${err.message}`, icon: 'error' });
                         }
                     }
                 });
@@ -405,8 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     showCancelButton: true,
                     confirmButtonText: 'Save Changes',
                     confirmButtonColor: '#3b82f6',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)',
                     preConfirm: () => {
                         const name = document.getElementById('swal-stName').value;
                         const zone = document.getElementById('swal-stZone').value;
@@ -423,10 +420,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const { error } = await supabase.from('stations').eq('id', stationId).update(result.value);
                             if (error) throw error;
-                            Swal.fire({ title: 'Success!', text: 'Station updated successfully.', icon: 'success', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                            Swal.fire({ title: 'Success!', text: 'Station updated successfully.', icon: 'success', timer: 2000, showConfirmButton: false });
                             loadStations();
                         } catch (err) {
-                            Swal.fire({ title: 'Error!', text: `Failed to update: ${err.message}`, icon: 'error', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                            Swal.fire({ title: 'Error!', text: `Failed to update: ${err.message}`, icon: 'error' });
                         }
                     }
                 });
@@ -464,8 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     confirmButtonText: 'Update Signal',
                     confirmButtonColor: '#3b82f6',
                     cancelButtonColor: 'var(--text-muted)',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)',
                     customClass: {
                         input: 'swal-custom-select'
                     },
@@ -485,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 throw updErr;
                             }
 
-                            Swal.fire({ title: 'Updated!', text: `Station status changed to "${newStatus}".`, icon: 'success', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                            Swal.fire({ title: 'Updated!', text: `Station status changed to "${newStatus}".`, icon: 'success', timer: 2000, showConfirmButton: false });
                             loadStations();
                         } catch (err) {
                             console.error('Update status error:', err);

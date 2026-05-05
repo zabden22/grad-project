@@ -158,8 +158,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><div style="font-weight:800; cursor:pointer; color:var(--text-main);" onclick="window.jumpToUser('${tck.user_id}')" title="Jump to User Profile">${passenger} <i class="fas fa-external-link-alt" style="font-size:0.7rem; opacity:0.4; margin-left:4px;"></i></div></td>
                 <td>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="display:inline-flex; align-items:center; gap:6px; background:${rColor}12; color:${rColor}; border:1px solid ${rColor}25; padding:5px 14px; border-radius:50px; font-size:0.78rem; font-weight:800;">
-                            <i class="fas fa-route" style="font-size:0.7rem;"></i>${routeLabel}
+                        <span style="display:inline-flex; align-items:center; gap:6px; background:${rColor}; color:#fff !important; border:1px solid ${rColor}; padding:5px 14px; border-radius:50px; font-size:0.78rem; font-weight:800; box-shadow: 0 4px 12px ${rColor}40;">
+                            <i class="fas fa-route" style="font-size:0.7rem; color: rgba(255,255,255,0.8);"></i>${routeLabel}
                         </span>
                     </div>
                 </td>
@@ -241,8 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
 
                         <div style="grid-column: span 2;">
-                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 1px;">Assigned Route</label>
-                            <p style="margin: 0; font-weight: 800; font-size: 1rem; color: var(--text-main); line-height: 1.5;">${routeInfo.name}</p>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Assigned Route</label>
+                            <div style="display: flex; align-items: center;">
+                                <span style="background:${rColor}; color:#fff !important; padding:8px 20px; border-radius:50px; font-size:0.9rem; font-weight:900; box-shadow: 0 6px 15px ${rColor}40; display: inline-flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-route" style="opacity:0.8;"></i> ${routeInfo.name}
+                                </span>
+                            </div>
                         </div>
 
                         <div>
@@ -274,9 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `,
-            background: 'var(--bg-card)',
-            color: 'var(--text-main)',
-            showConfirmButton: true,
             confirmButtonText: 'Dismiss View',
             confirmButtonColor: rColor,
             width: 520,
@@ -297,15 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
-            confirmButtonText: 'Yes, Delete',
-            background: 'var(--bg-card)', color: 'var(--text-main)'
+            confirmButtonText: 'Yes, Delete'
         });
 
         if (res.isConfirmed) {
             try {
                 const { error } = await supabase.from('tickets').delete().eq('id', id);
                 if (error) throw error;
-                Swal.fire({ icon: 'success', title: 'Deleted', timer: 1000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'success', title: 'Deleted', timer: 1000, showConfirmButton: false });
                 loadData();
             } catch (e) {
                 Swal.fire('Error', 'Could not delete ticket', 'error');
@@ -319,8 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
             input: 'text',
             inputLabel: 'Enter Ticket Code',
             inputPlaceholder: 'TCK-XXXX',
-            showCancelButton: true,
-            background: 'var(--bg-card)', color: 'var(--text-main)'
+            showCancelButton: true
         });
 
         if (code) {
@@ -330,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.status === 'Used') throw new Error("Ticket already used");
                 
                 await supabase.from('tickets').eq('id', data.id).update({ status: 'Used' });
-                Swal.fire({ icon: 'success', title: 'Validated', text: 'Ticket used successfully', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'success', title: 'Validated', text: 'Ticket used successfully' });
                 loadData();
             } catch (e) {
                 Swal.fire('Error', e.message, 'error');
@@ -343,8 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title: 'User History',
             input: 'text',
             inputLabel: 'Enter User ID',
-            showCancelButton: true,
-            background: 'var(--bg-card)', color: 'var(--text-main)'
+            showCancelButton: true
         });
         if (uid) {
             const { data } = await supabase.from('tickets').select('*').eq('user_id', uid);
@@ -355,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.exportData = () => {
         if (!ticketsData.length) {
-            Swal.fire({ icon: 'info', title: 'No Data', text: 'No tickets to export.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+            Swal.fire({ icon: 'info', title: 'No Data', text: 'No tickets to export.' });
             return;
         }
         const headers = ['ID', 'Passenger', 'Route', 'Price', 'Status', 'Ticket Code', 'Date'];
@@ -376,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.download = `TransitWay_Tickets_${new Date().toISOString().slice(0,10)}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-        Swal.fire({ icon: 'success', title: 'Exported', text: `${ticketsData.length} tickets exported.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+        Swal.fire({ icon: 'success', title: 'Exported', text: `${ticketsData.length} tickets exported.`, timer: 1500, showConfirmButton: false });
     };
 
     window.openAddTicket = () => {
@@ -433,7 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     icon: 'success',
                     title: 'Ticket Issued',
                     text: `Signal ${payload.ticket_code} generated for user.`,
-                    background: 'var(--bg-card)', color: 'var(--text-main)',
                     timer: 1500, showConfirmButton: false
                 });
 
@@ -481,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const idx = ticketsData.findIndex(t => t.id === payload.old.id);
                     if (idx !== -1) ticketsData.splice(idx, 1);
                 }
-                updateStats();
+                updateSummary();
                 renderTable();
             })
             .subscribe();

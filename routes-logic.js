@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (name.includes('badr') || name.includes('بدر') || String(routeId) === '13') return '#8b5cf6';
         if (name.includes('shorouk') || name.includes('shrouk') || name.includes('شروق') || String(routeId) === '9') return '#ef4444';
         if (name.includes('madinaty') || name.includes('مدينتي') || name.includes('مدينتى') || String(routeId) === '11') return '#f59e0b';
+        if (name.includes('obour') || name.includes('عبور') || name.includes('العبور')) return '#06b6d4';
 
         if (name.includes('1')) return '#f43f5e';
         if (name.includes('2')) return '#8b5cf6';
@@ -32,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return '#0ea5e9';
     }
 
-    async function loadDbStations() {
+    async function loadDbStations(silent = false) {
         try {
             const { data, error } = await supabase.from('stations').select('*').order('created_at', { ascending: true });
             if (!error && data) {
@@ -43,9 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadRoutes() {
+    async function loadRoutes(silent = false) {
         try {
-            if (tbody && routesData.length === 0) {
+            if (!silent && tbody && routesData.length === 0) {
                 tbody.innerHTML = Array(5).fill('<tr><td colspan="7"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
             }
             const { data, error } = await supabase.from('routes').select('*').order('id', { ascending: true });
@@ -217,9 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title: `<i class="fas fa-route" style="color:#3b82f6; margin-right:10px;"></i> ${routeName} Stations`,
             html: `<div style="max-height:300px; overflow-y:auto; margin-top:15px; border:1px solid var(--border-color); border-radius:12px; padding:5px;">${html}</div>`,
             confirmButtonText: 'Close',
-            confirmButtonColor: '#3b82f6',
-            background: 'var(--bg-card)',
-            color: 'var(--text-main)'
+            confirmButtonColor: '#3b82f6'
         });
     };
 
@@ -229,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const rZone = document.getElementById('routeZone').value;
 
         if (!rId || !rName) {
-            Swal.fire({ title: 'Missing Info', text: 'Please enter both ID and Name.', icon: 'warning', background: 'var(--bg-card)', color: 'var(--text-main)' });
+            Swal.fire({ title: 'Missing Info', text: 'Please enter both ID and Name.', icon: 'warning' });
             return;
         }
 
@@ -241,12 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (error) throw error;
 
-            Swal.fire({ icon: 'success', title: 'Route Added! ✅', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+            Swal.fire({ icon: 'success', title: 'Route Added! ✅', timer: 1500, showConfirmButton: false });
             closeModal('addRouteModal');
             loadRoutes();
         } catch (e) {
             console.error(e);
-            Swal.fire({ title: 'Error', text: `Could not add route: ${e.message}`, icon: 'error', background: 'var(--bg-card)', color: 'var(--text-main)' });
+            Swal.fire({ title: 'Error', text: `Could not add route: ${e.message}`, icon: 'error' });
         }
     };
 
@@ -279,7 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showCancelButton: true,
             confirmButtonText: 'Save Changes',
             confirmButtonColor: '#3b82f6',
-            background: 'var(--bg-card)', color: 'var(--text-main)',
             preConfirm: () => {
                 return {
                     name: document.getElementById('swal-rName').value,
@@ -292,10 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const { error } = await supabase.from('routes').eq('id', id).update(formValues);
                 if (error) throw error;
-                Swal.fire({ icon: 'success', title: 'Updated!', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'success', title: 'Updated!', timer: 1500, showConfirmButton: false });
                 loadRoutes();
             } catch (e) {
-                Swal.fire({ title: 'Error', text: 'Could not update route', icon: 'error', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ title: 'Error', text: 'Could not update route', icon: 'error' });
             }
         }
     };
@@ -307,22 +305,52 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await Swal.fire({
             title: 'Delete Route?',
             html: `<p style="color:#ef4444; font-weight:700;">⚠ Are you sure you want to delete <strong>${routeName}</strong>?</p><p style="color:var(--text-muted);">This action cannot be undone.</p>`,
-            icon: 'error',
+            icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: 'var(--text-muted)',
-            confirmButtonText: 'Yes, delete it!',
-            background: 'var(--bg-card)', color: 'var(--text-main)'
+            confirmButtonText: 'Yes, delete it!'
         });
 
         if (res.isConfirmed) {
             try {
                 const { error } = await supabase.from('routes').eq('id', id).delete();
-                if (error) throw error;
-                Swal.fire({ icon: 'success', title: 'Deleted!', text: `${routeName} has been removed.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                
+                if (error) {
+                    if (error.message.includes('foreign key constraint') || error.code === '23503') {
+                        const fixRes = await Swal.fire({
+                            title: 'Route in Use',
+                            html: `<p style="text-align:left;">This route cannot be deleted because it is currently assigned to active <b>Buses</b>.</p>
+                                   <p style="margin-top:10px; font-weight:700; color:var(--primary-color);">Would you like to unassign all buses from this route and try again?</p>`,
+                            icon: 'info',
+                            showCancelButton: true,
+                            confirmButtonText: 'Unassign & Delete',
+                            cancelButtonText: 'Cancel',
+                            confirmButtonColor: 'var(--primary-color)'
+                        });
+
+                        if (fixRes.isConfirmed) {
+                            // Step 1: Nullify route_id for buses
+                            const { error: updErr } = await supabase.from('buses').eq('route_id', id).update({ route_id: null });
+                            if (updErr) throw updErr;
+
+                            // Step 2: Retry delete
+                            const { error: delErr } = await supabase.from('routes').eq('id', id).delete();
+                            if (delErr) throw delErr;
+
+                            Swal.fire({ icon: 'success', title: 'Route Purged', text: `Buses unassigned and ${routeName} removed.`, timer: 2000, showConfirmButton: false });
+                            loadRoutes();
+                        }
+                        return;
+                    }
+                    throw error;
+                }
+
+                Swal.fire({ icon: 'success', title: 'Deleted!', text: `${routeName} has been removed.`, timer: 1500, showConfirmButton: false });
                 loadRoutes();
             } catch (e) {
-                Swal.fire({ title: 'Error', text: `Could not delete route: ${e.message}`, icon: 'error', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                console.error('Delete Protocol Failure:', e);
+                Swal.fire({ title: 'Error', text: `Could not delete route: ${e.message}`, icon: 'error' });
             }
         }
     };
@@ -332,10 +360,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.supabaseAuth) {
         window.supabaseAuth.channel('routes_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, (payload) => {
-                loadRoutes();
+                loadRoutes(true);
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, (payload) => {
-                loadDbStations().then(() => loadRoutes());
+                loadDbStations(true).then(() => loadRoutes(true));
             })
             .subscribe();
     }

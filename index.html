@@ -32,6 +32,7 @@
                         <div class="input-container">
                             <i class="fas fa-lock"></i>
                             <input type="password" placeholder="Password" id="password" required>
+                            <i class="far fa-eye toggle-pass" onclick="togglePassword('password')" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #aaa;"></i>
                         </div>
 
                         <div class="forgot-link">
@@ -40,6 +41,11 @@
 
                         <button type="submit" class="btn-continue">Continue</button>
                     </form>
+                    <div style="position: absolute; top: 20px; right: 20px;">
+                        <button id="themeToggle" style="background: var(--login-input-bg); border: 1px solid var(--login-input-border); color: var(--login-text); width: 45px; height: 45px; border-radius: 12px; cursor: pointer; transition: 0.3s;">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </div>
 
                     <div id="setupSection" style="display:none; margin-top:20px; text-align:center;">
                         <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:18px; margin-top:10px;">

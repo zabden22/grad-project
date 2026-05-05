@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (name.includes('badr') || name.includes('بدر') || String(routeId) === '13') return '#8b5cf6';
         if (name.includes('shorouk') || name.includes('shrouk') || name.includes('شروق') || String(routeId) === '9') return '#ef4444';
         if (name.includes('madinaty') || name.includes('مدينتي') || name.includes('مدينتى') || String(routeId) === '11') return '#f59e0b';
+        if (name.includes('obour') || name.includes('عبور') || name.includes('العبور')) return '#06b6d4';
         
         if (name.includes('2')) return '#8b5cf6';
         if (name.includes('3')) return '#3b82f6';
@@ -432,9 +433,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('adminToken');
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-            const [busRes, locRes] = await Promise.all([
+            const [busRes, locRes, sosRes] = await Promise.all([
                 supabase.from('buses').select('*'),
-                supabase.from('bus_locations').select('*')
+                supabase.from('bus_locations').select('*'),
+                supabase.from('sos_alerts').select('*')
+                    .neq('status', 'RESOLVED')
+                    .neq('status', 'resolved')
+                    .neq('status', 'Safe')
+                    .neq('status', 'safe')
             ]);
 
             const primaryBuses = busRes.data || [];
@@ -443,19 +449,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const adminMap = {};
             adminBuses.forEach(item => {
                 const loc = item.latestLocation || item;
-                if (loc && loc.busId) adminMap[loc.busId] = loc;
+                if (loc && loc.bus_id) adminMap[loc.bus_id] = loc;
             });
+
             allRealBuses = primaryBuses.map(pb => {
                 const live = adminMap[pb.id];
+                const sosAlert = sosRes.data && sosRes.data.find(s => String(s.bus_id) === String(pb.id));
+                const status = live?.status || pb.status || 'Active';
+                
                 return {
                     ...pb,
                     latitude: live?.latitude || pb.current_lat || pb.latitude || pb.lat || 0,
                     longitude: live?.longitude || pb.current_lng || pb.longitude || pb.lng || 0,
                     speed: live?.speed ?? pb.speed ?? 0,
-                    status: live?.status || pb.status || 'Active',
+                    status: sosAlert ? (sosAlert.status || 'Emergency') : status,
                     busNumber: pb.bus_number || pb.busNumber || pb.serial_number || pb.id,
                     plateNumber: pb.plate_number || pb.plateNumber || 'N/A',
-                    driverName: pb.driver_name || pb.driverName || 'No Driver'
+                    driverName: pb.driver_name || pb.driverName || 'No Driver',
+                    sosAlert: sosAlert
                 };
             });
             Object.keys(adminMap).forEach(id => {
@@ -1157,6 +1168,11 @@ fetchStationsAndInitMap().then(() => {
                         buildDynamicLegend();
                     })
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, fetchRealStats)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'sos_alerts' }, () => {
+                        console.log('[Realtime] SOS Alert Update');
+                        syncFleet();
+                        handleSOSFocusMode();
+                    })
                     .subscribe();
             }
         });

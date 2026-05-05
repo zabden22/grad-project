@@ -18,7 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return window.getRouteColor(bus.routeId, routeName);
     }
 
-    async function loadDrivers() {
+    async function loadDrivers(silent = false) {
+        window.loadDrivers = loadDrivers; // Expose globally
+
         try {
             const { data } = await supabase.from('drivers').select('*');
             if (data) {
@@ -32,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadRoutes() {
+        window.loadRoutes = loadRoutes; // Expose globally
+
         try {
             const { data } = await supabase.from('routes').select('*');
             if (data) {
@@ -49,20 +53,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadBuses(silent = false) {
+        window.loadBuses = loadBuses; // Expose globally
+
         try {
             if (!silent && busTableBody) {
                 busTableBody.innerHTML = Array(5).fill('<tr><td colspan="9"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
             }
-            const { data, error } = await supabase.from('buses').select('*').order('created_at', { ascending: false });
-            if (error) throw error;
             
-            busesData = data.map(b => {
-                let driverId = b.driver_id;
-                const foundDriver = driversData.find(d => d.busId == b.id);
-                if (foundDriver) driverId = foundDriver.id;
+            // Fetch everything in parallel to ensure data consistency and speed
+            const [busesRes, driversRes, routesRes] = await Promise.all([
+                supabase.from('buses').select('*'),
+                supabase.from('drivers').select('*'),
+                supabase.from('routes').select('*')
+            ]);
 
+            if (busesRes.error) throw busesRes.error;
+            
+            console.log('[Fleet] RAW BUSES:', busesRes.data);
+            console.log('[Fleet] RAW DRIVERS:', driversRes.data);
+            console.log('[Fleet] RAW ROUTES:', routesRes.data);
+
+            // Populate global registries
+            if (driversRes.data) {
+                driversData = driversRes.data.map(d => ({
+                    id: d.id,
+                    name: d.full_name || d.name || 'Candidate',
+                    busId: d.bus_id || null
+                }));
+            }
+            if (routesRes.data) routesData = routesRes.data;
+
+            const newData = (busesRes.data || []).map(b => {
+                const driverId = b.driver_id || null;
                 const status = (b.status || '').toLowerCase();
                 const isActive = b.isActive === true || status === 'active' || status === 'moving';
+                
+                // Try to find driver if linked
+                const foundDriver = driversData.find(d => d.busId == b.id);
 
                 return {
                     id:            b.id,
@@ -77,11 +104,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     license:       b.license_number || '—'
                 };
             });
+
+            // ALWAYS clear skeletons
+            if (busTableBody) busTableBody.innerHTML = '';
+
+            if (newData.length > 0 || (busesRes.data && busesRes.data.length === 0)) {
+                busesData = newData;
+                updateStats();
+                renderTable();
+            } else if (busesRes.data && busesRes.data.length === 0) {
+                renderTable([]); // Force "No assets" message
+            }
             
-            updateStats();
-            renderTable();
         } catch (err) {
-            console.error('Fleet Sync Error:', err);
+            console.error('[Fleet] Matrix Error:', err);
+            if (!silent && busTableBody) {
+                const errorMsg = err.message || JSON.stringify(err);
+                busTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:60px; color:#ef4444;"><i class="fas fa-exclamation-triangle" style="font-size:2.5rem; margin-bottom:15px; display:block;"></i><p style="font-weight:900;">Fleet Connection Offline</p><p style="font-size:0.8rem; opacity:0.7;">Error: ${errorMsg}</p><button class="btn-primary" style="margin-top:20px;" onclick="loadBuses()">Retry Connection</button></td></tr>`;
+            }
         }
     }
 
@@ -288,11 +328,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            Swal.fire({ icon: 'success', title: 'Asset Deployed', background: 'var(--bg-card)', color: 'var(--text-main)' });
+            Swal.fire({ icon: 'success', title: 'Asset Deployed' });
             closeModal('addBusModal');
             e.target.reset();
             loadBuses();
-        } catch (err) {
+            } catch (err) {
             Swal.fire({
                 icon: 'error',
                 title: 'Deployment Error',
@@ -306,8 +346,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     ` : ''}
                 </div>`,
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
                 confirmButtonColor: '#ef4444'
             });
         } finally {
@@ -335,7 +373,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadBuses(true);
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => {
-                loadDrivers();
+                loadDrivers(true).then(() => loadBuses(true));
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => {
+                loadRoutes().then(() => loadBuses(true));
             })
             .subscribe();
     }

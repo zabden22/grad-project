@@ -1,89 +1,17 @@
+function togglePassword(id) {
+    const el = document.getElementById(id);
+    const icon = el.nextElementSibling;
+    if (el.type === 'password') {
+        el.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        el.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // --- NEURAL BACKGROUND LOGIC ---
-    window.injectNeuralBackground = function() {
-        const particlesEnabled = localStorage.getItem('particlesEnabled') !== 'false';
-        const existingBg = document.querySelector('.neural-bg');
-        
-        if (!particlesEnabled) {
-            if (existingBg) existingBg.remove();
-            return;
-        }
-
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const baseColor = '#10b981';
-        const rgbColor = '16, 185, 129';
-
-        if (existingBg) {
-            const particles = existingBg.querySelectorAll('.neural-particle');
-            particles.forEach(p => {
-                const glowIntensity = p.dataset.glowIntensity || (Math.random() * 15 + 10);
-                const secondaryGlow = glowIntensity * 2;
-                const opacity = p.dataset.opacity || (Math.random() * 0.5 + 0.3);
-                
-                p.style.backgroundColor = baseColor;
-                p.style.boxShadow = `0 0 ${glowIntensity}px ${baseColor}, 0 0 ${secondaryGlow}px rgba(${rgbColor}, ${opacity})`;
-            });
-            return;
-        }
-
-        if (!document.getElementById('neural-keyframes')) {
-            const style = document.createElement('style');
-            style.id = 'neural-keyframes';
-            style.innerHTML = `
-                @keyframes neuralFloatVar1 { 0% { transform: translate(0, 0) scale(1); } 33% { transform: translate(40px, -60px) scale(1.3); } 66% { transform: translate(-30px, -120px) scale(0.8); } 100% { transform: translate(0, -180px) scale(1); } }
-                @keyframes neuralFloatVar2 { 0% { transform: translate(0, 0) scale(1); } 33% { transform: translate(-50px, -50px) scale(1.2); } 66% { transform: translate(40px, -100px) scale(0.9); } 100% { transform: translate(0, -160px) scale(1); } }
-                @keyframes neuralFloatVar3 { 0% { transform: translate(0, 0) scale(1); } 33% { transform: translate(30px, -70px) scale(1.1); } 66% { transform: translate(-40px, -140px) scale(0.85); } 100% { transform: translate(0, -200px) scale(1); } }
-            `;
-            document.head.appendChild(style);
-        }
-
-        const bg = document.createElement('div');
-        bg.className = 'neural-bg';
-        bg.style.position = 'fixed';
-        bg.style.inset = '0';
-        bg.style.pointerEvents = 'none';
-        bg.style.zIndex = '-1';
-        bg.style.overflow = 'hidden';
-        
-        const particleCount = 40;
-        for (let i = 0; i < particleCount; i++) {
-            const p = document.createElement('div');
-            p.className = 'neural-particle';
-            p.style.position = 'absolute';
-            p.style.borderRadius = '50%';
-            
-            const size = Math.random() * 10 + 2;
-            const animIndex = Math.floor(Math.random() * 3) + 1;
-            const duration = (Math.random() * 20 + 25) + 's';
-            const delay = (Math.random() * -40) + 's';
-            const blur = Math.random() * 2 + 1;
-            
-            p.style.width = `${size}px`;
-            p.style.height = `${size}px`;
-            p.style.left = Math.random() * 100 + 'vw';
-            p.style.top = Math.random() * 100 + 'vh';
-            p.style.filter = `blur(${blur}px)`;
-            p.style.animation = `neuralFloatVar${animIndex} ${duration} linear infinite ${delay}`;
-            
-            const glowIntensity = (Math.random() * 15 + 10);
-            const secondaryGlow = glowIntensity * 2;
-            const opacity = (Math.random() * 0.5 + 0.3);
-            
-            p.dataset.glowIntensity = glowIntensity;
-            p.dataset.opacity = opacity;
-            
-            p.style.backgroundColor = baseColor;
-            p.style.boxShadow = `0 0 ${glowIntensity}px ${baseColor}, 0 0 ${secondaryGlow}px rgba(${rgbColor}, ${opacity})`;
-            
-            bg.appendChild(p);
-        }
-        
-        document.body.appendChild(bg);
-    };
-
-    // Initialize background
-    window.injectNeuralBackground();
-
+    // Background is now handled globally by theme-init.js
     const loginForm = document.getElementById('loginForm');
 
     /* ── Check if any admins exist — show Setup button if empty ── */
@@ -243,9 +171,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('adminToken', token);
                     localStorage.setItem('adminName', adminData.full_name || adminData.email?.split('@')[0] || "Admin");
                     localStorage.setItem('adminEmail', email);
+                    localStorage.setItem('activeAdminEmail', email);
                     localStorage.setItem('activeAdminName', adminData.full_name || adminData.email?.split('@')[0] || "Admin");
                     localStorage.setItem('activeAdminId', adminData.id);
                     localStorage.setItem('adminRole', adminData.role || "Admin");
+                    localStorage.setItem('adminProfilePhoto', adminData.photo_url || adminData.photo || "");
                     localStorage.setItem('isSuperAdmin', (adminData.role || '').toLowerCase().includes('super') ? 'true' : 'false');
 
                     const displayName = adminData.full_name || adminData.email?.split('@')[0] || "Commander";

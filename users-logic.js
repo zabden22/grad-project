@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="user-detail-item">
                         <label>Wallet Balance</label>
-                        <span style="color: #10b981;">EGP ${(user.wallet_balance || user.balance || 0).toFixed(2)}</span>
+                        <span style="color: #10b981;">EGP ${Number(user.wallet_balance || user.balance || 0).toFixed(2)}</span>
                     </div>
                     <div class="user-detail-item">
                         <label>Status</label>
@@ -102,7 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
             filterUsers();
         } catch (e) {
             console.error('Error loading users:', e);
-            if (!usersData.length && grid) grid.innerHTML = `<div style="padding:20px;color:var(--danger-color);grid-column:1/-1;text-align:center;">Error loading users from server.</div>`;
+            const errorMsg = e.message || 'Error loading users from server.';
+            if (!usersData.length && grid) grid.innerHTML = `<div style="padding:20px;color:var(--danger-color);grid-column:1/-1;text-align:center;">${errorMsg}</div>`;
         }
     }
 
@@ -185,7 +186,6 @@ document.addEventListener('DOMContentLoaded', () => {
             inputPlaceholder: 'Enter warning reason...',
             showCancelButton: true,
             confirmButtonColor: '#f59e0b',
-            background: 'var(--bg-card)', color: 'var(--text-main)',
             inputValidator: (val) => !val && 'You need to write something!'
         });
 
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Send notification to mobile app
                 await sendUserNotification(userId, 'warning ⚠️', reason, 'warning');
 
-                Swal.fire({ icon: 'success', title: 'Warning Sent!', text: `${userName || 'User'} has been warned.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'success', title: 'Warning Sent!', text: `${userName || 'User'} has been warned.`, timer: 1500, showConfirmButton: false });
                 loadUsers(true);
             } catch (err) {
                 console.error(err);
@@ -229,7 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showCancelButton: true,
             confirmButtonText: 'Yes, Ban',
             confirmButtonColor: '#ef4444',
-            background: 'var(--bg-card)', color: 'var(--text-main)',
             inputValidator: (val) => !val && 'Please provide a reason'
         });
 
@@ -255,8 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     title: 'User Banned', 
                     html: `<p>${userName || 'User'} has been banned.</p><p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">Total Bans Issued: <strong style="color:#ef4444;">${banCounter}</strong></p>`, 
                     timer: 1500, 
-                    showConfirmButton: false, 
-                    background: 'var(--bg-card)', color: 'var(--text-main)' 
+                    showConfirmButton: false 
                 });
                 loadUsers(true);
             } catch (err) {
@@ -279,8 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Yes, Unban',
-            confirmButtonColor: '#10b981',
-            background: 'var(--bg-card)', color: 'var(--text-main)'
+            confirmButtonColor: '#10b981'
         });
 
         if (result.isConfirmed) {
@@ -297,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Send notification to mobile app
                 await sendUserNotification(userId, 'تم تفعيل حسابك ✅', 'لقد تمت إزالة الحظر عن حسابك، يمكنك الآن استخدام النظام بشكل طبيعي.', 'unban');
 
-                Swal.fire({ icon: 'success', title: 'User Unbanned!', text: `${userName || 'User'} can now access the system.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Swal.fire({ icon: 'success', title: 'User Unbanned!', text: `${userName || 'User'} can now access the system.`, timer: 1500, showConfirmButton: false });
                 loadUsers(true);
             } catch (err) {
                 console.error(err);
@@ -315,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const serialNum = String(index + 1).padStart(4, '0');
         const isBanned = user.is_banned === true || (user.ban_reason && user.ban_reason !== null && user.ban_reason !== '');
         const isWarned = user.warning_count > 0 || (user.last_warning_reason && user.last_warning_reason !== '');
-        const balance = (user.wallet_balance || user.balance || 0).toFixed(2);
+        const balance = Number(user.wallet_balance || user.balance || 0).toFixed(2);
         
         const avatarUrl = user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0ea5e9&color=fff&bold=true`;
 
@@ -401,8 +398,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showConfirmButton: true,
             confirmButtonText: isAr ? 'إغلاق' : 'Close',
             confirmButtonColor: '#0ea5e9',
-            background: 'var(--bg-card)',
-            color: 'var(--text-main)',
             width: '520px',
             padding: '0',
             customClass: {
@@ -429,7 +424,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 text: 'Filtered by associated ticket signal.',
                 timer: 2000,
                 showConfirmButton: false,
-                background: 'var(--bg-card)', color: 'var(--text-main)',
                 toast: true, position: 'top-end'
             });
         }

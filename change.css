@@ -2,8 +2,28 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
 
+:root {
+    --change-bg: #f4f6f9;
+    --change-card-bg: #fff;
+    --change-text: #222;
+    --change-subtitle: #888;
+    --change-input-bg: #f9fafb;
+    --change-input-border: #eee;
+    --change-btn-bg: #1a1a1a;
+}
+
+[data-theme='dark'] {
+    --change-bg: #0f172a;
+    --change-card-bg: #1e293b;
+    --change-text: #f8fafc;
+    --change-subtitle: #94a3b8;
+    --change-input-bg: #0f172a;
+    --change-input-border: #334155;
+    --change-btn-bg: #3b82f6;
+}
+
 body {
-    background-color: #f4f6f9;
+    background-color: var(--change-bg);
     height: 100vh;
     display: flex; justify-content: center; align-items: center;
     direction: ltr; 
@@ -12,7 +32,7 @@ body {
 .auth-wrapper { width: 100%; max-width: 1050px; padding: 20px; }
 
 .auth-card {
-    display: flex; background: #fff; border-radius: 40px;
+    display: flex; background: var(--change-card-bg); border-radius: 40px;
     box-shadow: 0 25px 50px rgba(0,0,0,0.12);
     min-height: 720px; overflow: hidden;
 }
@@ -27,8 +47,8 @@ body {
     margin-bottom: 25px; display: flex; align-items: center; gap: 8px;
 }
 
-.login-box h1 { font-size: 34px; font-weight: 700; margin-bottom: 10px; }
-.subtitle { color: #888; margin-bottom: 35px; }
+.login-box h1 { font-size: 34px; font-weight: 700; margin-bottom: 10px; color: var(--change-text); }
+.subtitle { color: var(--change-subtitle); margin-bottom: 35px; }
 
 .input-container { position: relative; margin-bottom: 20px; }
 
@@ -44,12 +64,12 @@ body {
 
 .input-container input {
     width: 100%; padding: 18px 50px 18px 55px;
-    background: #f9fafb; border: 1px solid #eee; border-radius: 15px;
-    outline: none; font-size: 16px;
+    background: var(--change-input-bg); border: 1px solid var(--change-input-border); border-radius: 15px;
+    outline: none; font-size: 16px; color: var(--change-text);
 }
 
 .btn-continue {
-    width: 100%; padding: 18px; background: #1a1a1a;
+    width: 100%; padding: 18px; background: var(--change-btn-bg);
     color: #fff; border: none; border-radius: 15px;
     font-size: 17px; font-weight: 600; cursor: pointer; margin-top: 10px;
 }

@@ -132,9 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showConfirmButton: false,
                 timer: 2000,
                 icon: 'success',
-                title: isAr ? 'تم النسخ!' : 'Copied!',
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)'
+                title: isAr ? 'تم النسخ!' : 'Copied!'
             });
         });
     };
@@ -218,8 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showConfirmButton: true,
             confirmButtonText: isAr ? 'إغلاق' : 'Close',
             confirmButtonColor: '#10b981',
-            background: 'var(--bg-card)',
-            color: 'var(--text-main)',
             width: '520px',
             padding: '0',
             customClass: {
@@ -240,9 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#3085d6',
             confirmButtonText: isAr ? 'نعم، احذف!' : 'Yes, delete it!',
-            cancelButtonText: isAr ? 'إلغاء' : 'Cancel',
-            background: 'var(--bg-card)',
-            color: 'var(--text-main)'
+            cancelButtonText: isAr ? 'إلغاء' : 'Cancel'
         });
         
         if (res.isConfirmed) {
@@ -254,9 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     title: isAr ? 'تم الحذف!' : 'Deleted!',
                     icon: 'success',
                     timer: 1500,
-                    showConfirmButton: false,
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)'
+                    showConfirmButton: false
                 });
                 
                 loadAdmins();
@@ -265,9 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Swal.fire({
                     title: isAr ? 'خطأ!' : 'Error!',
                     text: isAr ? 'فشل حذف المسؤول.' : 'Failed to delete admin.',
-                    icon: 'error',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)'
+                    icon: 'error'
                 });
             }
         }
@@ -309,18 +299,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     text: isAr ? 'تمت إضافة المسؤول بنجاح.' : 'Admin added successfully.',
                     icon: 'success',
                     timer: 1500,
-                    showConfirmButton: false,
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)'
+                    showConfirmButton: false
                 });
             } catch (err) {
                 console.error('Insert error:', err);
                 Swal.fire({
                     title: isAr ? 'خطأ!' : 'Error!',
                     text: err.message,
-                    icon: 'error',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)'
+                    icon: 'error'
                 });
             } finally {
                 if (btn) btn.disabled = false;
@@ -332,7 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (window.supabaseAuth) {
         window.supabaseAuth.channel('admins_realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'admins' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'admins' }, (payload) => {
+                console.log('[Realtime] Admin event:', payload.eventType);
                 loadAdmins();
             })
             .subscribe();

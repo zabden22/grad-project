@@ -3,59 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TransitWay - SOS Intelligence Command</title>
+    <title>TransitWay - SOS Intelligence</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="dashboard-style.css?v=120.0">
+    <link rel="stylesheet" href="dashboard-style.css?v=131.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="theme-init.js"></script>
     <script src="i18n.js"></script>
     <style>
-        .banner-nexus {
-            background: #111b27;
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 20px; padding: 25px 35px;
+        /* ─── SOS Page Specific ─── */
+        .sos-stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 22px;
+            margin-bottom: 28px;
+        }
+        .sos-stat {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 22px;
+            padding: 22px 24px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            box-shadow: var(--card-shadow);
+            transition: 0.3s;
+        }
+        .sos-stat:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
+        .sos-stat .icon-box {
+            width: 48px; height: 48px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; flex-shrink: 0;
+        }
+        .sos-stat h4 { font-size: 1.9rem; font-weight: 900; line-height: 1; }
+        .sos-stat p { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; margin-top: 2px; }
+
+        /* ─── Main Layout ─── */
+        .sos-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 28px;
+            height: calc(100vh - 220px);
+        }
+
+        /* ─── Feed Panel ─── */
+        .feed-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 28px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            position: relative;
+        }
+        .feed-header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 24px; flex-shrink: 0;
         }
-        .banner-left h1 { font-size: 2rem; font-weight: 900; color: #fff; margin-bottom: 5px; display: flex; align-items: center; gap: 15px; }
-        .banner-left p { color: rgba(255,255,255,0.5); font-weight: 600; font-size: 0.95rem; }
-
-        .banner-right { display: flex; flex-direction: column; gap: 10px; }
-        .count-badge {
-            padding: 6px 18px; border-radius: 50px; font-weight: 800; font-size: 0.75rem;
-            text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center;
-            min-width: 120px; border: 1px solid transparent;
+        .feed-header h3 { font-weight: 900; font-size: 1.15rem; display: flex; align-items: center; gap: 10px; }
+        .feed-header h3 .live-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: #ef4444;
+            animation: livePulse 1.5s infinite; display: inline-block;
         }
-        .badge-critical { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); box-shadow: 0 0 15px rgba(239, 68, 68, 0.1); }
-        .badge-warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border-color: rgba(245, 158, 11, 0.2); box-shadow: 0 0 15px rgba(245, 158, 11, 0.1); }
+        @keyframes livePulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(239,68,68,0.5)} 50%{opacity:0.7;box-shadow:0 0 0 8px rgba(239,68,68,0)} }
 
-        .intel-center { text-align: center; padding-top: 100px; }
-        .radar-box {
-            width: 180px; height: 180px; margin: 0 auto 120px; border-radius: 50%;
-            position: relative; display: flex; align-items: center; justify-content: center;
+        .feed-list {
+            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
+            padding-right: 10px;
         }
-        .radar-pulse {
-            position: absolute; width: 100%; height: 100%;
-            border: 2px solid #10b981; border-radius: 50%;
-            animation: radarPulse 2s infinite;
+        .feed-list::-webkit-scrollbar { width: 5px; }
+        .feed-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+
+        /* ─── Alert Card ─── */
+        .alert-card {
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 22px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
         }
-        @keyframes radarPulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(2); opacity: 0; } }
-        .shield-icon { font-size: 4rem; color: #10b981; filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.3)); }
+        .alert-card:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .alert-card.selected { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+        .alert-card.critical { border-left: 4px solid #ef4444; }
+        .alert-card.warning { border-left: 4px solid #f59e0b; }
 
-        .intel-center h2 { font-size: 2.2rem; font-weight: 900; margin-bottom: 10px; color: #fff; }
-        .intel-center p { color: rgba(255,255,255,0.4); font-weight: 700; font-size: 1.1rem; }
+        .alert-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .alert-badge {
+            padding: 4px 12px; border-radius: 50px; font-size: 0.65rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .badge-critical { background: rgba(239,68,68,0.12); color: #ef4444; }
+        .badge-warning { background: rgba(245,158,11,0.12); color: #f59e0b; }
+        .badge-pending { background: rgba(59,130,246,0.12); color: #3b82f6; }
 
-        .status-row { display: flex; justify-content: center; gap: 30px; margin-top: 80px; }
-        .status-pill { color: rgba(255,255,255,0.4); font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
-        .status-pill b { color: #10b981; margin-left: 5px; }
+        .alert-time { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
+        .alert-message { font-weight: 800; font-size: 0.95rem; margin-bottom: 14px; color: var(--text-main); line-height: 1.4; }
 
-        /* Conditional Visibility */
-        #sos-sidebar-link { display: none !important; }
-        body.on-reports #sos-sidebar-link, body.on-sos #sos-sidebar-link { display: flex !important; }
+        .alert-meta {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+            background: rgba(0,0,0,0.02); border-radius: 14px; padding: 12px;
+            border: 1px solid var(--border-color);
+        }
+        [data-theme='dark'] .alert-meta { background: rgba(255,255,255,0.02); }
+        .meta-item label { display: block; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); opacity: 0.7; margin-bottom: 2px; }
+        .meta-item span { font-weight: 800; font-size: 0.82rem; color: var(--text-main); }
+
+        /* ─── Empty State ─── */
+        .empty-feed {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; gap: 18px; color: var(--text-muted);
+        }
+        .empty-feed .empty-icon {
+            width: 90px; height: 90px; border-radius: 50%;
+            background: rgba(16,185,129,0.08); color: var(--primary-color);
+            display: flex; align-items: center; justify-content: center; font-size: 2.5rem;
+        }
+        .empty-feed h4 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); }
+        .empty-feed p { font-size: 0.85rem; max-width: 300px; line-height: 1.5; }
+
+        /* ─── Detail Panel ─── */
+        .detail-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 28px;
+            padding: 30px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+        }
+        .detail-empty {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; gap: 15px; color: var(--text-muted);
+        }
+        .detail-empty i { font-size: 3rem; opacity: 0.15; }
+        .detail-empty p { font-size: 0.85rem; font-weight: 600; }
+
+        .detail-active { display: none; flex-direction: column; gap: 24px; flex: 1; }
+        .detail-active.visible { display: flex; }
+
+        .detail-section-title {
+            font-size: 0.65rem; font-weight: 900; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px;
+        }
+        .detail-info-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+        }
+        .info-cell {
+            background: var(--bg-main); border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 14px;
+        }
+        .info-cell label { display: block; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+        .info-cell span { font-weight: 800; font-size: 0.95rem; color: var(--text-main); }
+
+        .action-buttons { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
+        .btn-action {
+            width: 100%; padding: 16px; border-radius: 16px; border: none;
+            font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            color: #fff;
+        }
+        .btn-action:hover { transform: translateY(-2px); }
+        .btn-respond { background: #ef4444; box-shadow: 0 6px 18px rgba(239,68,68,0.3); }
+        .btn-respond:hover { box-shadow: 0 10px 25px rgba(239,68,68,0.4); }
+        .btn-secure { background: var(--primary-color); box-shadow: 0 6px 18px rgba(16,185,129,0.3); }
+        .btn-secure:hover { box-shadow: 0 10px 25px rgba(16,185,129,0.4); }
+
+        .connection-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 50px; font-size: 0.7rem; font-weight: 800;
+        }
+        .conn-live { background: rgba(16,185,129,0.1); color: var(--primary-color); }
+        .conn-offline { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+        /* ─── Timeline ─── */
+        .timeline { display: flex; flex-direction: column; gap: 0; max-height: 200px; overflow-y: auto; }
+        .timeline-item {
+            display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-color);
+        }
+        .timeline-item:last-child { border-bottom: none; }
+        .timeline-dot {
+            width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;
+        }
+        .timeline-text { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+        .timeline-text strong { color: var(--text-main); }
+
+        @media (max-width: 1100px) {
+            .sos-layout { grid-template-columns: 1fr; height: auto; }
+            .sos-stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
     </style>
 </head>
 <body class="on-sos">
-
     <div class="dashboard-container">
         <aside class="sidebar">
             <div class="sidebar-logo">
@@ -87,63 +230,117 @@
             <header class="top-header">
                 <div class="header-left">
                     <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
-                    <h2 data-i18n="sos_intelligence">SOS Intelligence Command</h2>
+                    <h2 style="font-weight:900;">SOS Intelligence</h2>
                 </div>
                 <div class="header-right">
-                    <div class="calendar-trigger" id="currentTime">
-                        <i class="far fa-clock"></i>
-                        <span>00:00:00</span>
+                    <div id="realtimeBadge" class="connection-badge conn-offline">
+                        <i class="fas fa-circle-notch fa-spin"></i> Connecting...
                     </div>
-                    <div class="profile-pill dropdown-trigger" style="display:flex !important;">
-                        <img id="topAvatar" src="https://ui-avatars.com/api/?name=Admin&background=10b981&color=fff">
+                    <div class="profile-pill dropdown-trigger">
+                        <img id="topAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff">
                         <span id="topBarName">Admin</span>
                         <i class="fas fa-chevron-down"></i>
                     </div>
                 </div>
             </header>
 
-            <div class="banner-nexus">
-                <div class="banner-left">
-                    <h1><i class="fas fa-broadcast-tower"></i> Emergency Response Nexus</h1>
-                    <p>High-priority telemetry monitoring and fleet life-safety protocol management.</p>
+            <!-- Stats Row -->
+            <div class="sos-stats-row">
+                <div class="sos-stat">
+                    <div class="icon-box" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div><h4 id="statActive">0</h4><p>Active Alerts</p></div>
                 </div>
-                <div class="banner-right">
-                    <div class="count-badge badge-critical"><span id="criticalCountDisplay">0</span> CRITICAL</div>
-                    <div class="count-badge badge-warning"><span id="warningCountDisplay">0</span> WARNING</div>
+                <div class="sos-stat">
+                    <div class="icon-box" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><i class="fas fa-clock"></i></div>
+                    <div><h4 id="statPending">0</h4><p>Pending Review</p></div>
                 </div>
-            </div>
-
-            <div id="scanningState" class="intel-center">
-                <div class="radar-box">
-                    <div class="radar-pulse"></div>
-                    <div class="radar-pulse" style="animation-delay: 1s;"></div>
-                    <i class="fas fa-shield-alt shield-icon"></i>
+                <div class="sos-stat">
+                    <div class="icon-box" style="background:rgba(16,185,129,0.1); color:#10b981;"><i class="fas fa-check-circle"></i></div>
+                    <div><h4 id="statResolved">0</h4><p>Resolved Today</p></div>
                 </div>
-                <h2>Fleet Matrix Scanning</h2>
-                <p>All systems normal. Currently monitoring 142 fleet assets for distress signals.</p>
-                <div class="status-row">
-                    <div class="status-pill">AMBULANCE <b>Ready</b></div>
-                    <div class="status-pill">FIRE DEPT <b>Ready</b></div>
-                    <div class="status-pill">POLICE <b>Ready</b></div>
+                <div class="sos-stat">
+                    <div class="icon-box" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-database"></i></div>
+                    <div><h4 id="statTotal">0</h4><p>Total Records</p></div>
                 </div>
             </div>
 
-            <div id="sosAlertsGrid"></div>
+            <!-- Main Layout -->
+            <div class="sos-layout">
+                <!-- Feed Panel -->
+                <div class="feed-panel">
+                    <div class="feed-header">
+                        <h3><span class="live-dot"></span> Live Alert Feed</h3>
+                        <button class="btn-outline" id="btnRefresh" style="padding:8px 16px; border-radius:12px; font-size:0.8rem;">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="feed-list" id="feedList">
+                        <!-- Cards injected here -->
+                    </div>
+                    <div class="empty-feed" id="emptyState" style="display:none;">
+                        <div class="empty-icon"><i class="fas fa-shield-alt"></i></div>
+                        <h4>All Clear</h4>
+                        <p>No active distress signals detected. The fleet is operating normally.</p>
+                    </div>
+                </div>
+
+                <!-- Detail Panel -->
+                <div class="detail-panel">
+                    <div class="detail-empty" id="detailEmpty">
+                        <i class="fas fa-hand-pointer"></i>
+                        <p>Select an alert from the feed to view details and take action.</p>
+                    </div>
+                    <div class="detail-active" id="detailActive">
+                        <div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <h3 style="font-weight:900; font-size:1.15rem;" id="detailTitle">Alert Details</h3>
+                                <span class="alert-badge" id="detailBadge">—</span>
+                            </div>
+                            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;" id="detailTime">—</p>
+                        </div>
+
+                        <div>
+                            <div class="detail-section-title">Alert Information</div>
+                            <div class="detail-info-grid">
+                                <div class="info-cell"><label>Bus</label><span id="detailBus">—</span></div>
+                                <div class="info-cell"><label>Plate</label><span id="detailPlate">—</span></div>
+                                <div class="info-cell"><label>Driver</label><span id="detailDriver">—</span></div>
+                                <div class="info-cell"><label>Location</label><span id="detailLocation">—</span></div>
+                                <div class="info-cell" style="grid-column:span 2;"><label>Message</label><span id="detailMessage">—</span></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="detail-section-title">Coordinates</div>
+                            <div class="detail-info-grid">
+                                <div class="info-cell"><label>Latitude</label><span id="detailLat" style="font-family:'JetBrains Mono',monospace;">—</span></div>
+                                <div class="info-cell"><label>Longitude</label><span id="detailLng" style="font-family:'JetBrains Mono',monospace;">—</span></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="detail-section-title">Event Timeline</div>
+                            <div class="timeline" id="detailTimeline">
+                                <!-- Timeline items injected -->
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn-action btn-respond" id="btnRespond"><i class="fas fa-bolt"></i> Respond & Dispatch</button>
+                            <button class="btn-action btn-secure" id="btnResolve"><i class="fas fa-check-double"></i> Mark as Resolved</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="supabase-client.js"></script>
-    <script src="notifications.js?v=8.0"></script>
-    <script src="user-dropdown.js"></script>
     <script src="auth.js"></script>
-    <script src="sos-logic.js?v=10.0"></script>
-    <script>
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('currentTime').querySelector('span').innerText = now.toLocaleTimeString('en-US', { hour12: false });
-        }, 1000);
-    </script>
+    <script src="sos-logic.js?v=5.0"></script>
+    <script src="notifications.js?v=2.0"></script>
+    <script src="user-dropdown.js"></script>
 </body>
 </html>

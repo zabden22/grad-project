@@ -4,10 +4,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTheme = localStorage.getItem('siteTheme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
 
-    const adminId = localStorage.getItem('activeAdminId');
-    if (adminId) {
-        loadAdminProfile(adminId);
+    let adminId = localStorage.getItem('activeAdminId');
+    const adminEmail = localStorage.getItem('activeAdminEmail') || localStorage.getItem('adminEmail');
+
+    async function initSettings() {
+        if (!adminId && adminEmail) {
+            try {
+                const { data } = await supabase.from('admins').select('id').eq('email', adminEmail).single();
+                if (data) {
+                    adminId = data.id;
+                    localStorage.setItem('activeAdminId', adminId);
+                }
+            } catch (e) { console.warn('Could not resolve adminId from email', e); }
+        }
+
+        if (adminId) {
+            loadAdminProfile(adminId);
+        } else {
+            console.warn('No active admin session found for settings.');
+        }
     }
+
+    initSettings();
 
     // Advanced Tabs logic
     const navItems = document.querySelectorAll('.nav-item');
@@ -35,12 +53,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(document.getElementById('adminEmailInput')) document.getElementById('adminEmailInput').value = data.email || '';
                 // Fixed: database uses 'phone_number'
                 if(document.getElementById('adminPhoneInput')) document.getElementById('adminPhoneInput').value = data.phone_number || '';
-                if(document.getElementById('adminLocationInput')) document.getElementById('adminLocationInput').value = localStorage.getItem('adminLocation_' + id) || '';
-                
                 // Fixed: database uses 'photo_url'
-                const av = data.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.full_name || 'Admin')}&background=10b981&color=fff&size=200&bold=true`;
+                const av = data.photo_url || data.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.full_name || 'Admin')}&background=10b981&color=fff&size=200&bold=true`;
                 if(document.getElementById('profileAvatar')) document.getElementById('profileAvatar').src = av;
                 if(document.getElementById('topAvatar')) document.getElementById('topAvatar').src = av;
+                
+                // Fetch location from DB
+                if(document.getElementById('adminLocationInput')) {
+                    document.getElementById('adminLocationInput').value = data.location || localStorage.getItem('adminLocation_' + id) || '';
+                }
             }
         } catch(e) { console.error('Intelligence Link Failure', e); }
     }
@@ -53,22 +74,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const payload = {
             full_name: document.getElementById('adminNameInput').value,
-            // Fixed: use 'phone_number'
-            phone_number: document.getElementById('adminPhoneInput').value
+            phone_number: document.getElementById('adminPhoneInput').value,
+            location: document.getElementById('adminLocationInput').value
         };
 
         try {
-            const { error } = await supabase.from('admins').eq('id', adminId).update(payload);
-            if (error) throw error;
+            const { data, error } = await supabase.from('admins').eq('id', adminId).update(payload);
+            if (error) {
+                console.error('Database Sync Error:', error);
+                throw new Error(error.message || 'Failed to update database record.');
+            }
 
             localStorage.setItem('activeAdminName', payload.full_name);
-            localStorage.setItem('adminLocation_' + adminId, document.getElementById('adminLocationInput').value);
+            localStorage.setItem('activeAdminPhone', payload.phone_number);
+            localStorage.setItem('activeAdminLocation', payload.location);
+            localStorage.setItem('adminLocation_' + adminId, payload.location);
             
             document.getElementById('topBarName').innerText = payload.full_name;
             document.getElementById('sideProfileName').innerText = payload.full_name;
 
-            Swal.fire({ icon: 'success', title: 'Dossier Synchronized', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
-        } catch(e) { Swal.fire('Sync Error', e.message, 'error'); }
+            Swal.fire({ 
+                icon: 'success', 
+                title: 'Dossier Synchronized', 
+                text: 'Your profile has been updated in the central database.',
+                timer: 2000, 
+                showConfirmButton: false 
+            });
+        } catch(e) { 
+            console.error('Sync Error Details:', e);
+            Swal.fire({
+                icon: 'error',
+                title: 'Sync Protocol Failure',
+                text: 'Error: ' + e.message + '. Please ensure the database schema supports all fields.',
+                footer: '<p style="font-size:0.8rem; color:#ef4444;">Note: If "location" field fails, contact system administrator to update the "admins" table schema.</p>'
+            });
+        }
         finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save" style="margin-right:8px;"></i> Update Dossier'; }
     });
 
@@ -130,17 +170,36 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('profileAvatar').src = photoData;
             localStorage.setItem('adminProfilePhoto', photoData);
             
-            // Fixed: use 'photo_url' column and correct order (eq before update)
-            const { error } = await supabase.from('admins').eq('id', adminId).update({ photo_url: photoData });
-            if (error) {
-                console.error(error);
-                Swal.fire('Portrait Error', error.message, 'error');
-            } else {
+            // Update in DB
+            try {
+                // Try to update both possible column names for compatibility
+                const { error } = await supabase.from('admins').eq('id', adminId).update({ 
+                    photo_url: photoData,
+                    photo: photoData 
+                });
+                
+                if (error) throw error;
+                
                 // Manually trigger a UI refresh for other avatars on this page
                 document.querySelectorAll('.admin-avatar-small, #topAvatar, #welcomeAvatar, .ud-avatar').forEach(img => {
                     if (img) img.src = photoData;
                 });
-                Swal.fire({ icon: 'success', title: 'Portrait Updated', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                
+                Swal.fire({ 
+                    icon: 'success', 
+                    title: 'Portrait Updated', 
+                    text: 'Your image has been saved to the database.',
+                    timer: 1500, 
+                    showConfirmButton: false 
+                });
+            } catch (err) {
+                console.error('Portrait Update Failure:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Portrait Sync Failed',
+                    text: 'Error: ' + err.message,
+                    footer: '<p style="font-size:0.8rem; color:#ef4444;">Try a smaller image or check database columns.</p>'
+                });
             }
         };
         reader.readAsDataURL(file);
@@ -166,7 +225,7 @@ window.handlePasswordChange = async function() {
 
     try {
         await supabase.auth.updateUser({ password: newP });
-        Swal.fire({ icon: 'success', title: 'Access Keys Rotated', background: 'var(--bg-card)', color: 'var(--text-main)' });
+        Swal.fire({ icon: 'success', title: 'Access Keys Rotated' });
     } catch(err) { Swal.fire('Security Error', err.message, 'error'); }
 };
 
@@ -177,8 +236,7 @@ window.confirmClearData = async function() {
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
-        confirmButtonText: 'CONFIRM WIPE',
-        background: 'var(--bg-card)', color: 'var(--text-main)'
+        confirmButtonText: 'CONFIRM WIPE'
     });
     if (res.isConfirmed) {
         localStorage.clear();

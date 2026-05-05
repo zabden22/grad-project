@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="forgot.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="theme-init.js"></script>
     
 </head>
 <body>
@@ -20,7 +21,12 @@
                 </div>
 
                 <div class="login-box">
-                    <button class="back-btn" onclick="window.history.back()">
+                    <div style="position: absolute; top: 20px; right: 20px; z-index: 100;">
+                        <button id="themeToggle" style="background: var(--forgot-input-bg); border: 1px solid var(--forgot-input-border); color: var(--forgot-text); width: 45px; height: 45px; border-radius: 12px; cursor: pointer; transition: 0.3s;">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </div>
+                    <button class="back-btn" onclick="window.location.href='index.html'">
                         <i class="fas fa-chevron-left"></i> Back
                     </button>
                     

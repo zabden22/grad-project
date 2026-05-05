@@ -12,34 +12,33 @@ document.getElementById('forgetForm').addEventListener('submit', async function(
         const currentOrigin = window.location.origin;
         const redirectUrl = `${currentOrigin}/change.html`;
 
-        // Use Supabase Auth (official SDK) to send password reset email
-        const { data, error } = await window.supabaseAuth.auth.resetPasswordForEmail(email, {
-            redirectTo: redirectUrl
-        });
+        const { data, error } = await window.supabaseAuth.auth.resetPasswordForEmail(email);
 
         if (error) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
                 text: error.message,
-                confirmButtonColor: '#76a08a'
+                confirmButtonColor: '#ef4444'
             });
-            btn.innerText = "Send Reset Link";
+            btn.innerText = "Send Code";
             btn.disabled = false;
             return;
         }
 
-        // Success — email sent
+        // Success — email sent (Supabase will send OTP if template is configured)
+        localStorage.setItem('resetEmail', email); // Store for the verification page
+        
         Swal.fire({
             icon: 'success',
-            title: 'Email Sent! ✉️',
-            html: `<p style="font-weight:600;">A password reset link has been sent to:</p>
+            title: 'Verification Code Sent! ✉️',
+            html: `<p style="font-weight:600;">A 6-digit verification code has been sent to:</p>
                    <p style="color:#10b981; font-weight:800;">${email}</p>
-                   <p style="font-size:0.85rem; color:#94a3b8;">Please check your inbox (and spam folder) and click the link to reset your password.</p>`,
+                   <p style="font-size:0.85rem; color:#94a3b8;">Please check your inbox and enter the code in the next step.</p>`,
             confirmButtonColor: '#10b981',
-            confirmButtonText: 'Got it!'
+            confirmButtonText: 'Enter Code'
         }).then(() => {
-            window.location.href = 'index.html';
+            window.location.href = 'change.html';
         });
 
     } catch (error) {

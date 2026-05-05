@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let theme = localStorage.getItem('siteTheme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
 
-    let drivers = [], buses = [], complaints = [], driverDetails = [], tickets = [], users = [], stations = [], routes = [];
+    let drivers = [], buses = [], complaints = [], driverDetails = [], tickets = [], users = [], stations = [], routes = [], sos_alerts = [], admins = [];
     let calendarInstance = null;
     let dateFrom = null, dateTo = null;
 
@@ -39,13 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateUserInfo() {
         const n = localStorage.getItem('activeAdminName') || localStorage.getItem('adminName') || 'Commander';
         const e = localStorage.getItem('activeAdminEmail') || localStorage.getItem('adminEmail') || '';
+        
+        // Update all name placeholders
         document.querySelectorAll('#topBarName, #heroAdminName').forEach(el => el.textContent = n);
 
         let photo = localStorage.getItem('adminProfilePhoto') || null;
 
+        // Fetch from DB if not in storage or is just a placeholder
         if (e && (!photo || photo.includes('ui-avatars.com'))) {
             try {
-                const { data, error } = await supabase.from('admins').select('photo_url, photo').ilike('email', e).single();
+                const { data, error } = await supabase.from('admins').select('photo_url, photo').ilike('email', e.trim()).single();
                 if (data && !error) {
                     photo = data.photo_url || data.photo;
                     if (photo) localStorage.setItem('adminProfilePhoto', photo);
@@ -53,10 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) { console.warn('Admin photo sync error:', err); }
         }
 
-        const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=10b981&color=fff&size=100&bold=true`;
-        const finalPhoto = photo || fallbackPhoto;
+        const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=10b981&color=fff&size=120&bold=true`;
+        const finalPhoto = (photo && photo.trim() !== "") ? photo : fallbackPhoto;
 
-        document.querySelectorAll('#topAvatar, #welcomeAvatar, .profile-pill img, .admin-avatar-small').forEach(i => {
+        document.querySelectorAll('#topAvatar, #welcomeAvatar, .profile-pill img, .admin-avatar-small, .ud-avatar').forEach(i => {
             if (i) {
                 i.src = finalPhoto;
                 i.onerror = () => { i.src = fallbackPhoto; };
@@ -74,6 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (table === 'users') targetArray = users;
         else if (table === 'stations') targetArray = stations;
         else if (table === 'routes') targetArray = routes;
+        else if (table === 'sos_alerts') targetArray = sos_alerts;
+        else if (table === 'admins') targetArray = admins;
 
         if (!targetArray) return;
 
@@ -106,6 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (p) => updateLocalData('users', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, (p) => updateLocalData('stations', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, (p) => updateLocalData('routes', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'sos_alerts' }, (p) => updateLocalData('sos_alerts', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'admins' }, (p) => updateLocalData('admins', p))
                 .subscribe();
         }
 
@@ -155,14 +162,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             /* ── Supabase parallel queries ── */
-            const [dRes, bRes, cRes, tRes, uRes, sRes, rRes] = await Promise.all([
+            const [dRes, bRes, cRes, tRes, uRes, sRes, rRes, sosRes, aRes] = await Promise.all([
                 supabase.from('drivers').select('*'),
                 supabase.from('buses').select('*'),
                 supabase.from('complaints').select('*'),
                 supabase.from('tickets').select('*'),
                 supabase.from('users').select('*'),
                 supabase.from('stations').select('*').order('created_at', { ascending: true }),
-                supabase.from('routes').select('*')
+                supabase.from('routes').select('*'),
+                supabase.from('sos_alerts').select('*'),
+                supabase.from('admins').select('*')
             ]);
 
             drivers = dRes.data || [];
@@ -183,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
             users = uRes.data || [];
             stations = sRes.data || [];
             routes = rRes.data || [];
+            sos_alerts = sosRes.data || [];
+            admins = aRes.data || [];
 
             // Sync driver details for performance chart
             driverDetails = drivers.slice(0, 6);
@@ -726,7 +737,10 @@ document.addEventListener('DOMContentLoaded', () => {
             { label: 'Driver Readiness', value: drivers.length > 0 ? Math.round((activeD / drivers.length) * 100) : 0, color: '#10b981' },
             { label: 'Bus Availability', value: buses.length > 0 ? Math.round((activeB / buses.length) * 100) : 0, color: '#3b82f6' },
             { label: 'Pending Issues', value: pending, color: '#f59e0b', raw: true },
-            { label: 'Critical Alerts', value: critical, color: '#ef4444', raw: true }
+            { label: 'SOS Alerts', value: sos_alerts.filter(s => {
+                const st = (s.status || '').toLowerCase();
+                return st === 'emergency' || st === 'active' || st === 'distress' || st === 'sos' || st === 'pending' || st === 'warning';
+            }).length, color: '#ef4444', raw: true }
         ];
         el.innerHTML = vitals.map(v => `<div class="data-item">
             <div style="display:flex;justify-content:space-between;width:100%;"><span style="font-weight:700;font-size:0.85rem;">${v.label}</span><h4 style="margin:0;color:${v.color};font-size:0.95rem;">${v.raw ? v.value : v.value + '%'}</h4></div>
