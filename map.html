@@ -19,16 +19,16 @@
         }
         #map { flex: 1; width: 100%; z-index: 1; }
 
-        /* --- Search Panel --- */
+        
         .map-search-panel {
             position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
             z-index: 1000; background: rgba(var(--bg-card-rgb, 255,255,255), 0.92);
             backdrop-filter: blur(12px);
             
-            padding: 12px 24px; border-radius: 20px;
-            display: flex; gap: 20px; align-items: center;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-            border: 1px solid var(--border-color); width: 90%; max-width: 980px;
+            padding: 16px 24px; border-radius: 16px;
+            display: flex; gap: 16px; align-items: flex-end;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            border: 1px solid var(--border-color); width: 80%; max-width: 780px;
         }
         .search-field { flex: 1; display: flex; flex-direction: column; gap: 6px; }
         .search-field label { font-size: 11px; font-weight: 800; color: var(--primary-color); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -36,7 +36,7 @@
         .track-btn { background: var(--primary-color); color: white; border: none; padding: 11px 26px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.3s; white-space: nowrap; font-size: 0.9rem;}
         .track-btn:hover { filter: brightness(1.1); transform: translateY(-2px); }
 
-        /* --- Layer Switcher --- */
+        
         #layerSwitcher {
             position: absolute; bottom: 30px; left: 20px; z-index: 1000;
             background: var(--bg-card); border: 1px solid var(--border-color);
@@ -59,7 +59,7 @@
             border: 2px solid rgba(255,255,255,0.3); flex-shrink: 0;
         }
 
-        /* --- Heatmap Toggle --- */
+        
         #heatToggle {
             position: absolute; bottom: 30px; right: 20px; z-index: 1000;
             background: var(--bg-card); border: 1px solid var(--border-color);
@@ -73,7 +73,7 @@
         #heatToggle.on { background: rgba(239,68,68,0.1); border-color: #ef4444; color: #ef4444; }
         #heatToggle .heat-dot { width: 12px; height: 12px; border-radius: 50%; background: conic-gradient(#22c55e, #f59e0b, #ef4444); flex-shrink: 0; }
 
-        /* --- Full Screen Toggle --- */
+        
         #fullScreenToggle {
             position: absolute; bottom: 30px; right: 180px; z-index: 1000;
             background: var(--bg-card); border: 1px solid var(--border-color);
@@ -86,7 +86,7 @@
         #fullScreenToggle:hover { background: var(--bg-main); transform: scale(1.05); }
         #fullScreenToggle.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
 
-        /* Full Screen UI Overrides */
+        
         body.full-map-mode .sidebar { display: none !important; }
         body.full-map-mode .top-header { display: none !important; }
         body.full-map-mode .main-viewport { margin-left: 0 !important; padding: 0 !important; width: 100% !important; height: 100vh !important; }
@@ -100,10 +100,10 @@
             display: none !important;
         }
 
-        /* --- Bus marker base --- */
+        
         .bus-marker-icon { display: flex; align-items: center; justify-content: center; position: relative; }
 
-        /* --- REAL Bus pulse (only real buses get this class) --- */
+        
         .bus-pulse {
             width: 38px; height: 38px; border-radius: 50%;
             position: absolute; animation: pulse-heartbeat 1.5s ease-in-out infinite;
@@ -117,10 +117,10 @@
             100% { transform: scale(0.6); opacity: 0; }
         }
 
-        /* Simulated buses have NO pulse at all */
-        .bus-no-pulse { /* intentionally empty � no animation */ }
+        
+        .bus-no-pulse {  }
 
-        /* -- Stats Panel -- */
+        
         #mapStats {
             position: absolute; top: 90px; right: 16px; z-index: 1000;
             background: rgba(255,255,255,0.96);
@@ -151,7 +151,7 @@
         .map-stat-label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
         .map-stat-value { font-size: 1.1rem; font-weight: 900; color: var(--text-main); }
 
-        /* Simulation mode banner */
+        
         #simBanner {
             display: none;
             position: absolute; top: 16px; right: 16px; z-index: 1001;
@@ -167,24 +167,17 @@
             font-weight: 800; font-size: 0.8rem; cursor: pointer;
         }
 
-        /* --- Toggle Simulation Button --- */
+        
         #toggleSimBtn {
-            background: #22c55e;
-            color: #fff; border: none; border-radius: 12px;
-            padding: 8px 16px; font-weight: 800; font-size: 0.85rem;
-            cursor: pointer; display: flex; align-items: center; gap: 12px;
-            box-shadow: 0 4px 15px rgba(34,197,94,0.3);
-            transition: 0.3s;
+            position: absolute; top: 90px; left: 16px; z-index: 1001;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: #fff; border: none; border-radius: 14px;
+            padding: 12px 20px; font-weight: 800; font-size: 0.85rem;
+            cursor: pointer; display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 6px 20px rgba(34,197,94,0.35);
+            transition: all 0.3s ease;
             font-family: 'Plus Jakarta Sans', sans-serif;
-            white-space: nowrap; height: 46px;
         }
-        .sim-icon-circle {
-            width: 28px; height: 28px; background: #fff; color: #22c55e;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 0.75rem; flex-shrink: 0;
-        }
-        #toggleSimBtn.paused .sim-icon-circle { color: #ef4444; }
-        #toggleSimBtn.paused { background: #ef4444; box-shadow: 0 4px 15px rgba(239,68,68,0.3); }
         #toggleSimBtn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 28px rgba(34,197,94,0.45);
@@ -198,7 +191,7 @@
         }
         #toggleSimBtn i { font-size: 1rem; }
 
-        /* --- Route Info Panel --- */
+        
         #routeInfoPanel {
             position: absolute; top: 16px; left: 16px; z-index: 1100;
             background: var(--bg-card); border: 1px solid var(--border-color);
@@ -225,7 +218,7 @@
         .rip-station-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 0.85rem; font-weight: 700; color: var(--text-main); border-bottom: 1px dashed var(--border-color); }
         .rip-station-item:last-child { border-bottom: none; }
         
-        /* City Legend */
+        
         #cityLegend {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             z-index: 1000; background: var(--bg-card); border: 1px solid var(--border-color);
@@ -238,7 +231,7 @@
         .legend-item:hover { background: var(--bg-main); transform: scale(1.05); }
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-        /* Real bus badge glow */
+        
         .real-bus-badge {
             animation: badge-glow 2s ease-in-out infinite;
         }
@@ -269,7 +262,6 @@
                 <a href="routes.html" class="nav-link" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
                 <a href="reports.html" class="nav-link" data-i18n="reports"><i class="fas fa-exclamation-triangle"></i> Reports</a>
                 <a href="sos.html" data-i18n="sos_intelligence" class="nav-link"><i class="fas fa-heartbeat"></i> SOS Intelligence</a>
-                <a href="users.html" data-i18n="users" class="nav-link"><i class="fas fa-user-friends"></i> Users</a>
             </nav>
             <div class="sidebar-footer">
                 <nav class="nav-group">
@@ -299,13 +291,6 @@
             <div class="map-wrapper">
                 
                 <div class="map-search-panel">
-                    <button id="toggleSimBtn" onclick="toggleSimulation()">
-                        <div class="sim-icon-circle">
-                            <i class="fa-solid fa-play" style="margin-left: 2px;"></i>
-                        </div>
-                        <span>Simulation ON 🚀</span>
-                    </button>
-                    <div style="width:2px; height:40px; background:rgba(0,0,0,0.05); margin: 0 5px;"></div>
                     <div class="search-field">
                         <label data-i18n-text="Departure Station">Departure Station</label>
                         <select id="startStationId"><option>Loading...</option></select>
@@ -323,6 +308,10 @@
                 <div id="map"></div>
 
                 
+                <button id="toggleSimBtn" onclick="toggleSimulation()">
+                    <i class="fas fa-play-circle"></i>
+                    <span>Simulation ON 🚀</span>
+                </button>
 
                 
                 <div id="layerSwitcher">
@@ -357,7 +346,7 @@
 
                 
                 <div id="cityLegend">
-                    <!-- Populated dynamically via JS -->
+                    
                     <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700;"><i class="fas fa-spinner fa-spin"></i> Syncing Zones...</div>
                 </div>
 
@@ -389,7 +378,7 @@
                             </div>
                         </div>
                         <div class="rip-stations" id="ripStationsList">
-                            <!-- List of stations -->
+                            
                         </div>
                     </div>
                 </div>
@@ -462,10 +451,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
-    <script src="notifications.js?v=2.0"></script>
     <script src="user-dropdown.js"></script>
     <script src="auth.js"></script>
     <script src="map-logic.js?v=2.0"></script>
+<script src="notifications.js?v=2.0"></script>
 </body>
 </html>
-

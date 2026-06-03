@@ -1,10 +1,6 @@
-/* ══════════════════════════════════════════════════
-   TransitWay — Global Auth Helper
-   Handles: Logout from any page + Login with DB
-   Loaded on EVERY page via <script src="auth.js">
-   ══════════════════════════════════════════════════ */
 
-/* ── Logout — works immediately, no DOMContentLoaded needed ── */
+
+
 window.confirmLogout = function () {
     if (typeof Swal !== 'undefined') {
         Swal.fire({
@@ -31,14 +27,14 @@ window.confirmLogout = function () {
 };
 
 async function performLogout() {
-    // Sign out from Supabase Auth
+    
     try {
         if (window.supabaseAuth && window.supabaseAuth.auth) {
             await window.supabaseAuth.auth.signOut();
         }
     } catch (e) { console.warn('Auth signout:', e); }
 
-    // Clear ALL admin session data from localStorage
+    
     const keysToRemove = [
         'adminToken', 'adminName', 'adminEmail', 'adminRole',
         'activeAdminName', 'activeAdminId', 'activeAdminEmail',
@@ -47,14 +43,14 @@ async function performLogout() {
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
-    // Redirect to login
+    
     window.location.href = 'index.html';
 }
 
-/* ── Login with Database — fallback when GoTrue Auth fails ── */
+
 window.loginWithDatabase = async function (email, password) {
     try {
-        // Try GoTrue Auth first
+        
         if (window.supabaseAuth && window.supabaseAuth.auth) {
             const { data: authData, error: authError } = await window.supabaseAuth.auth.signInWithPassword({
                 email: email,
@@ -62,7 +58,7 @@ window.loginWithDatabase = async function (email, password) {
             });
 
             if (!authError && authData && authData.user) {
-                // GoTrue login successful — fetch admin profile
+                
                 const { data: adminData } = await window.supabase
                     .from('admins')
                     .select('*')
@@ -76,7 +72,7 @@ window.loginWithDatabase = async function (email, password) {
             }
         }
 
-        // Fallback: Direct DB check (match email + password_hash)
+        
         const { data: admins, error: dbErr } = await window.supabase
             .from('admins')
             .select('*');
@@ -104,7 +100,7 @@ window.loginWithDatabase = async function (email, password) {
 };
 
 function saveAdminSession(adminData, token) {
-    const name = adminData.full_name || adminData.email?.split('@')[0] || 'Admin';
+    const name = adminData.name || adminData.full_name || adminData.email?.split('@')[0] || 'Admin';
     const email = adminData.email || '';
     const role = adminData.role || 'Admin';
 

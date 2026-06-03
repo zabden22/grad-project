@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ==========================================
-    // 1. نظام الاسم الدايناميك والدارك مود
-    // ==========================================
+    
+    
+    
     const adminName = localStorage.getItem('activeAdminName') || 'Moscow';
     document.getElementById('topBarName').innerText = adminName;
 
@@ -30,9 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateThemeUI(currentTheme);
     });
 
-    // ==========================================
-    // 2. إدارة الأدمنز - Full API Integration
-    // ==========================================
+    
+    
+    
     const API_BASE_URL = 'http://transit-way.runasp.net';
     const adminTableBody = document.getElementById('adminTableBody');
     const searchInput    = document.getElementById('adminSearchInput');
@@ -41,9 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let adminsData = [];
 
-    // ─────────────────────────────────────────
-    // GET /api/admin — جلب كل الأدمنز
-    // ─────────────────────────────────────────
+    
+    
+    
     async function loadAdmins(silent = false) {
         try {
             if (!silent) {
@@ -86,9 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>`;
     }
 
-    // ─────────────────────────────────────────
-    // Render Table
-    // ─────────────────────────────────────────
+    
+    
+    
     function renderTable() {
         adminTableBody.innerHTML = '';
 
@@ -150,14 +150,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadAdmins();
 
-    // Auto-refresh (silent) كل 15 ثانية
+    
     setInterval(() => loadAdmins(true), 15000);
 
-    // ==========================================
-    // 3. التفاعل — Search / Modal / Actions
-    // ==========================================
+    
+    
+    
 
-    // البحث
+    
     searchInput.addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         adminTableBody.querySelectorAll('tr').forEach(row => {
@@ -165,16 +165,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // فتح / قفل المودال
+    
     document.getElementById('openModalBtn').onclick = () => adminModal.classList.add('active');
     document.getElementById('closeModalBtn').onclick = () => {
         adminModal.classList.remove('active');
         addAdminForm.reset();
     };
 
-    // ─────────────────────────────────────────
-    // POST /api/admin — إضافة أدمن جديد
-    // ─────────────────────────────────────────
+    
+    
+    
     addAdminForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const Btn = addAdminForm.querySelector('button[type="submit"]');
@@ -222,9 +222,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ─────────────────────────────────────────
-    // Table Click Events — View / Toggle Status / Delete
-    // ─────────────────────────────────────────
+    
+    
+    
     adminTableBody.addEventListener('click', async (e) => {
         const target   = e.target;
         const adminId  = target.getAttribute('data-id');
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const adminObj = adminsData.find(a => a.id == adminId);
 
-        // ───── GET /api/admin/{id} — عرض التفاصيل ─────
+        
         if (target.classList.contains('view-admin')) {
             if (!adminObj) return;
             Swal.fire({
@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // ───── PUT /api/admin/status/{id} — تغيير الحالة ─────
+        
         if (target.classList.contains('toggle-status')) {
             const displayName = adminObj ? adminObj.name : `Admin #${adminId}`;
             const isActive    = adminObj && adminObj.status === 'Active';
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ───── DELETE /api/admin/{id} — حذف أدمن ─────
+        
         if (target.classList.contains('delete-admin')) {
             const displayName = adminObj ? adminObj.name : `Admin #${adminId}`;
             const confirm = await Swal.fire({

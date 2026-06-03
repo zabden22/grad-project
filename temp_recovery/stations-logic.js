@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ==========================================
-    // 1. نظام الاسم الدايناميك والدارك مود
-    // ==========================================
+    
+    
+    
     const adminName = localStorage.getItem('activeAdminName') || 'Admin';
     document.getElementById('topBarName').innerText = adminName;
 
@@ -30,20 +30,20 @@ document.addEventListener('DOMContentLoaded', () => {
         updateThemeUI(currentTheme);
     });
 
-    // ==========================================
-    // 2. إدارة المحطات - Full API Integration
-    // ==========================================
+    
+    
+    
     const API_BASE_URL = 'http://transit-way.runasp.net';
     const stationTableBody = document.getElementById('stationTableBody');
     const searchInput = document.getElementById('stationSearchInput');
 
     let stationsData = [];
-    let routesMap = {}; // { id: name }
+    let routesMap = {}; 
     const routeSelect = document.getElementById('routeSelect');
 
-    // ─────────────────────────────────────────
-    // GET /api/Routes — تحميل الخطوط في الـ dropdown
-    // ─────────────────────────────────────────
+    
+    
+    
     async function loadRoutes() {
         try {
             const res = await fetch(`${API_BASE_URL}/api/Routes`);
@@ -66,9 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadRoutes();
 
-    // ─────────────────────────────────────────
-    // Helper: تحديد اللون والاسم بناءً على routeId
-    // ─────────────────────────────────────────
+    
+    
+    
     function getRouteInfo(routeId) {
         const name = routesMap[routeId] || '';
         if (name.toLowerCase().includes('blue')) return { line: name, color: '#3b82f6' };
@@ -76,9 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return { line: name || 'Route', color: 'var(--primary-color)' };
     }
 
-    // ─────────────────────────────────────────
-    // GET /api/Stations — جلب كل المحطات
-    // ─────────────────────────────────────────
+    
+    
+    
     async function loadStations(silent = false) {
         if (!silent) {
             stationTableBody.innerHTML = `
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         status: s.status || 'Active'
                     };
                 });
-                // Preserve search state if a user is searching
+                
                 const term = searchInput.value.toLowerCase();
                 renderTable();
                 if (term) {
@@ -145,9 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>`;
     }
 
-    // ─────────────────────────────────────────
-    // Render Table
-    // ─────────────────────────────────────────
+    
+    
+    
     function renderTable() {
         stationTableBody.innerHTML = '';
 
@@ -216,17 +216,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Load on startup
+    
     loadStations();
 
-    // Auto-refresh every 10 seconds (silent polling)
+    
     setInterval(() => {
         loadStations(true);
     }, 10000);
 
-    // ==========================================
-    // 3. البحث
-    // ==========================================
+    
+    
+    
     searchInput.addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         const rows = stationTableBody.querySelectorAll('tr');
@@ -235,18 +235,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ==========================================
-    // 4. Modals
-    // ==========================================
+    
+    
+    
     window.openModal = (id) => document.getElementById(id).classList.add('active');
     window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 
     document.getElementById('openAddStationModalBtn').onclick = () => openModal('addStationModal');
 
-    // ─────────────────────────────────────────
-    // POST /api/Stations — إضافة محطة جديدة
-    // CreateStationDto: { name, zone, latitude, longitude, routeId }
-    // ─────────────────────────────────────────
+    
+    
+    
+    
     document.getElementById('addStationForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const latRaw = formData.get('latitude');
         const lngRaw = formData.get('longitude');
 
-        // تحويل صريح — NaN يتحول لـ null في JSON ويسبب 400
+        
         const latitude  = latRaw ? parseFloat(latRaw)  : null;
         const longitude = lngRaw ? parseFloat(lngRaw)  : null;
 
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 closeModal('addStationModal');
                 e.target.reset();
-                loadStations(); // Refresh من السيرفر
+                loadStations(); 
             } else {
                 const errorBody = await res.text().catch(() => '');
                 throw new Error(`Server: ${res.status} — ${errorBody}`);
@@ -333,15 +333,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ==========================================
-    // 5. Table Click Events
-    // ==========================================
+    
+    
+    
     stationTableBody.addEventListener('click', (e) => {
         const target = e.target;
 
-        // ─────────────────────────────────────────
-        // DELETE /api/Stations/{id} — حذف محطة
-        // ─────────────────────────────────────────
+        
+        
+        
         if (target.classList.contains('delete-station')) {
             const stationId = target.getAttribute('data-id');
             const stationName = target.getAttribute('data-name') || `#ST-${stationId}`;
@@ -392,9 +392,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // ─────────────────────────────────────────
-        // PUT /api/Stations/status/{id}?status= — تغيير حالة المحطة
-        // ─────────────────────────────────────────
+        
+        
+        
         if (target.classList.contains('change-status-station')) {
             const stationId = target.getAttribute('data-id');
             const currentStatus = target.getAttribute('data-status') || 'Active';

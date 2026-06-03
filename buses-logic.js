@@ -1,4 +1,13 @@
+// buses-logic.js — Strategic Fleet Oversight (Adapted for New Schema)
 document.addEventListener('DOMContentLoaded', () => {
+    const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true';
+    if (!isSuperAdmin) {
+        const addBtn = document.getElementById('openAddBusModalBtn');
+        const assignBtn = document.getElementById('openAssignModalBtn');
+        if (addBtn) addBtn.style.display = 'none';
+        if (assignBtn) assignBtn.style.display = 'none';
+    }
+
     const adminName = localStorage.getItem('activeAdminName') || 'Admin';
     if(document.getElementById('topBarName')) document.getElementById('topBarName').innerText = adminName;
     const currentTheme = localStorage.getItem('siteTheme') || 'light';
@@ -9,38 +18,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let busesData = [];
     let driversData = [];
-    let routesData = []; // Added routes registry
+    let routesData = []; 
 
-    function getBusRouteColor(bus) {
-        if (!bus || !bus.routeId) return '#64748b';
-        const routeObj = routesData.find(r => String(r.id) === String(bus.routeId));
-        const routeName = routeObj ? routeObj.name : null;
-        return window.getRouteColor(bus.routeId, routeName);
+    function getRouteColor(routeId) {
+        if (!routeId) return '#0ea5e9';
+        const routeObj = routesData.find(r => String(r.id) === String(routeId) || String(r.line_number) === String(routeId));
+        const name = routeObj ? (routeObj.name || '').toLowerCase() : String(routeId).toLowerCase();
+        const lineNum = routeObj ? String(routeObj.line_number) : String(routeId);
+
+        if (name.includes('shorouk') || name.includes('shrouk') || name.includes('شروق') || lineNum === '9' || lineNum === '1001' || String(routeId) === '9d9f642d-31cd-4cb1-ae7e-daf930983bcf') return '#ef4444';
+        if (name.includes('madinaty') || name.includes('madinty') || name.includes('مدينتي') || name.includes('مدينتى') || lineNum === '11' || lineNum === '1003' || String(routeId) === 'e8cd6c96-8f89-474d-b86f-fb0c9efd990f') return '#f59e0b';
+        if (name.includes('badr') || name.includes('بدر') || lineNum === '13' || lineNum === '1002' || String(routeId) === 'ba494dc9-7d4b-4c6d-b37e-0ffbd47f7014') return '#8b5cf6';
+        if (name.includes('capital') || name.includes('عاصمة') || name.includes('العاصمة') || lineNum === '1' || lineNum === '1005') return '#14b8a6';
+        if (name.includes('cairo') || name.includes('قاهرة') || lineNum === '8' || lineNum === '1004') return '#3b82f6';
+        
+        if (name.includes('1')) return '#f43f5e';
+        if (name.includes('2')) return '#8b5cf6';
+        if (name.includes('3')) return '#3b82f6';
+        if (name.includes('4')) return '#f59e0b';
+        if (name.includes('5')) return '#10b981';
+        
+        return '#0ea5e9';
     }
 
-    async function loadDrivers(silent = false) {
-        window.loadDrivers = loadDrivers; // Expose globally
-
+    async function loadDrivers() {
         try {
             const { data } = await supabase.from('drivers').select('*');
             if (data) {
                 driversData = data.map(d => ({
                     id: d.id,
-                    name: d.full_name || d.name || `Driver #${d.id}`,
-                    busId: d.bus_id || null
+                    name: d.name || `Driver #${d.id.substring(0, 5)}`,
+                    busId: null // Populated via shifts
                 }));
             }
         } catch (e) { console.warn('Driver link offline'); }
     }
 
     async function loadRoutes() {
-        window.loadRoutes = loadRoutes; // Expose globally
-
         try {
             const { data } = await supabase.from('routes').select('*');
             if (data) {
                 routesData = data;
-                // Update Route Dropdown in Add Bus Modal
+                
                 const rSel = document.getElementById('addRouteId');
                 if (rSel) {
                     rSel.innerHTML = '<option value="">Select Tactical Route</option>';
@@ -53,75 +72,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadBuses(silent = false) {
-        window.loadBuses = loadBuses; // Expose globally
-
         try {
             if (!silent && busTableBody) {
                 busTableBody.innerHTML = Array(5).fill('<tr><td colspan="9"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
             }
-            
-            // Fetch everything in parallel to ensure data consistency and speed
-            const [busesRes, driversRes, routesRes] = await Promise.all([
-                supabase.from('buses').select('*'),
-                supabase.from('drivers').select('*'),
-                supabase.from('routes').select('*')
+
+            // Load shifts and trips to resolve driver and route relations
+            const [bRes, shRes, trRes] = await Promise.all([
+                supabase.from('buses').select('*').order('created_at', { ascending: false }),
+                supabase.from('shifts').select('*').is('end_time', null),
+                supabase.from('trips').select('*').is('end_time', null)
             ]);
 
-            if (busesRes.error) throw busesRes.error;
+            if (bRes.error) throw bRes.error;
             
-            console.log('[Fleet] RAW BUSES:', busesRes.data);
-            console.log('[Fleet] RAW DRIVERS:', driversRes.data);
-            console.log('[Fleet] RAW ROUTES:', routesRes.data);
+            const shifts = shRes.data || [];
+            const trips = trRes.data || [];
 
-            // Populate global registries
-            if (driversRes.data) {
-                driversData = driversRes.data.map(d => ({
-                    id: d.id,
-                    name: d.full_name || d.name || 'Candidate',
-                    busId: d.bus_id || null
-                }));
-            }
-            if (routesRes.data) routesData = routesRes.data;
+            // Sync driver's linked bus IDs for Quick Assign dropdown
+            driversData.forEach(d => {
+                const activeShift = shifts.find(s => s.driver_id === d.id);
+                d.busId = activeShift ? activeShift.bus_id : null;
+            });
+            
+            busesData = bRes.data.map(b => {
+                const activeShift = shifts.find(s => s.bus_id === b.id);
+                const foundDriver = activeShift ? driversData.find(d => d.id === activeShift.driver_id) : null;
 
-            const newData = (busesRes.data || []).map(b => {
-                const driverId = b.driver_id || null;
+                const activeTrip = trips.find(t => t.bus_id === b.id);
+                const routeId = activeTrip ? activeTrip.route_id : (b.route_id || null);
+
                 const status = (b.status || '').toLowerCase();
-                const isActive = b.isActive === true || status === 'active' || status === 'moving';
-                
-                // Try to find driver if linked
-                const foundDriver = driversData.find(d => d.busId == b.id);
+                const isActive = status === 'active' || status === 'moving';
+
+                let cleanBusNumber = b.id.substring(0, 5).toUpperCase();
+                if (b.bus_number) {
+                    cleanBusNumber = b.bus_number.startsWith('B-') ? b.bus_number.substring(2) : b.bus_number;
+                }
 
                 return {
                     id:            b.id,
-                    busNumber:     b.bus_number || b.id,
+                    busNumber:     cleanBusNumber,
                     plateNumber:   b.plate_number || '—',
-                    routeId:       b.route_id || null,
-                    driverName:    b.driver_name || (foundDriver ? foundDriver.name : null),
-                    driverId:      driverId,
+                    routeId:       routeId,
+                    driverName:    foundDriver ? foundDriver.name : null,
+                    driverId:      foundDriver ? foundDriver.id : null,
                     isActive:      isActive,
-                    speed:         b.speed || 0,
+                    speed:         0,
                     capacity:      b.capacity || 0,
-                    license:       b.license_number || '—'
+                    license:       'LNC-' + b.id.substring(0, 4).toUpperCase() // Simulate operating license
                 };
             });
-
-            // ALWAYS clear skeletons
-            if (busTableBody) busTableBody.innerHTML = '';
-
-            if (newData.length > 0 || (busesRes.data && busesRes.data.length === 0)) {
-                busesData = newData;
-                updateStats();
-                renderTable();
-            } else if (busesRes.data && busesRes.data.length === 0) {
-                renderTable([]); // Force "No assets" message
-            }
             
+            updateStats();
+            renderTable();
         } catch (err) {
-            console.error('[Fleet] Matrix Error:', err);
-            if (!silent && busTableBody) {
-                const errorMsg = err.message || JSON.stringify(err);
-                busTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:60px; color:#ef4444;"><i class="fas fa-exclamation-triangle" style="font-size:2.5rem; margin-bottom:15px; display:block;"></i><p style="font-weight:900;">Fleet Connection Offline</p><p style="font-size:0.8rem; opacity:0.7;">Error: ${errorMsg}</p><button class="btn-primary" style="margin-top:20px;" onclick="loadBuses()">Retry Connection</button></td></tr>`;
-            }
+            console.error('Fleet Sync Error:', err);
         }
     }
 
@@ -149,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         filteredList.forEach((bus, index) => {
             const serialNum   = String(index + 1).padStart(4, '0');
-            const color       = getBusRouteColor(bus);
+            const color       = getRouteColor(bus.routeId, index);
             const statusBadge = bus.isActive 
                 ? `<span class="status-badge status-active"><div class="pulse-dot"></div> Operational</span>`
                 : `<span class="status-badge status-inactive">Standby</span>`;
@@ -159,8 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="color:${color}; font-family:monospace; font-weight:900;">#${serialNum}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:40px; height:40px; border-radius:12px; background:${window.hexToRgba(color, 0.15)}; display:flex; align-items:center; justify-content:center; color:${color}; font-size:1.2rem; border:1px solid ${window.hexToRgba(color, 0.3)};">
-                            <i class="fas fa-bus" style="color:${color} !important;"></i>
+                        <div style="width:40px; height:40px; border-radius:12px; background:${color}15; display:flex; align-items:center; justify-content:center; color:${color}; font-size:1.1rem; border:1px solid ${color}30;">
+                            <i class="fas fa-bus-alt"></i>
                         </div>
                         <div style="display:flex; flex-direction:column;">
                             <span style="font-weight:900; color:var(--text-main);">B-${bus.busNumber}</span>
@@ -175,10 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${bus.driverName || 'Unassigned'}</td>
                 <td>${statusBadge}</td>
                 <td>
+                    ${isSuperAdmin ? `
                     <div style="display:flex; gap:8px;">
                         <button class="btn-outline" onclick="window.toggleStatus('${bus.id}')"><i class="fas fa-power-off"></i></button>
                         <button class="btn-outline" onclick="window.deleteBus('${bus.id}', '${bus.busNumber}')" style="color:#ef4444;"><i class="fas fa-trash-alt"></i></button>
                     </div>
+                    ` : ''}
                 </td>
             `;
             busTableBody.appendChild(tr);
@@ -217,8 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openModal = (id) => document.getElementById(id).classList.add('active');
     window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 
-    document.getElementById('openAddBusModalBtn').onclick = () => openModal('addBusModal');
-    document.getElementById('openAssignModalBtn').onclick = () => { populateAssignDropdowns(); openModal('assignModal'); };
+    const openAddBusBtn = document.getElementById('openAddBusModalBtn');
+    if (openAddBusBtn) openAddBusBtn.onclick = () => openModal('addBusModal');
+    
+    const openAssignBtn = document.getElementById('openAssignModalBtn');
+    if (openAssignBtn) openAssignBtn.onclick = () => { populateAssignDropdowns(); openModal('assignModal'); };
 
     function populateAssignDropdowns() {
         const busSel = document.getElementById('assignBusSelect');
@@ -238,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!bus) return;
         const newStatus = bus.isActive ? 'Inactive' : 'Active';
         try {
-            await supabase.from('buses').eq('id', id).update({ status: newStatus });
+            await supabase.from('buses').update({ status: newStatus }).eq('id', id);
             loadBuses(true);
         } catch (err) { Swal.fire('Error', err.message, 'error'); }
     };
@@ -247,105 +258,67 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await Swal.fire({ title: `Decommission B-${num}?`, icon: 'error', showCancelButton: true, confirmButtonColor: '#ef4444' });
         if (res.isConfirmed) {
             try {
-                await supabase.from('buses').eq('id', id).delete();
+                // Clear references in drivers table, delete active trips and shifts first to prevent foreign key errors
+                await Promise.all([
+                    supabase.from('drivers').update({ busId: null, current_bus_id: null }).eq('busId', id),
+                    supabase.from('drivers').update({ busId: null, current_bus_id: null }).eq('current_bus_id', id),
+                    supabase.from('trips').delete().eq('bus_id', id),
+                    supabase.from('shifts').delete().eq('bus_id', id)
+                ]);
+                await supabase.from('buses').delete().eq('id', id);
                 loadBuses();
             } catch (err) { Swal.fire('Error', err.message, 'error'); }
         }
     };
 
-    // FIXED: Add Bus logic with RLS bypass strategies
     document.getElementById('addBusForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
         btn.disabled = true; btn.innerText = "Deploying...";
 
-        const payload = {
-            bus_number: document.getElementById('addBusNumber').value,
-            plate_number: document.getElementById('addPlateNumber').value,
-            license_number: document.getElementById('addLicenseNumber').value,
-            capacity: parseInt(document.getElementById('addCapacity').value),
-            status: 'Active',
-            speed: 0
-        };
-
-        // Handle route_id
+        const busNumber = document.getElementById('addBusNumber').value;
+        const plateNumber = document.getElementById('addPlateNumber').value;
+        const capacity = parseInt(document.getElementById('addCapacity').value, 10);
         const routeVal = document.getElementById('addRouteId').value;
-        if (routeVal) {
-            payload.route_id = (routeVal.length > 5) ? routeVal : parseInt(routeVal);
-        }
 
         try {
-            // Strategy 1: Try normal insert via REST wrapper
-            const { error } = await supabase.from('buses').insert(payload);
+            const selectedRoute = routesData.find(r => r.id === routeVal);
+            const lineNum = selectedRoute ? parseInt(selectedRoute.line_number, 10) : null;
+            const routeName = selectedRoute ? selectedRoute.name : null;
+
+            const { data, error } = await supabase.from('buses').insert({
+                bus_number: busNumber ? 'B-' + busNumber : undefined,
+                plate_number: plateNumber,
+                capacity: capacity,
+                status: 'Active',
+                route_id: routeVal || null,
+                route_name: routeName
+            });
             
-            if (error) {
-                const errMsg = error.message || JSON.stringify(error);
-                
-                // If RLS error, try Strategy 2: Direct fetch with admin session token
-                if (errMsg.includes('row-level security') || errMsg.includes('policy')) {
-                    console.warn('[TransitWay] RLS blocked insert. Trying with auth session...');
-                    
-                    // Try using the authenticated admin's session token if available
-                    let authToken = localStorage.getItem('adminToken');
-                    
-                    // Try getting a fresh token from supabaseAuth
-                    if (window.supabaseAuth && window.supabaseAuth.auth) {
-                        try {
-                            const { data: sessionData } = await window.supabaseAuth.auth.getSession();
-                            if (sessionData && sessionData.session) {
-                                authToken = sessionData.session.access_token;
-                            }
-                        } catch(e) { /* ignore */ }
-                    }
+            if (error) throw error;
 
-                    const headers = {
-                        'apikey': window.SUPABASE_KEY,
-                        'Authorization': 'Bearer ' + (authToken && authToken !== 'db-session' ? authToken : window.SUPABASE_KEY),
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    };
-
-                    const res2 = await fetch(window.SUPABASE_URL + '/rest/v1/buses', {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!res2.ok) {
-                        const err2 = await res2.json().catch(() => ({ message: res2.statusText }));
-                        const err2Msg = err2.message || JSON.stringify(err2);
-                        
-                        // Strategy 3: Try using SDK insert if available
-                        if (window.supabaseAuth && window.supabaseAuth.from) {
-                            const { error: err3 } = await window.supabaseAuth.from('buses').insert(payload);
-                            if (err3) throw new Error(err3.message || 'SDK insert also failed');
-                        } else {
-                            throw new Error('RLS Policy Error: ' + err2Msg + '\n\nPlease go to Supabase Dashboard → SQL Editor and run:\nCREATE POLICY "Allow admin bus insert" ON buses FOR INSERT WITH CHECK (true);');
-                        }
-                    }
-                } else {
-                    throw new Error(errMsg);
-                }
+            // Link to route via trips if selected
+            if (routeVal && data && data[0]) {
+                const busId = data[0].id;
+                await supabase.from('trips').insert({
+                    bus_id: busId,
+                    route_id: routeVal,
+                    status: 'active',
+                    start_time: new Date().toISOString()
+                });
             }
-            
-            Swal.fire({ icon: 'success', title: 'Asset Deployed' });
+
+            Swal.fire({ icon: 'success', title: 'Asset Deployed', background: 'var(--bg-card)', color: 'var(--text-main)', timer: 1500, showConfirmButton: false });
             closeModal('addBusModal');
             e.target.reset();
             loadBuses();
-            } catch (err) {
+        } catch (err) {
             Swal.fire({
                 icon: 'error',
                 title: 'Deployment Error',
-                html: `<div style="text-align:left; font-size:0.9rem;">
-                    <p style="margin-bottom:10px; font-weight:700;">${err.message}</p>
-                    ${err.message.includes('RLS') || err.message.includes('policy') ? `
-                        <div style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); padding:15px; border-radius:12px; margin-top:10px;">
-                            <p style="font-weight:800; color:#f59e0b; margin-bottom:8px;"><i class="fas fa-exclamation-triangle"></i> Fix Required:</p>
-                            <p style="font-size:0.8rem; color:var(--text-muted);">Go to <strong>Supabase Dashboard → SQL Editor</strong> and run:</p>
-                            <code style="display:block; background:var(--bg-main); padding:10px; border-radius:8px; margin-top:8px; font-size:0.75rem; word-break:break-all;">CREATE POLICY "Allow bus insert" ON buses FOR INSERT WITH CHECK (true);</code>
-                        </div>
-                    ` : ''}
-                </div>`,
+                text: err.message,
+                background: 'var(--bg-card)',
+                color: 'var(--text-main)',
                 confirmButtonColor: '#ef4444'
             });
         } finally {
@@ -358,8 +331,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const busId = document.getElementById('assignBusSelect').value;
         const drvId = document.getElementById('assignDriverSelect').value;
         try {
-            await supabase.from('buses').eq('id', busId).update({ driver_id: drvId });
-            await supabase.from('drivers').eq('id', drvId).update({ bus_id: busId });
+            const { error } = await supabase.from('shifts').insert({
+                driver_id: drvId,
+                bus_id: busId,
+                start_time: new Date().toISOString()
+            });
+            if (error) throw error;
+
+            // Update references in drivers and buses tables for mobile app compatibility
+            await Promise.all([
+                supabase.from('drivers').update({ busId: busId, current_bus_id: busId }).eq('id', drvId),
+                supabase.from('buses').update({ driver_id: drvId }).eq('id', busId)
+            ]);
+
             closeModal('assignModal');
             loadDrivers().then(() => loadBuses());
         } catch (err) { Swal.fire('Error', err.message, 'error'); }
@@ -372,11 +356,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'buses' }, () => {
                 loadBuses(true);
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => {
-                loadDrivers(true).then(() => loadBuses(true));
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => {
-                loadRoutes().then(() => loadBuses(true));
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
+                loadBuses(true);
             })
             .subscribe();
     }

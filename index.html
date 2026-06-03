@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TransitWay - Login</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="login.css">
+    <link rel="stylesheet" href="auth.css?v=1.2">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="theme-init.js"></script>
 </head>
 <body>
+
+    <button id="themeToggle" class="auth-theme-toggle" title="Toggle Theme">
+        <i class="fas fa-moon"></i>
+    </button>
 
     <div class="auth-wrapper">
         <div class="auth-card">
@@ -32,36 +36,31 @@
                         <div class="input-container">
                             <i class="fas fa-lock"></i>
                             <input type="password" placeholder="Password" id="password" required>
-                            <i class="far fa-eye toggle-pass" onclick="togglePassword('password')" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #aaa;"></i>
+                            <i class="far fa-eye toggle-pass" onclick="togglePassword('password')"></i>
                         </div>
 
                         <div class="forgot-link">
                             <a href="forgot.html">Forgot password?</a>
                         </div>
 
-                        <button type="submit" class="btn-continue">Continue</button>
-                    </form>
-                    <div style="position: absolute; top: 20px; right: 20px;">
-                        <button id="themeToggle" style="background: var(--login-input-bg); border: 1px solid var(--login-input-border); color: var(--login-text); width: 45px; height: 45px; border-radius: 12px; cursor: pointer; transition: 0.3s;">
-                            <i class="fas fa-moon"></i>
+                        <button type="submit" class="btn-continue">
+                            Continue <i class="fas fa-arrow-right"></i>
                         </button>
-                    </div>
+                    </form>
 
-                    <div id="setupSection" style="display:none; margin-top:20px; text-align:center;">
-                        <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:18px; margin-top:10px;">
-                            <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:12px; font-weight:600;">
-                                <i class="fas fa-info-circle" style="color:#f59e0b;"></i> No admin accounts found. Create your first one:
-                            </p>
-                            <button type="button" id="setupFirstAdminBtn" class="btn-continue" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9); font-size:0.9rem;">
-                                <i class="fas fa-crown"></i> Setup First Super Admin
-                            </button>
-                        </div>
+                    <div id="setupSection" style="display:none;" class="setup-info-box">
+                        <p>
+                            <i class="fas fa-info-circle"></i> No admin accounts found. Create your first one:
+                        </p>
+                        <button type="button" id="setupFirstAdminBtn" class="btn-continue" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); font-size: 0.9rem;">
+                            <i class="fas fa-crown"></i> Setup First Super Admin
+                        </button>
                     </div>
 
                     <div class="social-section">
                         <span>Sign in With</span>
                         <div class="social-icons">
-                            <a href="#" id="googleLoginBtn"><i class="fab fa-google"></i></a>
+                            <a href="#" id="googleLoginBtn" title="Google"><i class="fab fa-google"></i></a>
                         </div>
                     </div>
                 </div>
@@ -88,10 +87,21 @@
         </div>
     </div>
 
+    <script>
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = input.nextElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="login.js?v=1777561308171"></script>
-    <script src="notifications.js?v=2.0"></script>
 </body>
 </html>
-

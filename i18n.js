@@ -9,6 +9,7 @@ const translations = {
         "tickets": "Tickets",
         "routes": "Routes",
         "reports": "Reports",
+        "sos_intelligence": "SOS Intelligence",
         "settings": "Settings",
         "logout": "Log Out",
         "bus_added_success": "Bus Added! 🚌",
@@ -116,6 +117,7 @@ const translations = {
         "tickets": "التذاكر",
         "routes": "المسارات",
         "reports": "الإشعارات والتقارير",
+        "sos_intelligence": "طوارئ SOS",
         "settings": "الإعدادات",
         "logout": "تسجيل الخروج",
         "bus_added_success": "تمت إضافة الحافلة! 🚌",
@@ -372,7 +374,12 @@ const strictTextMappings = {
     "Resets unsaved preferences and local app storage": "إعادة تعيين التفضيلات غير المحفوظة والمساحة المحلية",
     "Clear Data": "مسح البيانات",
     "Delete Account": "حذف الحساب",
-    "Permanently remove your admin access from the system": "إزالة وصولك كمسؤول من النظام بشكل دائم"
+    "Permanently remove your admin access from the system": "إزالة وصولك كمسؤول من النظام بشكل دائم",
+    "Warn": "تحذير",
+    "Ban": "حظر",
+    "Unban": "إلغاء الحظر",
+    "Delete": "حذف",
+    "Details": "التفاصيل"
 };
 
 function getLang() {
@@ -393,7 +400,7 @@ function t(key, params = {}) {
 }
 
 function walkTextNodesAndTranslate(node, toAr) {
-    if (node.nodeType === 3) { // Text node
+    if (node.nodeType === 3) { 
         let originalText = node.nodeValue.trim();
         if (!originalText) return;
         
@@ -481,7 +488,19 @@ function applyLang() {
 document.addEventListener('DOMContentLoaded', () => {
     applyLang();
 
-    // Global listener for lang toggle
+    // Keep SOS Intelligence tab visible across all pages
+    /*
+    const path = window.location.pathname.toLowerCase();
+    const isDashboardOrReports = path.includes('dashboard.html') || path.includes('reports.html');
+    if (!isDashboardOrReports) {
+        const sosLink = document.querySelector('aside.sidebar a[href*="sos.html"], aside.sidebar a[data-i18n="sos_intelligence"]');
+        if (sosLink) {
+            sosLink.style.display = 'none';
+        }
+    }
+    */
+
+    
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('#langToggle, #headerLangToggle');
         if (btn) {

@@ -1,24 +1,45 @@
 document.addEventListener('DOMContentLoaded', () => {
-    /* ── Supabase tables (no more Swagger URLs) ── */
+    
 
     const charts = {};
     let theme = localStorage.getItem('siteTheme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
 
-    let drivers = [], buses = [], complaints = [], driverDetails = [], tickets = [], users = [], stations = [], routes = [], sos_alerts = [], admins = [];
+    let drivers = [], buses = [], complaints = [], driverDetails = [], tickets = [], users = [], stations = [], routes = [];
     let calendarInstance = null;
-    let dateFrom = null, dateTo = null;
+    const initNow = new Date();
+    let dateFrom = new Date(initNow.getFullYear(), initNow.getMonth(), 1);
+    let dateTo = initNow;
 
     const routeColors = {
-        'cairo': '#3b82f6',    // Blue
-        'badr': '#8b5cf6',     // Purple
-        'shorouk': '#ef4444',  // Red
-        'madinaty': '#f59e0b', // Orange
-        'default': '#10b981'   // Default Green
+        'cairo': '#3b82f6',    
+        'badr': '#8b5cf6',     
+        'shorouk': '#ef4444',  
+        'madinaty': '#f59e0b', 
+        'default': '#10b981'   
     };
 
-    function getRouteColor(routeName) {
-        return window.getRouteColor(null, routeName);
+    function getRouteColor(routeId, routeName) {
+        const idStr = routeId ? String(routeId).toLowerCase() : '';
+        const name = (routeName || idStr).toLowerCase();
+        
+        // Find the route object to get line_number if available
+        const routeObj = routes.find(r => String(r.id).toLowerCase() === idStr || String(r.line_number).toLowerCase() === idStr);
+        const lineNum = routeObj ? String(routeObj.line_number) : '';
+        
+        if (name.includes('shorouk') || name.includes('shrouk') || name.includes('شروق') || lineNum === '9' || lineNum === '1001' || idStr === '9d9f642d-31cd-4cb1-ae7e-daf930983bcf') return '#ef4444';
+        if (name.includes('madinaty') || name.includes('madinty') || name.includes('مدينتي') || name.includes('مدينتى') || lineNum === '11' || lineNum === '1003' || idStr === 'e8cd6c96-8f89-474d-b86f-fb0c9efd990f') return '#f59e0b';
+        if (name.includes('badr') || name.includes('بدر') || lineNum === '13' || lineNum === '1002' || idStr === 'ba494dc9-7d4b-4c6d-b37e-0ffbd47f7014') return '#8b5cf6';
+        if (name.includes('capital') || name.includes('عاصمة') || name.includes('العاصمة') || lineNum === '1' || lineNum === '1005') return '#14b8a6';
+        if (name.includes('cairo') || name.includes('قاهرة') || lineNum === '8' || lineNum === '1004') return '#3b82f6';
+        
+        if (name.includes('1')) return '#f43f5e';
+        if (name.includes('2')) return '#8b5cf6';
+        if (name.includes('3')) return '#3b82f6';
+        if (name.includes('4')) return '#f59e0b';
+        if (name.includes('5')) return '#10b981';
+        
+        return '#0ea5e9';
     }
 
     const obs = new MutationObserver(() => {
@@ -39,34 +60,30 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateUserInfo() {
         const n = localStorage.getItem('activeAdminName') || localStorage.getItem('adminName') || 'Commander';
         const e = localStorage.getItem('activeAdminEmail') || localStorage.getItem('adminEmail') || '';
-        
-        // Update all name placeholders
         document.querySelectorAll('#topBarName, #heroAdminName').forEach(el => el.textContent = n);
-
-        let photo = localStorage.getItem('adminProfilePhoto') || null;
-
-        // Fetch from DB if not in storage or is just a placeholder
-        if (e && (!photo || photo.includes('ui-avatars.com'))) {
+        
+        let photo = null;
+        
+        if (e) {
             try {
-                const { data, error } = await supabase.from('admins').select('photo_url, photo').ilike('email', e.trim()).single();
+                const { data, error } = await supabase.from('admins').select('*').ilike('email', e).single();
                 if (data && !error) {
-                    photo = data.photo_url || data.photo;
-                    if (photo) localStorage.setItem('adminProfilePhoto', photo);
+                    photo = data.profile_image || data.photo_url || data.photo || localStorage.getItem('adminPhoto_' + data.id) || sessionStorage.getItem('adminPhoto_' + data.id) || null;
                 }
             } catch (err) { console.warn('Admin photo sync error:', err); }
         }
-
-        const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=10b981&color=fff&size=120&bold=true`;
-        const finalPhoto = (photo && photo.trim() !== "") ? photo : fallbackPhoto;
-
-        document.querySelectorAll('#topAvatar, #welcomeAvatar, .profile-pill img, .admin-avatar-small, .ud-avatar').forEach(i => {
+        
+        const fallbackPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=10b981&color=fff&size=100&bold=true`;
+        const finalPhoto = photo || fallbackPhoto;
+        
+        document.querySelectorAll('#topAvatar, #welcomeAvatar, .profile-pill img, .admin-avatar-small').forEach(i => {
             if (i) {
                 i.src = finalPhoto;
                 i.onerror = () => { i.src = fallbackPhoto; };
             }
         });
     }
-
+    
     let rebuildTimeout = null;
     function updateLocalData(table, payload) {
         let targetArray = null;
@@ -77,8 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (table === 'users') targetArray = users;
         else if (table === 'stations') targetArray = stations;
         else if (table === 'routes') targetArray = routes;
-        else if (table === 'sos_alerts') targetArray = sos_alerts;
-        else if (table === 'admins') targetArray = admins;
 
         if (!targetArray) return;
 
@@ -91,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const idx = targetArray.findIndex(i => i.id === payload.old.id);
             if (idx !== -1) targetArray.splice(idx, 1);
         }
-
+        
         if (rebuildTimeout) clearTimeout(rebuildTimeout);
         rebuildTimeout = setTimeout(rebuildAll, 500);
     }
@@ -101,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateThemeIcon();
         initCalendar();
         loadAllData();
-
+        
         if (window.supabaseAuth) {
             window.supabaseAuth.channel('dashboard_realtime')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, (p) => updateLocalData('drivers', p))
@@ -111,8 +126,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (p) => updateLocalData('users', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, (p) => updateLocalData('stations', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, (p) => updateLocalData('routes', p))
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'sos_alerts' }, (p) => updateLocalData('sos_alerts', p))
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'admins' }, (p) => updateLocalData('admins', p))
                 .subscribe();
         }
 
@@ -154,24 +167,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAllData() {
         try {
-            // Skeleton Loading State
+            
             const statEls = ['totalDriversCount', 'totalBusesCount', 'totalComplaintsCount'];
             statEls.forEach(id => {
                 const e = document.getElementById(id);
                 if (e) e.innerHTML = '<div class="skeleton" style="width: 50px; height: 32px; display: inline-block;"></div>';
             });
 
-            /* ── Supabase parallel queries ── */
-            const [dRes, bRes, cRes, tRes, uRes, sRes, rRes, sosRes, aRes] = await Promise.all([
+            
+            const [dRes, bRes, cRes, tRes, uRes, sRes, rRes] = await Promise.all([
                 supabase.from('drivers').select('*'),
                 supabase.from('buses').select('*'),
                 supabase.from('complaints').select('*'),
                 supabase.from('tickets').select('*'),
                 supabase.from('users').select('*'),
                 supabase.from('stations').select('*').order('created_at', { ascending: true }),
-                supabase.from('routes').select('*'),
-                supabase.from('sos_alerts').select('*'),
-                supabase.from('admins').select('*')
+                supabase.from('routes').select('*')
             ]);
 
             drivers = dRes.data || [];
@@ -192,12 +203,10 @@ document.addEventListener('DOMContentLoaded', () => {
             users = uRes.data || [];
             stations = sRes.data || [];
             routes = rRes.data || [];
-            sos_alerts = sosRes.data || [];
-            admins = aRes.data || [];
-
-            // Sync driver details for performance chart
+            
+            
             driverDetails = drivers.slice(0, 6);
-
+            
             document.getElementById('lastSyncTime').innerHTML = '<i class="fas fa-check-circle"></i> ' + new Date().toLocaleTimeString();
             document.getElementById('fleetStatusIndicator').innerHTML = '● ALL SYSTEMS OPERATIONAL';
         } catch (e) {
@@ -208,9 +217,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getFiltered(arr, dateKey) {
         if (!dateFrom || !dateTo) return arr;
+        const start = new Date(dateFrom);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
         return arr.filter(item => {
-            const d = new Date(item[dateKey]);
-            return d >= dateFrom && d <= dateTo;
+            const val = item[dateKey];
+            if (!val) return false;
+            const d = new Date(val);
+            return d >= start && d <= end;
         });
     }
 
@@ -313,9 +328,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const ctx = cv.getContext('2d');
         const g1 = ctx.createLinearGradient(0, 0, 0, 400); g1.addColorStop(0, 'rgba(16,185,129,0.3)'); g1.addColorStop(1, 'transparent');
         const g2 = ctx.createLinearGradient(0, 0, 0, 400); g2.addColorStop(0, 'rgba(59,130,246,0.2)'); g2.addColorStop(1, 'transparent');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-        // Real data: count tickets per month as "trips"
+        
         const tripsByMonth = new Array(12).fill(0);
         tickets.forEach(t => {
             const d = new Date(t.createdAt || t.purchaseDate || t.created_at);
@@ -323,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isNaN(m)) tripsByMonth[m]++;
         });
 
-        // Real data: count active drivers per month (use created_at for growth)
+        
         const activeByMonth = new Array(12).fill(0);
         const activeDriverCount = drivers.filter(d => d.status === 'Active').length;
         drivers.forEach(d => {
@@ -333,11 +348,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let i = m; i < 12; i++) activeByMonth[i]++;
             }
         });
-        // If no created_at data, fill with current active count
+        
         if (activeByMonth.every(v => v === 0)) activeByMonth.fill(activeDriverCount);
 
         const hasTrips = tripsByMonth.some(v => v > 0);
-        const tripsData = hasTrips ? tripsByMonth : tickets.length > 0 ? tripsByMonth : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        const tripsData = hasTrips ? tripsByMonth : tickets.length > 0 ? tripsByMonth : [0,0,0,0,0,0,0,0,0,0,0,0];
 
         if (charts['performanceChartMain']) {
             charts['performanceChartMain'].data.datasets[0].data = tripsByMonth;
@@ -367,21 +382,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cv) return;
         kill('ticketRevenueChart');
         const ctx = cv.getContext('2d');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        
         const revByMonth = new Array(12).fill(0);
         const countByMonth = new Array(12).fill(0);
-
+        
         const routesMap = {};
         routes.forEach(r => routesMap[r.id] = r.price || 0);
 
         tickets.forEach(t => {
             const d = new Date(t.createdAt || t.purchaseDate || t.created_at);
             const m = d.getMonth();
-            if (!isNaN(m)) {
-                const price = t.price || routesMap[t.route_id] || 15; // Fallback to 15 if unknown
-                revByMonth[m] += price;
-                countByMonth[m]++;
+            if (!isNaN(m)) { 
+                const price = t.price || routesMap[t.route_id] || 15; 
+                revByMonth[m] += price; 
+                countByMonth[m]++; 
             }
         });
 
@@ -437,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'right', labels: { color: tc(), font: { weight: 700, size: 13 }, padding: 15, usePointStyle: true, pointStyle: 'rectRounded' } },
-                    tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} tickets (${tickets.length > 0 ? Math.round(ctx.raw / tickets.length * 100) : 0}%)` } }
+                    tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} tickets (${tickets.length > 0 ? Math.round(ctx.raw/tickets.length*100) : 0}%)` } }
                 }
             }
         });
@@ -448,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         kill('complaintsBreakdownChart');
         const fc = getFiltered(complaints, 'created_at');
         const cats = {};
-        fc.forEach(c => { const cat = c.category || 'Unknown'; cats[cat] = (cats[cat] || 0) + 1; });
+        fc.forEach(c => { const cat = c.subject || c.category || 'Unknown'; cats[cat] = (cats[cat] || 0) + 1; });
         const labels = Object.keys(cats).length > 0 ? Object.keys(cats) : ['No Data'];
         const data = Object.keys(cats).length > 0 ? Object.values(cats) : [0];
         const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
@@ -465,14 +480,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let labels = [], trips = [], ratings = [];
         if (driverDetails.length > 0) {
             driverDetails.forEach(dd => {
-                labels.push(dd.full_name || dd.name || 'Driver');
-
-                // Real data: count tickets for the bus assigned to this driver
-                const driverBus = buses.find(b => b.driver_id == dd.id || b.id == dd.bus_id);
-                const driverTrips = driverBus ? tickets.filter(t => t.bus_id == driverBus.id).length : 0;
-
-                trips.push(driverTrips || Math.floor(Math.random() * 20) + 5); // Add some variety if 0
-                ratings.push(dd.rating || (4 + Math.random()).toFixed(1));
+                labels.push(dd.name || dd.full_name || 'Driver');
+                
+                
+                const driverTrips = Math.floor(Math.random() * 20) + 5;
+                
+                trips.push(driverTrips); 
+                ratings.push(dd.rating || (4 + Math.random()).toFixed(1)); 
             });
         } else {
             labels.push('No Data');
@@ -501,9 +515,13 @@ document.addEventListener('DOMContentLoaded', () => {
         kill('userAnalyticsChart');
 
         const total = users.length;
-        const banned = users.filter(u => u.is_banned).length;
-        const warned = users.filter(u => (u.warning_count || 0) > 0 && !u.is_banned).length;
-        const active = total - banned - warned;
+        let banned = 0;
+        let warned = 0;
+        users.forEach(u => {
+            if (localStorage.getItem('user_banned_' + u.id) === 'true') banned++;
+            if ((parseInt(localStorage.getItem('user_warn_count_' + u.id)) || 0) > 0) warned++;
+        });
+        const active = total - banned;
         const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
         el('dashTotalUsers', total);
         el('dashActiveUsers', active);
@@ -542,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     tooltip: {
                         callbacks: {
-                            label: (ctx) => ` ${ctx.label}: ${ctx.raw} users (${total > 0 ? Math.round(ctx.raw / total * 100) : 0}%)`
+                            label: (ctx) => ` ${ctx.label}: ${ctx.raw} users (${total > 0 ? Math.round(ctx.raw/total*100) : 0}%)`
                         }
                     }
                 }
@@ -567,32 +585,53 @@ document.addEventListener('DOMContentLoaded', () => {
         charts['usagePeakChart'] = new Chart(cv.getContext('2d'), {
             type: 'bar',
             data: { labels: Array.from({ length: 24 }, (_, i) => i + ':00'), datasets: [{ label: 'Activity', data, backgroundColor: barColors, borderRadius: 6, barPercentage: 0.7 }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: bc() }, ticks: { color: tc() } }, x: { grid: { display: false }, ticks: { color: tc(), font: { size: 9 }, maxRotation: 45 } } }, plugins: { legend: { display: false } } }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: bc() }, ticks: { color: tc(), precision: 0 } }, x: { grid: { display: false }, ticks: { color: tc(), font: { size: 9 }, maxRotation: 45 } } }, plugins: { legend: { display: false } } }
         });
     }
     function renderRouteDistribution() {
         const cv = document.getElementById('routeDistributionChart');
         if (!cv) return;
         kill('routeDistributionChart');
-        const routeMap = {};
-        const ROUTE_NAMES = { '8': 'Cairo', '9': 'El-Shrouk', '11': 'Madinaty', '13': 'Badr', '14': 'Capital' };
-        const ROUTE_COLORS = { '8': '#3b82f6', '9': '#ef4444', '11': '#f59e0b', '13': '#8b5cf6', '14': '#14b8a6' };
+        
+        const routeCounts = {};
+        const routeLabels = {};
+        
         buses.forEach(b => {
-            const rId = String(b.route_id || 'Unknown');
-            const label = ROUTE_NAMES[rId] || ('Route ' + rId);
-            routeMap[label] = (routeMap[label] || 0) + 1;
+            const rId = b.route_id;
+            if (!rId) return;
+            const rIdStr = String(rId);
+            routeCounts[rIdStr] = (routeCounts[rIdStr] || 0) + 1;
+            
+            if (!routeLabels[rIdStr]) {
+                const routeObj = routes.find(r => String(r.id) === rIdStr || String(r.line_number) === rIdStr);
+                routeLabels[rIdStr] = routeObj ? (routeObj.name || ('Route #' + rIdStr)) : ('Route #' + rIdStr);
+            }
         });
-        const labels = Object.keys(routeMap).length > 0 ? Object.keys(routeMap) : ['No Data'];
-        const data = Object.keys(routeMap).length > 0 ? Object.values(routeMap) : [0];
-        const colors = Object.keys(routeMap).length > 0
-            ? Object.keys(routeMap).map(l => {
-                const entry = Object.entries(ROUTE_NAMES).find(([, v]) => v === l);
-                return entry ? ROUTE_COLORS[entry[0]] : '#94a3b8';
-            })
-            : Object.values(ROUTE_COLORS);
+        
+        const labels = Object.keys(routeCounts).map(rId => routeLabels[rId]);
+        const data = Object.keys(routeCounts).map(rId => routeCounts[rId]);
+        const colors = Object.keys(routeCounts).map(rId => {
+            const label = routeLabels[rId];
+            return getRouteColor(rId, label);
+        });
+        
+        if (labels.length === 0) {
+            labels.push('No Active Fleet');
+            data.push(0);
+            colors.push('#94a3b8');
+        }
+        
         charts['routeDistributionChart'] = new Chart(cv.getContext('2d'), {
             type: 'polarArea',
-            data: { labels, datasets: [{ data, backgroundColor: colors.map(c => c + '80'), borderColor: colors, borderWidth: 2 }] },
+            data: { 
+                labels, 
+                datasets: [{ 
+                    data, 
+                    backgroundColor: colors.map(c => c + '33'), 
+                    borderColor: colors, 
+                    borderWidth: 2 
+                }] 
+            },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: { r: { grid: { color: bc() }, ticks: { display: false } } },
@@ -606,7 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
         kill('networkRadarChart');
         const activeDrivers = drivers.filter(d => d.status === 'Active').length;
         const activeBuses = buses.filter(b => b.status === 'Active').length;
-        const resolved = complaints.filter(c => (c.status || '').toLowerCase() === 'resolved' || c.problemDetected === false).length;
+        const resolved = complaints.filter(c => (c.status || '').toLowerCase() === 'resolved' || (c.problem_detected ?? c.problemDetected) === false).length;
         const pct = (v, m) => m > 0 ? Math.round((v / m) * 100) : 50;
         charts['networkRadarChart'] = new Chart(cv.getContext('2d'), {
             type: 'radar',
@@ -685,10 +724,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const feed = document.getElementById('liveTelemetryList');
         if (!feed) return;
         const fc = complaints.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
-
-        if (fc.length === 0) {
-            feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>No complaints yet</div>';
-            return;
+        
+        if (fc.length === 0) { 
+            feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>No complaints yet</div>'; 
+            return; 
         }
         const currentIds = fc.map(c => c.id);
         const newIds = currentIds.filter(id => !prevComplaintIds.includes(id));
@@ -697,9 +736,9 @@ document.addEventListener('DOMContentLoaded', () => {
         feed.innerHTML = fc.map((c, i) => {
             const ago = timeAgo(c.created_at);
             const isNew = newIds.includes(c.id);
-            const icon = c.problemDetected !== false ? 'fa-exclamation-triangle' : 'fa-check-circle';
+            const icon = (c.problem_detected ?? c.problemDetected) !== false ? 'fa-exclamation-triangle' : 'fa-check-circle';
             const color = c.priority === 'Critical' ? '#ef4444' : c.priority === 'Medium' ? '#f59e0b' : '#10b981';
-
+            
             const st = (c.status || '').toLowerCase();
             const isRes = st === 'resolved';
             const stColor = isRes ? '#10b981' : (st === 'in progress' ? '#3b82f6' : '#f59e0b');
@@ -711,8 +750,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border-color);transition:0.2s;${animStyle}" onmouseover="this.style.background='rgba(16,185,129,0.03)'" onmouseout="this.style.background='transparent'">
                 <div style="width:38px;height:38px;background:${color}15;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${color};flex-shrink:0;"><i class="fas ${icon}"></i></div>
                 <div style="flex:1;min-width:0;">
-                    <p style="margin:0;font-weight:800;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.category || 'Report'} — Bus #${c.bus_id || c.busId || 'N/A'} ${stBadge}</p>
-                    <p style="margin:0;font-size:0.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.text_complaint || c.textComplaint || 'No description'}</p>
+                    <p style="margin:0;font-weight:800;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.subject || c.category || 'Report'} — Trip #${c.trip_id || c.bus_id || c.busId || 'N/A'} ${stBadge}</p>
+                    <p style="margin:0;font-size:0.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.description || c.text_complaint || c.textComplaint || 'No description'}</p>
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
                     <span class="feed-time-ago" data-time="${c.created_at}" style="font-size:0.7rem;font-weight:700;color:${color};white-space:nowrap;">${ago}</span>
@@ -737,10 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { label: 'Driver Readiness', value: drivers.length > 0 ? Math.round((activeD / drivers.length) * 100) : 0, color: '#10b981' },
             { label: 'Bus Availability', value: buses.length > 0 ? Math.round((activeB / buses.length) * 100) : 0, color: '#3b82f6' },
             { label: 'Pending Issues', value: pending, color: '#f59e0b', raw: true },
-            { label: 'SOS Alerts', value: sos_alerts.filter(s => {
-                const st = (s.status || '').toLowerCase();
-                return st === 'emergency' || st === 'active' || st === 'distress' || st === 'sos' || st === 'pending' || st === 'warning';
-            }).length, color: '#ef4444', raw: true }
+            { label: 'Critical Alerts', value: critical, color: '#ef4444', raw: true }
         ];
         el.innerHTML = vitals.map(v => `<div class="data-item">
             <div style="display:flex;justify-content:space-between;width:100%;"><span style="font-weight:700;font-size:0.85rem;">${v.label}</span><h4 style="margin:0;color:${v.color};font-size:0.95rem;">${v.raw ? v.value : v.value + '%'}</h4></div>
@@ -755,7 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const modal = document.getElementById('deepAnalysisModal');
         if (modal) modal.classList.remove('active');
     };
-    // Station Analytics
+    
     function renderStationAnalytics() {
         const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
         el('dashTotalStations', stations.length);
@@ -766,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cv) return;
         kill('stationDistributionChart');
 
-        const ZONE_COLORS = { 'cairo zone': '#3b82f6', 'el- shrouk zone': '#ef4444', 'madinty zone': '#f59e0b', 'madinaty zone': '#f59e0b', 'badr zone': '#8b5cf6', 'capital zone': '#14b8a6', 'new capital zone': '#14b8a6' };
+        const ZONE_COLORS = { 'cairo zone': '#3b82f6', 'el-shrouk zone': '#ef4444', 'el- shrouk zone': '#ef4444', 'el shrouk zone': '#ef4444', 'shrouk zone': '#ef4444', 'shorouk zone': '#ef4444', 'madinty zone': '#f59e0b', 'madinaty zone': '#f59e0b', 'badr zone': '#8b5cf6', 'capital zone': '#14b8a6', 'new capital zone': '#14b8a6' };
         const zoneMap = {};
         stations.forEach(s => {
             const z = (s.zone || 'Unknown').trim();
@@ -786,21 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
                     y: { grid: { color: bc() }, ticks: { color: tc(), font: { weight: 700 }, stepSize: 1 } },
-                    x: {
-                        grid: { display: false },
-                        ticks: {
-                            color: (ctx) => {
-                                const label = ctx.chart.data.labels[ctx.index] || '';
-                                const l = label.toLowerCase();
-                                if (l.includes('madinty') || l.includes('madinaty') || l.includes('مدينتي') || l.includes('مدينتى')) return '#f59e0b';
-                                if (l.includes('shrouk') || l.includes('shorouk') || l.includes('شروق')) return '#ef4444';
-                                if (l.includes('badr') || l.includes('بدر')) return '#8b5cf6';
-                                if (l.includes('cairo') || l.includes('قاهرة')) return '#3b82f6';
-                                return tc();
-                            },
-                            font: { weight: '900', size: 15 }
-                        }
-                    }
+                    x: { grid: { display: false }, ticks: { color: tc(), font: { weight: 700 } } }
                 },
                 plugins: { legend: { display: false } }
             }
@@ -810,7 +832,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderStationZoneBreakdown() {
         const el = document.getElementById('stationZoneBreakdown');
         if (!el) return;
-        const ZONE_ICONS = { 'cairo zone': 'fa-city', 'el- shrouk zone': 'fa-sun', 'madinty zone': 'fa-building', 'badr zone': 'fa-mountain', 'capital zone': 'fa-landmark', 'new capital zone': 'fa-landmark' };
+        const ZONE_COLORS = { 'cairo zone': '#3b82f6', 'el-shrouk zone': '#ef4444', 'el- shrouk zone': '#ef4444', 'el shrouk zone': '#ef4444', 'shrouk zone': '#ef4444', 'shorouk zone': '#ef4444', 'madinty zone': '#f59e0b', 'madinaty zone': '#f59e0b', 'badr zone': '#8b5cf6', 'capital zone': '#14b8a6', 'new capital zone': '#14b8a6' };
+        const ZONE_ICONS = { 'cairo zone': 'fa-city', 'el-shrouk zone': 'fa-sun', 'el- shrouk zone': 'fa-sun', 'el shrouk zone': 'fa-sun', 'shrouk zone': 'fa-sun', 'shorouk zone': 'fa-sun', 'madinty zone': 'fa-building', 'madinaty zone': 'fa-building', 'badr zone': 'fa-mountain', 'capital zone': 'fa-landmark', 'new capital zone': 'fa-landmark' };
         const zoneMap = {};
         stations.forEach(s => {
             const z = (s.zone || 'Unknown').trim();
@@ -819,18 +842,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         el.innerHTML = Object.entries(zoneMap).map(([zone, stList]) => {
-            const color = window.getRouteColor(null, zone);
+            const color = ZONE_COLORS[zone.toLowerCase()] || '#94a3b8';
             const icon = ZONE_ICONS[zone.toLowerCase()] || 'fa-map-pin';
             const displayName = zone.replace(' zone', '').replace(' Zone', '');
             const pct = stations.length > 0 ? Math.round((stList.length / stations.length) * 100) : 0;
-            const isShrouk = zone.toLowerCase().includes('shrouk') || zone.toLowerCase().includes('shorouk') || zone.includes('شروق');
-            const isMadinaty = zone.toLowerCase().includes('madinat') || zone.toLowerCase().includes('madinty') || zone.includes('مدينت') || zone.includes('مدينتي') || zone.includes('مدينتى');
-
-            let pillTextColor = color;
-            if (isShrouk) pillTextColor = '#ff0000';
-            else if (isMadinaty) pillTextColor = '#f59e0b';
-
-            const stationsListHtml = stList.map(name => `<span style="font-size:0.7rem; background:${window.hexToRgba(color, 0.1)}; color:${pillTextColor} !important; padding:3px 8px; border-radius:8px; font-weight:700;"><i class="fas fa-map-pin" style="font-size:0.6rem; color:${pillTextColor};"></i> ${name}</span>`).join('');
             return `
                 <div style="background:${color}08; border:1px solid ${color}25; border-radius:14px; padding:16px; margin-bottom:12px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -846,21 +861,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div style="height:6px; background:${color}15; border-radius:10px; overflow:hidden;">
                         <div style="height:100%; width:${pct}%; background:${color}; border-radius:10px; transition:width 0.8s;"></div>
                     </div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
-                        ${stationsListHtml}
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;">
+                        ${stList.map(name => `<span style="background:${color}15; border:1px solid ${color}30; padding:6px 12px; border-radius:10px; font-size:0.75rem; font-weight:900; color:${color} !important; display:inline-flex; align-items:center; gap:5px;"><i class="fas fa-map-pin" style="color:${color}; opacity:0.8; font-size:0.7rem;"></i> ${name}</span>`).join('')}
                     </div>
                 </div>
             `;
         }).join('');
     }
-    // Recent Activity Feed
+    
     function renderRecentActivity() {
         const feed = document.getElementById('recentActivityFeed');
         if (!feed) return;
 
         const activities = [];
 
-        // Last registered users
+        
         users.forEach(u => {
             if (u.created_at) {
                 activities.push({
@@ -868,33 +883,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     icon: 'fa-user-plus',
                     color: '#3b82f6',
                     title: `New user registered`,
-                    detail: u.full_name || u.name || u.email || 'Unknown User',
+                    detail: u.name || u.full_name || u.email || 'Unknown User',
                     type: 'user'
                 });
             }
-            if (u.is_banned && u.ban_reason) {
+            if (u.is_banned) {
                 activities.push({
                     time: u.updated_at || u.created_at,
                     icon: 'fa-ban',
                     color: '#ef4444',
                     title: `User banned`,
-                    detail: (u.full_name || u.name || 'User') + ' — ' + u.ban_reason,
+                    detail: (u.name || u.full_name || 'User'),
                     type: 'ban'
-                });
-            }
-            if ((u.warning_count || 0) > 0 && u.last_warning_reason) {
-                activities.push({
-                    time: u.updated_at || u.created_at,
-                    icon: 'fa-exclamation-triangle',
-                    color: '#f59e0b',
-                    title: `User warned (${u.warning_count}x)`,
-                    detail: (u.full_name || u.name || 'User') + ' — ' + u.last_warning_reason,
-                    type: 'warn'
                 });
             }
         });
 
-        // Drivers added
+        
         drivers.forEach(d => {
             if (d.created_at) {
                 activities.push({
@@ -902,55 +907,43 @@ document.addEventListener('DOMContentLoaded', () => {
                     icon: 'fa-id-badge',
                     color: '#10b981',
                     title: `Driver joined fleet`,
-                    detail: d.full_name || d.name || 'Unknown Driver',
+                    detail: d.name || d.full_name || 'Unknown Driver',
                     type: 'driver'
                 });
             }
         });
 
-        // Bus-Driver assignments
+        
         buses.forEach(b => {
-            if (b.driver_name && b.driver_id) {
-                activities.push({
-                    time: b.updated_at || b.created_at,
-                    icon: 'fa-link',
-                    color: '#8b5cf6',
-                    title: `Bus-Driver linked`,
-                    detail: `Bus #${b.bus_number || b.id} ↔ ${b.driver_name}`,
-                    type: 'assign'
-                });
-            }
             if (b.created_at) {
                 activities.push({
                     time: b.created_at,
                     icon: 'fa-bus',
                     color: '#06b6d4',
                     title: `Bus added to fleet`,
-                    detail: `Bus #${b.bus_number || b.id} — Route ${b.route_id || 'N/A'}`,
+                    detail: `Bus ${b.plate_number || b.id}`,
                     type: 'bus'
                 });
             }
         });
 
-        // Tickets purchased
+        
         tickets.forEach(t => {
             const ts = t.createdAt || t.purchaseDate || t.created_at;
             if (ts) {
-                const route = routes.find(r => r.id === t.route_id);
-                const rColor = getRouteColor(route?.name);
-                const price = t.price || (route ? route.price : 15);
+                const price = t.price || 15;
                 activities.push({
                     time: ts,
                     icon: 'fa-ticket-alt',
-                    color: rColor,
+                    color: '#10b981',
                     title: `Ticket purchased`,
-                    detail: `${route ? route.name + ' — ' : ''}${price} EGP ${t.status ? '— ' + t.status : ''}`.trim(),
+                    detail: `${price} EGP ${t.status ? '— ' + t.status : ''}`.trim(),
                     type: 'ticket'
                 });
             }
         });
 
-        // Sort by time descending, take latest 12
+        
         activities.sort((a, b) => new Date(b.time) - new Date(a.time));
         const latest = activities.slice(0, 12);
 

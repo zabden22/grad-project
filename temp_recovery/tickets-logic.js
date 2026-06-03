@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ==========================================
-    // 1. نظام الاسم الدايناميك والدارك مود
-    // ==========================================
+    
+    
+    
     const adminName = localStorage.getItem('activeAdminName') || 'Moscow';
     document.getElementById('topBarName').innerText = adminName;
 
@@ -30,9 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateThemeUI(currentTheme);
     });
 
-    // ==========================================
-    // 2. إدارة التذاكر - Full API Integration
-    // ==========================================
+    
+    
+    
     const API_BASE_URL = 'http://transit-way.runasp.net';
     const ticketTableBody = document.getElementById('ticketTableBody');
     const searchInput = document.getElementById('ticketSearchInput');
@@ -40,9 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let ticketsData = [];
     const busIdSelect = document.getElementById('busIdSelect');
 
-    // ─────────────────────────────────────────
-    // GET /api/Bus — تحميل الباصات في الـ dropdown
-    // ─────────────────────────────────────────
+    
+    
+    
     async function loadBuses() {
         try {
             const res = await fetch(`${API_BASE_URL}/api/Bus`);
@@ -64,9 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadBuses();
 
-    // ─────────────────────────────────────────
-    // GET /api/Routes — تحميل الخطوط في الـ dropdown
-    // ─────────────────────────────────────────
+    
+    
+    
     const routeSelect = document.getElementById('routeSelect');
     let routesData = [];
     async function loadRoutes() {
@@ -90,9 +90,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadRoutes();
 
-    // ─────────────────────────────────────────
-    // GET /api/Tickets — جلب كل التذاكر
-    // ─────────────────────────────────────────
+    
+    
+    
     async function loadTickets(silent = false) {
         try {
             if (!silent) {
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         validHours: t.expireAt ? Math.round((new Date(t.expireAt) - new Date(t.createdAt || new Date())) / 3600000) : (t.validHours || 24)
                     };
                 });
-                // Preserve search state if active
+                
                 const term = searchInput.value.toLowerCase();
                 renderTable();
                 if (term) {
@@ -169,9 +169,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ─────────────────────────────────────────
-    // GET /api/Tickets/user/{userId} — جلب تذاكر يوزر معين
-    // ─────────────────────────────────────────
+    
+    
+    
     async function loadTicketsByUser(userId) {
         try {
             const res = await fetch(`${API_BASE_URL}/api/Tickets/user/${userId}`);
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         validHours: t.expireAt ? Math.round((new Date(t.expireAt) - new Date(t.createdAt || new Date())) / 3600000) : (t.validHours || 24)
                     };
                 });
-                // Preserve search state
+                
                 const term = searchInput.value.toLowerCase();
                 renderTable();
                 if (term) {
@@ -221,9 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ─────────────────────────────────────────
-    // Render Table
-    // ─────────────────────────────────────────
+    
+    
+    
     function renderTable() {
         ticketTableBody.innerHTML = "";
 
@@ -272,10 +272,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Load all tickets on initial page load
+    
     loadTickets();
 
-    // Auto-refresh logic => silent polling
+    
     let currentFilterUserId = null;
     setInterval(() => {
         if (currentFilterUserId) {
@@ -285,11 +285,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 10000);
 
-    // ==========================================
-    // 3. التفاعل - Search / Modals / Actions
-    // ==========================================
     
-    // البحث في الجدول
+    
+    
+    
+    
     searchInput.addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         const rows = ticketTableBody.querySelectorAll('tr');
@@ -298,15 +298,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Modals
+    
     window.openModal = (id) => document.getElementById(id).classList.add('active');
     window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 
     document.getElementById('openAddTicketModalBtn').onclick = () => openModal('addTicketModal');
 
-    // ─────────────────────────────────────────
-    // POST /api/Tickets — إصدار تذكرة جديدة
-    // ─────────────────────────────────────────
+    
+    
+    
     document.getElementById('addTicketForm').onsubmit = async (e) => {
         e.preventDefault();
         const Btn = e.target.querySelector('button[type="submit"]');
@@ -319,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const busIdRaw      = formData.get('busId');
         const validHoursRaw = formData.get('validHours');
 
-        // تحويل صريح لأرقام صحيحة — parseInt+NaN يتحول لـ null في JSON
+        
         const userId     = userIdRaw     ? Math.floor(Number(userIdRaw))     : 0;
         const busId      = busIdRaw      ? Math.floor(Number(busIdRaw))      : 0;
         const validHours = validHoursRaw ? Math.floor(Number(validHoursRaw)) : 24;
@@ -347,9 +347,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let price = 15;
-        // Price can be dynamic in the future based on route data
+        
 
-        // إرسال الـ minimal payload — بس الفيلدات الإجبارية
+        
         const payload = {
             userId:  parseInt(userId,  10),
             busId:   parseInt(busId,   10),
@@ -402,9 +402,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ─────────────────────────────────────────
-    // Table Click Events — Cancel / Delete / View / Status
-    // ─────────────────────────────────────────
+    
+    
+    
     ticketTableBody.addEventListener('click', (e) => {
         const target = e.target;
         const ticketId = target.getAttribute('data-id');
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const ticketObj = ticketsData.find(t => t.id == ticketId);
 
-        // ───── View Ticket Details ─────
+        
         if (target.classList.contains('view-ticket')) {
             if (!ticketObj) return;
             Swal.fire({
@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // ───── PUT /api/Tickets/cancel/{id} — إلغاء تذكرة ─────
+        
         if (target.classList.contains('cancel-ticket')) {
             const displayId = ticketObj ? ticketObj.displayId : `#${ticketId}`;
             Swal.fire({
@@ -458,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                         if (res.ok) {
                             Swal.fire({ title: 'Voided!', text: `Ticket ${displayId} has been canceled.`, icon: 'success', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
-                            loadTickets(); // Refresh
+                            loadTickets(); 
                         } else {
                             const errorBody = await res.text().catch(() => '');
                             throw new Error(`Server: ${res.status} — ${errorBody}`);
@@ -471,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // ───── PUT /api/Tickets/status/{id}?status= — تغيير حالة التذكرة ─────
+        
         if (target.classList.contains('change-status')) {
             const displayId = ticketObj ? ticketObj.displayId : `#${ticketId}`;
             Swal.fire({
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // ───── DELETE /api/Tickets/{id} — حذف التذكرة نهائياً ─────
+        
         if (target.classList.contains('delete-ticket')) {
             const displayId = ticketObj ? ticketObj.displayId : `#${ticketId}`;
             Swal.fire({
@@ -550,9 +550,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ─────────────────────────────────────────
-    // POST /api/Tickets/use/{qrToken} — استخدام تذكرة بـ QR
-    // ─────────────────────────────────────────
+    
+    
+    
     window.useTicketByQR = async function() {
         const { value: qrToken } = await Swal.fire({
             title: 'Use Ticket via QR',
@@ -588,9 +588,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ─────────────────────────────────────────
-    // Filter by User ID — GET /api/Tickets/user/{userId}
-    // ─────────────────────────────────────────
+    
+    
+    
     window.filterByUser = async function() {
         const result = await Swal.fire({
             title: 'Filter by User ID',
@@ -619,9 +619,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ─────────────────────────────────────────
-    // Export CSV — Real data export
-    // ─────────────────────────────────────────
+    
+    
+    
     window.exportData = function() {
         if (ticketsData.length === 0) {
             Swal.fire({ title: 'No Data', text: 'No tickets to export.', icon: 'info', background: 'var(--bg-card)', color: 'var(--text-main)' });
@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
             background: 'var(--bg-card)',
             color: 'var(--text-main)'
         }).then(() => {
-            // Build CSV
+            
             const headers = ['Ticket ID', 'User ID', 'Passenger Name', 'Route', 'Route ID', 'Purchase Date', 'Price (EGP)', 'Status'];
             const csvRows = [headers.join(',')];
 

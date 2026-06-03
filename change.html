@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TransitWay - Change Password</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="change.css">
+    <link rel="stylesheet" href="auth.css?v=1.2">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="theme-init.js"></script>
-    
 </head>
 <body>
+
+    <button id="themeToggle" class="auth-theme-toggle" title="Toggle Theme">
+        <i class="fas fa-moon"></i>
+    </button>
 
     <div class="auth-wrapper">
         <div class="auth-card">
@@ -21,26 +24,25 @@
                 </div>
 
                 <div class="login-box">
-                    <button class="back-btn" onclick="window.history.back()">
-                        <i class="fas fa-chevron-left"></i> Back
+                    <button class="back-btn" onclick="window.location.href='index.html'">
+                        <i class="fas fa-chevron-left"></i> Back to Login
                     </button>
                     
-                    <h1>Set New Password</h1>
-                    <p class="subtitle">Enter the 6-digit code we sent you and your new password.</p>
+                    <h1>Change Password</h1>
+                    <p class="subtitle">Please enter a new password to secure your account</p>
 
                     <form id="changePasswordForm">
-                        <div class="otp-container" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 25px;">
-                            <input type="text" maxlength="1" class="otp-input" style="width: 40px; height: 50px; text-align: center; font-size: 1.5rem; border-radius: 8px; border: 1px solid #cbd5e1; background: var(--bg-card); color: var(--text-main);">
-                            <input type="text" maxlength="1" class="otp-input" style="width: 40px; height: 50px; text-align: center; font-size: 1.5rem; border-radius: 8px; border: 1px solid #cbd5e1; background: var(--bg-card); color: var(--text-main);">
-                            <input type="text" maxlength="1" class="otp-input" style="width: 40px; height: 50px; text-align: center; font-size: 1.5rem; border-radius: 8px; border: 1px solid #cbd5e1; background: var(--bg-card); color: var(--text-main);">
-                            <input type="text" maxlength="1" class="otp-input" style="width: 40px; height: 50px; text-align: center; font-size: 1.5rem; border-radius: 8px; border: 1px solid #cbd5e1; background: var(--bg-card); color: var(--text-main);">
-                            <input type="text" maxlength="1" class="otp-input" style="width: 40px; height: 50px; text-align: center; font-size: 1.5rem; border-radius: 8px; border: 1px solid #cbd5e1; background: var(--bg-card); color: var(--text-main);">
-                            <input type="text" maxlength="1" class="otp-input" style="width: 40px; height: 50px; text-align: center; font-size: 1.5rem; border-radius: 8px; border: 1px solid #cbd5e1; background: var(--bg-card); color: var(--text-main);">
-                        </div>
                         <div class="input-container">
                             <i class="fas fa-lock"></i>
                             <input type="password" placeholder="New Password" id="newPass" required>
                             <i class="far fa-eye toggle-pass" onclick="togglePassword('newPass')"></i>
+                        </div>
+
+                        <div class="strength-container">
+                            <div class="strength-bar-wrapper">
+                                <div class="strength-bar" id="strengthBar"></div>
+                            </div>
+                            <span class="strength-text" id="strengthText font-weight:700;">Password strength: Empty</span>
                         </div>
 
                         <div class="input-container">
@@ -49,19 +51,11 @@
                             <i class="far fa-eye toggle-pass" onclick="togglePassword('confirmPass')"></i>
                         </div>
 
-                        <button type="submit" class="btn-continue">Reset Password</button>
+                        <button type="submit" class="btn-continue">
+                            Reset Password <i class="fas fa-key"></i>
+                        </button>
                     </form>
-
-                    <p class="resend-text" style="text-align: center; margin-top: 20px; font-size: 0.9rem; color: var(--change-subtitle);">
-                        Didn't receive the code? <a href="#" onclick="resendCode(event)" style="color: #76a08a; font-weight: 700; text-decoration: none;">Resend Code</a>
-                    </p>
                 </div>
-            </div>
-            
-            <div style="position: absolute; top: 20px; right: 20px; z-index: 100;">
-                <button id="themeToggle" style="background: var(--change-input-bg); border: 1px solid var(--change-input-border); color: var(--change-text); width: 45px; height: 45px; border-radius: 12px; cursor: pointer; transition: 0.3s;">
-                    <i class="fas fa-moon"></i>
-                </button>
             </div>
 
             <div class="image-side">
@@ -85,7 +79,5 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="change.js?v=1.1"></script>
-    <script src="notifications.js?v=2.0"></script>
 </body>
 </html>
-

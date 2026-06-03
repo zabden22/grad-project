@@ -67,7 +67,7 @@ body { background: var(--bg-main); color: var(--text-main); transition: 0.3s; }
 .search-bar input { width: 100%; padding: 10px 15px 10px 42px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); outline: none; font-size: 0.85rem; }
 .search-bar input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px var(--primary-glow); }
 
-.profile-pill { display: none !important; align-items: center; gap: 10px; padding: 5px 15px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 50px; cursor: pointer; transition: 0.2s; position: relative; z-index: 2100; }
+.profile-pill { display: flex; align-items: center; gap: 10px; padding: 5px 15px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 50px; cursor: pointer; transition: 0.2s; position: relative; z-index: 2100; }
 .profile-pill:hover { border-color: var(--primary-color); background: rgba(16, 185, 129, 0.05); }
 .profile-pill img { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--primary-color); }
 .header-right { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; position: relative; z-index: 2100; }

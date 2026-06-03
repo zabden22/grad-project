@@ -12,9 +12,9 @@ async function fetchBuses() {
     }
 
     try {
-        // تم تصحيح الرابط ليكون HTTPS وإضافة كلمة Admin
-        // جرب الرابط ده بالظبط (كابيتال وسمول بيفرقوا)
-// جرب الرابط ده، ساعات بيكون الـ Endpoint بسيط جداً
+        
+        
+
 const response = await fetch('https://transit-way.runasp.net/api/buses', {
     method: 'GET',
     headers: {
@@ -30,8 +30,8 @@ const response = await fetch('https://transit-way.runasp.net/api/buses', {
             console.log("البيانات وصلت بنجاح!");
             displaybuses(buses);
         } else if (response.status === 404) {
-             // لو لسه بيجيب 404، جرب الرابط البديل ده:
-             // https://transit-way.runasp.net/api/buses
+             
+             
              alert("المسار غير موجود، تأكد من الـ Swagger.");
         } else {
             throw new Error(`خطأ رقم ${response.status}`);

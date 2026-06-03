@@ -11,15 +11,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let usersMap = {};
     let routesMap = {};
     let busesMap = {};
+    let tripsMap = {};
     let calendarInstance = null;
     let dateFrom = null, dateTo = null;
 
     const routeColors = {
-        'cairo': '#3b82f6',    // Blue
-        'badr': '#8b5cf6',     // Purple
-        'shorouk': '#ef4444',  // Red
-        'madinaty': '#f59e0b', // Orange
-        'default': '#10b981'   // Default Green
+        'cairo': '#3b82f6',    
+        'badr': '#8b5cf6',     
+        'shorouk': '#ef4444',  
+        'madinaty': '#f59e0b', 
+        'default': '#10b981'   
     };
 
     function getRouteColor(routeName) {
@@ -29,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (str.includes('cairo') || str.includes('قاهرة')) return '#3b82f6';
         if (str.includes('badr') || str.includes('بدر')) return '#8b5cf6';
         if (str.includes('shorouk') || str.includes('shrouk') || str.includes('شروق')) return '#ef4444';
-        if (str.includes('madinaty') || str.includes('مدينتي') || str.includes('مدينتى')) return '#f59e0b';
+        if (str.includes('madinaty') || str.includes('madinty') || str.includes('مدينتي') || str.includes('مدينتى')) return '#f59e0b';
         if (str.includes('1')) return '#f43f5e';
         if (str.includes('2')) return '#8b5cf6';
         if (str.includes('3')) return '#3b82f6';
@@ -38,32 +39,39 @@ document.addEventListener('DOMContentLoaded', () => {
         return '#0ea5e9';
     }
 
-    async function loadData() {
+    async function loadData(silent = false) {
         const ticketTableBody = document.getElementById('ticketTableBody');
-        if (ticketTableBody) {
+        if (!silent && ticketTableBody) {
             ticketTableBody.innerHTML = Array(5).fill('<tr><td colspan="7"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
         }
         try {
-
-            const [tRes, uRes, rRes, bRes] = await Promise.all([
+            const [tRes, uRes, rRes, bRes, tripRes] = await Promise.all([
                 supabase.from('tickets').select('*').order('created_at', { ascending: false }),
-                supabase.from('users').select('id, full_name'),
-                supabase.from('routes').select('id, name, price'),
-                supabase.from('buses').select('id, plate_number')
+                supabase.from('users').select('id, name, full_name'),
+                supabase.from('routes').select('id, name'),
+                supabase.from('buses').select('id, plate_number'),
+                supabase.from('trips').select('id, route_id, bus_id')
             ]);
 
             if (tRes.error) throw tRes.error;
 
-            if (uRes.data) uRes.data.forEach(u => usersMap[u.id] = u.full_name);
-            if (rRes.data) rRes.data.forEach(r => routesMap[r.id] = { name: r.name, price: r.price });
+            if (uRes.data) uRes.data.forEach(u => usersMap[u.id] = u.name || u.full_name);
+            if (rRes.data) rRes.data.forEach(r => routesMap[r.id] = { name: r.name, price: 15 });
             if (bRes.data) bRes.data.forEach(b => busesMap[b.id] = b.plate_number);
+            
+            tripsMap = {};
+            if (tripRes.data) {
+                tripRes.data.forEach(t => {
+                    tripsMap[t.id] = { routeId: t.route_id, busId: t.bus_id };
+                });
+            }
 
             ticketsData = tRes.data || [];
             updateSummary();
             renderTable();
         } catch (error) {
             console.error("Revenue Sync Error:", error);
-            if (ticketTableBody) {
+            if (!silent && ticketTableBody) {
                 ticketTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px; color:#ef4444;"><i class="fas fa-exclamation-triangle" style="font-size:2rem; margin-bottom:10px;"></i><p style="font-weight:800;">Neural Link Failed — Check Database Connection</p></td></tr>`;
             }
         }
@@ -85,13 +93,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentFilter = 'all';
 
+    function setupFilterCards() {
+        const cards = {
+            'all': document.getElementById('cardTotal'),
+            'active': document.getElementById('cardValid'),
+            'used': document.getElementById('cardUsed'),
+            'sold': document.getElementById('cardSold'),
+            'expired': document.getElementById('cardExpired')
+        };
+
+        Object.keys(cards).forEach(filterName => {
+            const card = cards[filterName];
+            if (card) {
+                card.addEventListener('click', () => {
+                    currentFilter = filterName;
+                    Object.values(cards).forEach(c => {
+                        if (c) c.classList.remove('active-filter');
+                    });
+                    card.classList.add('active-filter');
+                    renderTable();
+                });
+            }
+        });
+        if (cards['all']) cards['all'].classList.add('active-filter');
+    }
+
     function renderTable() {
         if (!ticketTableBody) return;
         const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
         
         let filtered = ticketsData;
         
-        // 1. Filter by Date Range
         if (dateFrom && dateTo) {
             filtered = filtered.filter(t => {
                 const d = new Date(t.created_at);
@@ -99,16 +131,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // 2. Filter by Search Query
         if (query) {
-            filtered = ticketsData.filter(t => 
-                (String(t.id)).toLowerCase().includes(query) ||
-                (t.ticket_code || '').toLowerCase().includes(query) ||
-                (usersMap[t.user_id] || '').toLowerCase().includes(query)
-            );
+            filtered = ticketsData.filter(t => {
+                const pName = usersMap[t.user_id] || "Guest User";
+                const simulatedCode = 'TCK-' + String(t.id).substring(0, 8).toUpperCase();
+                return (String(t.id)).toLowerCase().includes(query) ||
+                       simulatedCode.toLowerCase().includes(query) ||
+                       pName.toLowerCase().includes(query);
+            });
         }
 
-        // 3. Filter by Status Card
         if (currentFilter === 'active') filtered = filtered.filter(t => (t.status || '').toLowerCase() === 'active' || (t.status || '').toLowerCase() === 'valid');
         else if (currentFilter === 'used') filtered = filtered.filter(t => (t.status || '').toLowerCase() === 'used' || (t.status || '').toLowerCase() === 'redeemed');
         else if (currentFilter === 'sold') filtered = filtered.filter(t => (t.status || '').toLowerCase() !== 'canceled');
@@ -121,8 +153,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         filtered.forEach((tck, idx) => {
+            const simulatedCode = 'TCK-' + String(tck.id).substring(0, 8).toUpperCase();
             const passenger = usersMap[tck.user_id] || "Guest User";
-            const routeInfo = routesMap[tck.route_id] || { name: "General Route", price: 15 };
+            const trip = tripsMap[tck.trip_id];
+            const routeId = trip ? trip.routeId : null;
+            const routeInfo = routesMap[routeId] || { name: "General Route", price: 15 };
             const status = (tck.status || 'Active').toLowerCase();
             const rColor = getRouteColor(routeInfo.name);
             
@@ -135,15 +170,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusBadge = `<span style="background:rgba(239,68,68,0.1); color:#ef4444; padding:6px 14px; border-radius:50px; font-size:0.75rem; font-weight:800; text-transform:uppercase;">${status}</span>`;
             }
 
-            // Route pill badge
             const routeLabel = routeInfo.name.includes('Cairo') || routeInfo.name.includes('القاهرة') ? '🏙️ Cairo' :
-                               routeInfo.name.includes('Shorouk') || routeInfo.name.includes('شروق') ? '🔴 Shorouk' :
-                               routeInfo.name.includes('Madinaty') || routeInfo.name.includes('مدينتي') || routeInfo.name.includes('مدينتى') ? '🟠 Madinaty' :
+                               routeInfo.name.includes('Shorouk') || routeInfo.name.includes('Shrouk') || routeInfo.name.includes('شروق') ? '🔴 Shorouk' :
+                               routeInfo.name.includes('Madinaty') || routeInfo.name.includes('Madinty') || routeInfo.name.includes('مدينتي') || routeInfo.name.includes('مدينتى') ? '🟠 Madinaty' :
                                routeInfo.name.includes('Badr') || routeInfo.name.includes('بدر') ? '🟣 Badr' : 
                                routeInfo.name.includes('Capital') || routeInfo.name.includes('العاصمة') || routeInfo.name.includes('عاصمة') ? '🏛️ Capital' : routeInfo.name;
 
             const tr = document.createElement('tr');
-            // Color-coded left border + subtle background tint per route
+            
             tr.style.borderLeft = `4px solid ${rColor}`;
             tr.style.background = `linear-gradient(90deg, ${rColor}08 0%, transparent 40%)`;
             tr.style.transition = 'all 0.3s ease';
@@ -154,17 +188,17 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.onmouseleave = function() { this.style.background = `linear-gradient(90deg, ${rColor}08 0%, transparent 40%)`; this.style.transform = 'scale(1)'; };
 
             tr.innerHTML = `
-                <td><div style="font-family:monospace; font-weight:900; color:${rColor};">#${String(tck.id).substring(0, 8)}</div></td>
+                <td><div style="font-family:monospace; font-weight:900; color:${rColor};">#${simulatedCode}</div></td>
                 <td><div style="font-weight:800; cursor:pointer; color:var(--text-main);" onclick="window.jumpToUser('${tck.user_id}')" title="Jump to User Profile">${passenger} <i class="fas fa-external-link-alt" style="font-size:0.7rem; opacity:0.4; margin-left:4px;"></i></div></td>
                 <td>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="display:inline-flex; align-items:center; gap:6px; background:${rColor}; color:#fff !important; border:1px solid ${rColor}; padding:5px 14px; border-radius:50px; font-size:0.78rem; font-weight:800; box-shadow: 0 4px 12px ${rColor}40;">
-                            <i class="fas fa-route" style="font-size:0.7rem; color: rgba(255,255,255,0.8);"></i>${routeLabel}
+                        <span style="display:inline-flex; align-items:center; gap:6px; background:${rColor}12; color:${rColor}; border:1px solid ${rColor}25; padding:5px 14px; border-radius:50px; font-size:0.78rem; font-weight:800;">
+                            <i class="fas fa-route" style="font-size:0.7rem;"></i>${routeLabel}
                         </span>
                     </div>
                 </td>
                 <td><div style="font-weight:600; color:var(--text-muted);">${new Date(tck.created_at).toLocaleString()}</div></td>
-                <td><div style="font-weight:900; color:${rColor};">${routeInfo.price}.00 EGP</div></td>
+                <td><div style="font-weight:900; color:${rColor};">${tck.price || routeInfo.price}.00 EGP</div></td>
                 <td>${statusBadge}</td>
                 <td>
                     <div style="display:flex; gap:8px;">
@@ -179,26 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (searchInput) searchInput.addEventListener('input', renderTable);
 
-    const statCards = document.querySelectorAll('.v-card:not(section)');
-    statCards.forEach(card => {
-        card.style.cursor = 'pointer';
-        card.addEventListener('click', () => {
-            const h3 = card.querySelector('h3');
-            if (!h3) return;
-            const id = h3.id;
-            
-            statCards.forEach(c => c.style.border = 'none');
-            card.style.border = '2px solid var(--primary-color)';
-            
-            if (id === 'summaryTotalSold') currentFilter = 'all';
-            else if (id === 'summaryAvailable') currentFilter = 'active';
-            else if (id === 'summaryUsed') currentFilter = 'used';
-            else if (id === 'summarySold') currentFilter = 'sold';
-            else if (id === 'summaryExpired') currentFilter = 'expired';
-            
-            renderTable();
-        });
-    });
+
 
     window.jumpToUser = (userId) => {
         if (!userId || userId === 'null') return;
@@ -210,9 +225,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const tck = ticketsData.find(t => String(t.id) === String(id));
         if (!tck) return;
         
+        const simulatedCode = 'TCK-' + String(tck.id).substring(0, 8).toUpperCase();
         const passenger = usersMap[tck.user_id] || "Guest User";
-        const routeInfo = routesMap[tck.route_id] || { name: "General Route", price: 15 };
-        const busPlate = busesMap[tck.bus_id] || "Not Assigned";
+        const trip = tripsMap[tck.trip_id];
+        const routeId = trip ? trip.routeId : null;
+        const busId = trip ? trip.busId : null;
+        const routeInfo = routesMap[routeId] || { name: "General Route", price: 15 };
+        const busPlate = busesMap[busId] || "Not Assigned";
         const status = (tck.status || 'Active').toLowerCase();
         const rColor = getRouteColor(routeInfo.name);
 
@@ -237,16 +256,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         <div style="text-align: right;">
                             <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 1px;">Purchase Price</label>
-                            <p style="margin: 0; font-weight: 900; font-size: 1.2rem; color: ${rColor};">${routeInfo.price}.00 EGP</p>
+                            <p style="margin: 0; font-weight: 900; font-size: 1.2rem; color: ${rColor};">${tck.price || routeInfo.price}.00 EGP</p>
                         </div>
 
                         <div style="grid-column: span 2;">
-                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Assigned Route</label>
-                            <div style="display: flex; align-items: center;">
-                                <span style="background:${rColor}; color:#fff !important; padding:8px 20px; border-radius:50px; font-size:0.9rem; font-weight:900; box-shadow: 0 6px 15px ${rColor}40; display: inline-flex; align-items: center; gap: 8px;">
-                                    <i class="fas fa-route" style="opacity:0.8;"></i> ${routeInfo.name}
-                                </span>
-                            </div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 1px;">Assigned Route</label>
+                            <p style="margin: 0; font-weight: 800; font-size: 1rem; color: var(--text-main); line-height: 1.5;">${routeInfo.name}</p>
                         </div>
 
                         <div>
@@ -264,8 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="grid-column: span 2; padding-top: 20px; border-top: 1px dashed var(--border-color); margin-top: 10px;">
                             <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Validation Code</label>
                             <div style="background: var(--bg-main); border: 1.5px solid var(--border-color); border-radius: 16px; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                                <code style="font-family: 'JetBrains Mono', monospace; font-weight: 900; font-size: 0.95rem; color: ${rColor}; letter-spacing: 0.5px;">${tck.ticket_code || '---'}</code>
-                                <i class="far fa-copy" style="color: var(--text-muted); cursor: pointer; font-size: 1.1rem;" onclick="navigator.clipboard.writeText('${tck.ticket_code}'); Swal.showValidationMessage('Copied to clipboard!')"></i>
+                                <code style="font-family: 'JetBrains Mono', monospace; font-weight: 900; font-size: 0.95rem; color: ${rColor}; letter-spacing: 0.5px;">${simulatedCode}</code>
+                                <i class="far fa-copy" style="color: var(--text-muted); cursor: pointer; font-size: 1.1rem;" onclick="navigator.clipboard.writeText('${simulatedCode}'); Swal.showValidationMessage('Copied to clipboard!')"></i>
                             </div>
                         </div>
 
@@ -278,6 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `,
+            background: 'var(--bg-card)',
+            color: 'var(--text-main)',
+            showConfirmButton: true,
             confirmButtonText: 'Dismiss View',
             confirmButtonColor: rColor,
             width: 520,
@@ -298,14 +316,15 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
-            confirmButtonText: 'Yes, Delete'
+            confirmButtonText: 'Yes, Delete',
+            background: 'var(--bg-card)', color: 'var(--text-main)'
         });
 
         if (res.isConfirmed) {
             try {
                 const { error } = await supabase.from('tickets').delete().eq('id', id);
                 if (error) throw error;
-                Swal.fire({ icon: 'success', title: 'Deleted', timer: 1000, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Deleted', timer: 1000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                 loadData();
             } catch (e) {
                 Swal.fire('Error', 'Could not delete ticket', 'error');
@@ -319,17 +338,21 @@ document.addEventListener('DOMContentLoaded', () => {
             input: 'text',
             inputLabel: 'Enter Ticket Code',
             inputPlaceholder: 'TCK-XXXX',
-            showCancelButton: true
+            showCancelButton: true,
+            background: 'var(--bg-card)', color: 'var(--text-main)'
         });
 
         if (code) {
             try {
-                const { data, error } = await supabase.from('tickets').select('*').eq('ticket_code', code).single();
-                if (error || !data) throw new Error("Invalid Code");
-                if (data.status === 'Used') throw new Error("Ticket already used");
+                const suffix = code.replace('TCK-', '').toLowerCase();
+                const { data: allTickets, error } = await supabase.from('tickets').select('*');
+                if (error) throw error;
+                const found = allTickets.find(t => String(t.id).toLowerCase().startsWith(suffix));
+                if (!found) throw new Error("Invalid Code");
+                if (found.status === 'Used') throw new Error("Ticket already used");
                 
-                await supabase.from('tickets').eq('id', data.id).update({ status: 'Used' });
-                Swal.fire({ icon: 'success', title: 'Validated', text: 'Ticket used successfully' });
+                await supabase.from('tickets').update({ status: 'Used' }).eq('id', found.id);
+                Swal.fire({ icon: 'success', title: 'Validated', text: 'Ticket used successfully', background: 'var(--bg-card)', color: 'var(--text-main)' });
                 loadData();
             } catch (e) {
                 Swal.fire('Error', e.message, 'error');
@@ -342,7 +365,8 @@ document.addEventListener('DOMContentLoaded', () => {
             title: 'User History',
             input: 'text',
             inputLabel: 'Enter User ID',
-            showCancelButton: true
+            showCancelButton: true,
+            background: 'var(--bg-card)', color: 'var(--text-main)'
         });
         if (uid) {
             const { data } = await supabase.from('tickets').select('*').eq('user_id', uid);
@@ -353,19 +377,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.exportData = () => {
         if (!ticketsData.length) {
-            Swal.fire({ icon: 'info', title: 'No Data', text: 'No tickets to export.' });
+            Swal.fire({ icon: 'info', title: 'No Data', text: 'No tickets to export.', background: 'var(--bg-card)', color: 'var(--text-main)' });
             return;
         }
         const headers = ['ID', 'Passenger', 'Route', 'Price', 'Status', 'Ticket Code', 'Date'];
-        const rows = ticketsData.map(t => [
-            t.id,
-            usersMap[t.user_id] || 'Guest',
-            routesMap[t.route_id] ? routesMap[t.route_id].name : 'Unknown',
-            routesMap[t.route_id] ? routesMap[t.route_id].price : 0,
-            t.status || 'Active',
-            t.ticket_code || '',
-            new Date(t.created_at).toLocaleString()
-        ]);
+        const rows = ticketsData.map(t => {
+            const passenger = usersMap[t.user_id] || 'Guest';
+            const trip = tripsMap[t.trip_id];
+            const routeId = trip ? trip.routeId : null;
+            const route = routesMap[routeId] ? routesMap[routeId].name : 'Unknown';
+            const price = t.price || (routesMap[routeId] ? routesMap[routeId].price : 15);
+            const simulatedCode = 'TCK-' + String(t.id).substring(0, 8).toUpperCase();
+            return [
+                t.id,
+                passenger,
+                route,
+                price,
+                t.status || 'Active',
+                simulatedCode,
+                new Date(t.created_at).toLocaleString()
+            ];
+        });
         const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -374,16 +406,17 @@ document.addEventListener('DOMContentLoaded', () => {
         a.download = `TransitWay_Tickets_${new Date().toISOString().slice(0,10)}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-        Swal.fire({ icon: 'success', title: 'Exported', text: `${ticketsData.length} tickets exported.`, timer: 1500, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Exported', text: `${ticketsData.length} tickets exported.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
     };
 
     window.openAddTicket = () => {
         const modal = document.getElementById('addTicketModal');
         if (modal) {
             modal.classList.add('active');
-            // Populate selects
+            
             const routeSelect = document.getElementById('modalRouteSelect');
             const busSelect = document.getElementById('modalBusSelect');
+            const userSelect = document.getElementById('modalUserSelect');
             
             if (routeSelect) {
                 routeSelect.innerHTML = '<option value="">Select Target Route</option>';
@@ -395,6 +428,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 busSelect.innerHTML = '<option value="">Select Target Bus</option>';
                 Object.keys(busesMap).forEach(id => {
                     busSelect.innerHTML += `<option value="${id}">${busesMap[id]}</option>`;
+                });
+            }
+            if (userSelect) {
+                userSelect.innerHTML = '<option value="">Select Passenger</option>';
+                Object.keys(usersMap).forEach(id => {
+                    userSelect.innerHTML += `<option value="${id}">${usersMap[id]} (${id.substring(0, 8)})</option>`;
                 });
             }
         }
@@ -414,23 +453,61 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerText = "Issuing Signal...";
 
             const formData = new FormData(e.target);
-            const payload = {
-                user_id: formData.get('user_id'),
-                route_id: formData.get('route_id'),
-                bus_id: formData.get('bus_id') || null,
-                status: 'active',
-                ticket_code: 'TCK-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-                created_at: new Date().toISOString()
-            };
+            const routeId = formData.get('route_id');
+            const busId = formData.get('bus_id') || null;
+            const userId = formData.get('user_id');
 
             try {
-                const { error } = await supabase.from('tickets').insert(payload);
+                // Find or create trip
+                let tripId = null;
+                if (routeId) {
+                    let eqQuery = supabase.from('trips').select('id').eq('route_id', routeId).is('end_time', null);
+                    if (busId) eqQuery = eqQuery.eq('bus_id', busId);
+                    
+                    const { data: activeTrips } = await eqQuery.limit(1);
+
+                    if (activeTrips && activeTrips[0]) {
+                        tripId = activeTrips[0].id;
+                    } else {
+                        // Create a new trip
+                        const tripPayload = {
+                            route_id: routeId,
+                            status: 'active',
+                            start_time: new Date().toISOString()
+                        };
+                        if (busId) tripPayload.bus_id = busId;
+                        
+                        const { data: newTrip, error: tripErr } = await supabase.from('trips').insert(tripPayload);
+                        if (tripErr) throw tripErr;
+                        if (newTrip && newTrip[0]) {
+                            tripId = newTrip[0].id;
+                        } else {
+                            // Fallback query to find it
+                            let fallbackQuery = supabase.from('trips').select('id').eq('route_id', routeId).is('end_time', null);
+                            if (busId) fallbackQuery = fallbackQuery.eq('bus_id', busId);
+                            const { data: reselect } = await fallbackQuery.limit(1);
+                            if (reselect && reselect[0]) tripId = reselect[0].id;
+                        }
+                    }
+                }
+
+                if (!tripId) {
+                    throw new Error("Could not map or establish a trip for this route and bus.");
+                }
+
+                const { error } = await supabase.from('tickets').insert({
+                    trip_id: tripId,
+                    user_id: userId,
+                    price: 15,
+                    status: 'active'
+                });
                 if (error) throw error;
 
                 Swal.fire({
                     icon: 'success',
                     title: 'Ticket Issued',
-                    text: `Signal ${payload.ticket_code} generated for user.`,
+                    text: `Signal generated successfully for user.`,
+                    background: 'var(--bg-card)', color: 'var(--text-main)',
                     timer: 1500, showConfirmButton: false
                 });
 
@@ -464,22 +541,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initCalendar();
+    setupFilterCards();
     loadData();
     
     if (window.supabaseAuth) {
         window.supabaseAuth.channel('tickets_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
-                if (payload.eventType === 'INSERT') {
-                    ticketsData.unshift(payload.new);
-                } else if (payload.eventType === 'UPDATE') {
-                    const idx = ticketsData.findIndex(t => t.id === payload.new.id);
-                    if (idx !== -1) ticketsData[idx] = { ...ticketsData[idx], ...payload.new };
-                } else if (payload.eventType === 'DELETE') {
-                    const idx = ticketsData.findIndex(t => t.id === payload.old.id);
-                    if (idx !== -1) ticketsData.splice(idx, 1);
-                }
-                updateSummary();
-                renderTable();
+                loadData(true);
             })
             .subscribe();
     }

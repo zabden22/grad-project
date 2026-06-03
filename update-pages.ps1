@@ -3,7 +3,7 @@ $pages = @('admins.html','buses.html','drivers.html','stations.html','tickets.ht
 foreach ($page in $pages) {
     $content = Get-Content $page -Raw -Encoding UTF8
     
-    # Replace sidebar opening tag
+    
     $content = $content -replace '<aside class="sidebar">', @"
         <!-- Sidebar Overlay -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -11,7 +11,7 @@ foreach ($page in $pages) {
         <aside class="sidebar" id="mainSidebar">
 "@
 
-    # Add top-bar-left wrapper with toggle button and logo after <header class="top-bar">
+    
     $content = $content -replace '(<header class="top-bar">)\s*\r?\n\s*(<h2 class="path-title")', @"
             <header class="top-bar">
                 <div class="top-bar-left">
@@ -22,7 +22,7 @@ foreach ($page in $pages) {
                     `$2
 "@
 
-    # Close the top-bar-left div after the path-title
+    
     $content = $content -replace '(<h2 class="path-title"[^>]*>[^<]*</h2>)\s*\r?\n\s*(<div class="top-controls">)', @"
                     `$1
                 </div>

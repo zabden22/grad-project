@@ -66,7 +66,7 @@ async function loadAdmins() {
 async function deleteAdmin(adminId) {
     if (confirm("هل أنت متأكد من مسح هذا المسؤول؟")) {
         try {
-            const { error } = await supabase.from('admins').eq('id', adminId).delete();
+            const { error } = await supabase.from('admins').delete().eq('id', adminId);
             if (error) throw error;
             loadAdmins();
         } catch (error) {

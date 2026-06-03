@@ -1,20 +1,92 @@
-function togglePassword(id) {
-    const el = document.getElementById(id);
-    const icon = el.nextElementSibling;
-    if (el.type === 'password') {
-        el.type = 'text';
-        icon.classList.replace('fa-eye', 'fa-eye-slash');
-    } else {
-        el.type = 'password';
-        icon.classList.replace('fa-eye-slash', 'fa-eye');
-    }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    // Background is now handled globally by theme-init.js
+    
+    window.injectNeuralBackground = function() {
+        const particlesEnabled = localStorage.getItem('particlesEnabled') !== 'false';
+        const existingBg = document.querySelector('.neural-bg');
+        
+        if (!particlesEnabled) {
+            if (existingBg) existingBg.remove();
+            return;
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const baseColor = '#10b981';
+        const rgbColor = '16, 185, 129';
+
+        if (existingBg) {
+            const particles = existingBg.querySelectorAll('.neural-particle');
+            particles.forEach(p => {
+                const glowIntensity = p.dataset.glowIntensity || (Math.random() * 15 + 10);
+                const secondaryGlow = glowIntensity * 2;
+                const opacity = p.dataset.opacity || (Math.random() * 0.5 + 0.3);
+                
+                p.style.backgroundColor = baseColor;
+                p.style.boxShadow = `0 0 ${glowIntensity}px ${baseColor}, 0 0 ${secondaryGlow}px rgba(${rgbColor}, ${opacity})`;
+            });
+            return;
+        }
+
+        if (!document.getElementById('neural-keyframes')) {
+            const style = document.createElement('style');
+            style.id = 'neural-keyframes';
+            style.innerHTML = `
+                @keyframes neuralFloatVar1 { 0% { transform: translate(0, 0) scale(1); } 33% { transform: translate(40px, -60px) scale(1.3); } 66% { transform: translate(-30px, -120px) scale(0.8); } 100% { transform: translate(0, -180px) scale(1); } }
+                @keyframes neuralFloatVar2 { 0% { transform: translate(0, 0) scale(1); } 33% { transform: translate(-50px, -50px) scale(1.2); } 66% { transform: translate(40px, -100px) scale(0.9); } 100% { transform: translate(0, -160px) scale(1); } }
+                @keyframes neuralFloatVar3 { 0% { transform: translate(0, 0) scale(1); } 33% { transform: translate(30px, -70px) scale(1.1); } 66% { transform: translate(-40px, -140px) scale(0.85); } 100% { transform: translate(0, -200px) scale(1); } }
+            `;
+            document.head.appendChild(style);
+        }
+
+        const bg = document.createElement('div');
+        bg.className = 'neural-bg';
+        bg.style.position = 'fixed';
+        bg.style.inset = '0';
+        bg.style.pointerEvents = 'none';
+        bg.style.zIndex = '-1';
+        bg.style.overflow = 'hidden';
+        
+        const particleCount = 40;
+        for (let i = 0; i < particleCount; i++) {
+            const p = document.createElement('div');
+            p.className = 'neural-particle';
+            p.style.position = 'absolute';
+            p.style.borderRadius = '50%';
+            
+            const size = Math.random() * 10 + 2;
+            const animIndex = Math.floor(Math.random() * 3) + 1;
+            const duration = (Math.random() * 20 + 25) + 's';
+            const delay = (Math.random() * -40) + 's';
+            const blur = Math.random() * 2 + 1;
+            
+            p.style.width = `${size}px`;
+            p.style.height = `${size}px`;
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.top = Math.random() * 100 + 'vh';
+            p.style.filter = `blur(${blur}px)`;
+            p.style.animation = `neuralFloatVar${animIndex} ${duration} linear infinite ${delay}`;
+            
+            const glowIntensity = (Math.random() * 15 + 10);
+            const secondaryGlow = glowIntensity * 2;
+            const opacity = (Math.random() * 0.5 + 0.3);
+            
+            p.dataset.glowIntensity = glowIntensity;
+            p.dataset.opacity = opacity;
+            
+            p.style.backgroundColor = baseColor;
+            p.style.boxShadow = `0 0 ${glowIntensity}px ${baseColor}, 0 0 ${secondaryGlow}px rgba(${rgbColor}, ${opacity})`;
+            
+            bg.appendChild(p);
+        }
+        
+        document.body.appendChild(bg);
+    };
+
+    
+    window.injectNeuralBackground();
+
     const loginForm = document.getElementById('loginForm');
 
-    /* ── Check if any admins exist — show Setup button if empty ── */
+    
     (async function checkSetup() {
         try {
             const res = await fetch(window.SUPABASE_URL + '/rest/v1/admins?select=id&limit=1', {
@@ -28,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.warn('Setup check failed:', e); }
     })();
 
-    /* ── Setup First Super Admin ── */
+    
     const setupBtn = document.getElementById('setupFirstAdminBtn');
     if (setupBtn) {
         setupBtn.addEventListener('click', async () => {
@@ -101,12 +173,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     body: JSON.stringify({
                         id: newUserId,
-                        full_name: formData.name,
+                        name: formData.name,
                         email: formData.email,
-                        phone_number: formData.phone,
                         password_hash: formData.pass,
-                        status: 'Active',
-                        role: 'Super Admin'
+                        role: 'super_admin'
                     })
                 });
 
@@ -169,16 +239,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (adminData) {
                     const token = (authData && authData.session) ? authData.session.access_token : 'db-session';
                     localStorage.setItem('adminToken', token);
-                    localStorage.setItem('adminName', adminData.full_name || adminData.email?.split('@')[0] || "Admin");
+                    localStorage.setItem('adminName', adminData.name || adminData.full_name || adminData.email?.split('@')[0] || "Admin");
                     localStorage.setItem('adminEmail', email);
-                    localStorage.setItem('activeAdminEmail', email);
-                    localStorage.setItem('activeAdminName', adminData.full_name || adminData.email?.split('@')[0] || "Admin");
+                    localStorage.setItem('activeAdminName', adminData.name || adminData.full_name || adminData.email?.split('@')[0] || "Admin");
                     localStorage.setItem('activeAdminId', adminData.id);
                     localStorage.setItem('adminRole', adminData.role || "Admin");
-                    localStorage.setItem('adminProfilePhoto', adminData.photo_url || adminData.photo || "");
                     localStorage.setItem('isSuperAdmin', (adminData.role || '').toLowerCase().includes('super') ? 'true' : 'false');
 
-                    const displayName = adminData.full_name || adminData.email?.split('@')[0] || "Commander";
+                    const displayName = adminData.name || adminData.full_name || adminData.email?.split('@')[0] || "Commander";
                     const roleLabel = (adminData.role || '').toLowerCase().includes('super') ? 'Super Administrator' : 'Administrator';
                     const roleIcon = (adminData.role || '').toLowerCase().includes('super') ? 'fa-crown' : 'fa-shield-alt';
                     const roleColor = (adminData.role || '').toLowerCase().includes('super') ? '#8b5cf6' : '#10b981';
@@ -186,22 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                     const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-                    // --- Theme Detection & Configuration ---
-                    const siteTheme = localStorage.getItem('siteTheme') || 'light';
-                    const isDark = siteTheme === 'dark';
                     
-                    // Standard system colors based on theme
-                    const swalBg = isDark ? '#0f172a' : '#ffffff';
-                    const swalText = isDark ? '#f8fafc' : '#1e293b';
-                    const swalMutedText = isDark ? '#94a3b8' : '#64748b';
-                    const swalSubMutedText = isDark ? '#64748b' : '#94a3b8';
-                    const swalBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-                    const swalProgressTrack = isDark ? '#1e293b' : '#f1f5f9';
-                    
-                    // Phosphor Green Gradient for the name
-                    const phosphorGradient = 'linear-gradient(135deg, #10b981 0%, #4ade80 50%, #22c55e 100%)';
-
-                    /* ── Premium Cinematic Welcome ── */
                     Swal.fire({
                         html: `
                             <div class="login-welcome-container">
@@ -219,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
 
                                 <!-- Welcome Text -->
-                                <h2 class="welcome-title" style="color: ${swalMutedText};">Welcome Back</h2>
+                                <h2 class="welcome-title">Welcome Back</h2>
                                 <div class="welcome-name-row">
                                     <span class="welcome-name">${displayName}</span>
                                 </div>
@@ -232,22 +285,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                 <!-- Session Info -->
                                 <div class="welcome-session">
-                                    <div class="session-item" style="color: ${swalSubMutedText};">
+                                    <div class="session-item">
                                         <i class="far fa-clock"></i>
                                         <span>${timeStr}</span>
                                     </div>
-                                    <div class="session-divider" style="background: ${isDark ? '#334155' : '#e2e8f0'};"></div>
-                                    <div class="session-item" style="color: ${swalSubMutedText};">
+                                    <div class="session-divider"></div>
+                                    <div class="session-item">
                                         <i class="far fa-calendar-alt"></i>
                                         <span>${dateStr}</span>
                                     </div>
                                 </div>
 
                                 <!-- Loading Bar -->
-                                <div class="welcome-progress-track" style="background: ${swalProgressTrack};">
+                                <div class="welcome-progress-track">
                                     <div class="welcome-progress-bar"></div>
                                 </div>
-                                <p class="welcome-redirect-text" style="color: ${isDark ? '#475569' : '#94a3b8'};">Initializing Fleet Command Center...</p>
+                                <p class="welcome-redirect-text">Initializing Fleet Command Center...</p>
                             </div>
 
                             <style>
@@ -308,6 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 .welcome-title {
                                     font-size: 1.1rem;
                                     font-weight: 600;
+                                    color: #94a3b8;
                                     margin: 0 0 4px;
                                     letter-spacing: 3px;
                                     text-transform: uppercase;
@@ -318,15 +372,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                     animation: fadeSlideUp 0.6s 0.5s both;
                                 }
                                 .welcome-name {
-                                    font-size: 2.2rem;
+                                    font-size: 2rem;
                                     font-weight: 900;
-                                    background: ${phosphorGradient};
+                                    background: linear-gradient(135deg, #f8fafc 0%, ${roleColor} 100%);
                                     -webkit-background-clip: text;
                                     -webkit-text-fill-color: transparent;
                                     background-clip: text;
-                                    letter-spacing: -1px;
-                                    display: inline-block;
-                                    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.2));
+                                    letter-spacing: -0.5px;
                                 }
 
                                 /* Role Badge */
@@ -359,6 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     display: flex;
                                     align-items: center;
                                     gap: 8px;
+                                    color: #64748b;
                                     font-size: 0.82rem;
                                     font-weight: 700;
                                 }
@@ -366,11 +419,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 .session-divider {
                                     width: 4px; height: 4px;
                                     border-radius: 50%;
+                                    background: #334155;
                                 }
 
                                 /* Progress */
                                 .welcome-progress-track {
                                     height: 4px;
+                                    background: #1e293b;
                                     border-radius: 10px;
                                     overflow: hidden;
                                     margin: 0 40px 12px;
@@ -389,6 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                 .welcome-redirect-text {
                                     font-size: 0.78rem;
+                                    color: #475569;
                                     font-weight: 700;
                                     letter-spacing: 0.5px;
                                     animation: fadeSlideUp 0.6s 1s both, textPulse 2s 1s infinite;
@@ -405,8 +461,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         `,
                         showConfirmButton: false,
                         timer: 2800,
-                        background: swalBg,
-                        color: swalText,
+                        background: '#0f172a',
+                        color: '#f8fafc',
                         width: 480,
                         padding: '40px 30px',
                         customClass: {
@@ -416,21 +472,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         hideClass: { popup: 'animate__animated animate__fadeOut' },
                         didOpen: (popup) => {
                             popup.style.borderRadius = '32px';
-                            popup.style.border = `1px solid ${swalBorder}`;
-                            popup.style.boxShadow = isDark 
-                                ? '0 50px 100px -20px rgba(0,0,0,0.7), 0 0 80px -30px ' + roleColor + '40'
-                                : '0 50px 100px -20px rgba(0,0,0,0.1), 0 0 80px -30px ' + roleColor + '20';
+                            popup.style.border = '1px solid rgba(255,255,255,0.06)';
+                            popup.style.boxShadow = '0 50px 100px -20px rgba(0,0,0,0.7), 0 0 80px -30px ' + roleColor + '40';
                             popup.style.overflow = 'hidden';
                         }
                     });
 
                     setTimeout(() => { window.location.href = 'dashboard.html'; }, 2800);
                 } else {
-                    try { 
-                        if (window.supabaseAuth && window.supabaseAuth.auth) {
-                            await window.supabaseAuth.auth.signOut(); 
-                        }
-                    } catch(e) {}
+                    try { await window.supabaseAuth.auth.signOut(); } catch(e) {}
+                    const siteTheme = localStorage.getItem('siteTheme') || 'light';
+                    const isDark = siteTheme === 'dark';
                     Swal.fire({ 
                         icon: 'error', 
                         title: 'Login Failed', 
@@ -455,9 +507,6 @@ document.addEventListener('DOMContentLoaded', () => {
         googleLoginBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             try {
-                if (!window.supabaseAuth || !window.supabaseAuth.auth) {
-                    throw new Error("Supabase Auth SDK not initialized.");
-                }
                 const { data, error } = await window.supabaseAuth.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
@@ -467,6 +516,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (error) throw error;
             } catch (err) {
                 console.error("Google login failed:", err);
+                const siteTheme = localStorage.getItem('siteTheme') || 'light';
+                const isDark = siteTheme === 'dark';
                 Swal.fire({ 
                     icon: 'error', 
                     title: 'Login Failed', 

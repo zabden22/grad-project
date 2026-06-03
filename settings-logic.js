@@ -4,30 +4,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTheme = localStorage.getItem('siteTheme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
 
-    let adminId = localStorage.getItem('activeAdminId');
-    const adminEmail = localStorage.getItem('activeAdminEmail') || localStorage.getItem('adminEmail');
-
-    async function initSettings() {
-        if (!adminId && adminEmail) {
-            try {
-                const { data } = await supabase.from('admins').select('id').eq('email', adminEmail).single();
-                if (data) {
-                    adminId = data.id;
-                    localStorage.setItem('activeAdminId', adminId);
-                }
-            } catch (e) { console.warn('Could not resolve adminId from email', e); }
-        }
-
-        if (adminId) {
-            loadAdminProfile(adminId);
-        } else {
-            console.warn('No active admin session found for settings.');
-        }
+    const adminId = localStorage.getItem('activeAdminId');
+    if (adminId) {
+        loadAdminProfile(adminId);
     }
 
-    initSettings();
-
-    // Advanced Tabs logic
+    
     const navItems = document.querySelectorAll('.nav-item');
     const tabWraps = document.querySelectorAll('.settings-content-wrap');
 
@@ -48,71 +30,51 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const { data, error } = await supabase.from('admins').select('*').eq('id', id).single();
             if (data) {
-                if(document.getElementById('sideProfileName')) document.getElementById('sideProfileName').innerText = data.full_name || 'Commander';
-                if(document.getElementById('adminNameInput')) document.getElementById('adminNameInput').value = data.full_name || '';
+                if(document.getElementById('sideProfileName')) document.getElementById('sideProfileName').innerText = data.name || data.full_name || 'Commander';
+                if(document.getElementById('adminNameInput')) document.getElementById('adminNameInput').value = data.name || data.full_name || '';
                 if(document.getElementById('adminEmailInput')) document.getElementById('adminEmailInput').value = data.email || '';
-                // Fixed: database uses 'phone_number'
-                if(document.getElementById('adminPhoneInput')) document.getElementById('adminPhoneInput').value = data.phone_number || '';
-                // Fixed: database uses 'photo_url'
-                const av = data.photo_url || data.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.full_name || 'Admin')}&background=10b981&color=fff&size=200&bold=true`;
+                
+                if(document.getElementById('adminPhoneInput')) document.getElementById('adminPhoneInput').value = data.phone || data.phone_number || '';
+                if(document.getElementById('adminLocationInput')) document.getElementById('adminLocationInput').value = localStorage.getItem('adminLocation_' + id) || '';
+                
+                const displayName = data.name || data.full_name || 'Admin';
+                const cachedPhoto = sessionStorage.getItem('adminPhoto_' + id);
+                const av = data.profile_image || data.photo_url || data.photo || cachedPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff&size=200&bold=true`;
                 if(document.getElementById('profileAvatar')) document.getElementById('profileAvatar').src = av;
                 if(document.getElementById('topAvatar')) document.getElementById('topAvatar').src = av;
-                
-                // Fetch location from DB
-                if(document.getElementById('adminLocationInput')) {
-                    document.getElementById('adminLocationInput').value = data.location || localStorage.getItem('adminLocation_' + id) || '';
-                }
             }
         } catch(e) { console.error('Intelligence Link Failure', e); }
     }
 
-    // Profile Update
+    
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
         btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating Matrix...';
 
+        const phoneVal = document.getElementById('adminPhoneInput').value;
         const payload = {
-            full_name: document.getElementById('adminNameInput').value,
-            phone_number: document.getElementById('adminPhoneInput').value,
-            location: document.getElementById('adminLocationInput').value
+            name: document.getElementById('adminNameInput').value
         };
+        // Include phone if provided
+        if (phoneVal) payload.phone = phoneVal;
 
         try {
-            const { data, error } = await supabase.from('admins').eq('id', adminId).update(payload);
-            if (error) {
-                console.error('Database Sync Error:', error);
-                throw new Error(error.message || 'Failed to update database record.');
-            }
+            const { error } = await supabase.from('admins').update(payload).eq('id', adminId);
+            if (error) throw error;
 
-            localStorage.setItem('activeAdminName', payload.full_name);
-            localStorage.setItem('activeAdminPhone', payload.phone_number);
-            localStorage.setItem('activeAdminLocation', payload.location);
-            localStorage.setItem('adminLocation_' + adminId, payload.location);
+            localStorage.setItem('activeAdminName', payload.name);
+            localStorage.setItem('adminLocation_' + adminId, document.getElementById('adminLocationInput').value);
             
-            document.getElementById('topBarName').innerText = payload.full_name;
-            document.getElementById('sideProfileName').innerText = payload.full_name;
+            document.getElementById('topBarName').innerText = payload.name;
+            document.getElementById('sideProfileName').innerText = payload.name;
 
-            Swal.fire({ 
-                icon: 'success', 
-                title: 'Dossier Synchronized', 
-                text: 'Your profile has been updated in the central database.',
-                timer: 2000, 
-                showConfirmButton: false 
-            });
-        } catch(e) { 
-            console.error('Sync Error Details:', e);
-            Swal.fire({
-                icon: 'error',
-                title: 'Sync Protocol Failure',
-                text: 'Error: ' + e.message + '. Please ensure the database schema supports all fields.',
-                footer: '<p style="font-size:0.8rem; color:#ef4444;">Note: If "location" field fails, contact system administrator to update the "admins" table schema.</p>'
-            });
-        }
+            Swal.fire({ icon: 'success', title: 'Dossier Synchronized', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+        } catch(e) { Swal.fire('Sync Error', e.message, 'error'); }
         finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save" style="margin-right:8px;"></i> Update Dossier'; }
     });
 
-    // Theme Selection
+    
     const themeOptions = document.querySelectorAll('.theme-option[data-theme-val]');
     themeOptions.forEach(opt => {
         if(opt.getAttribute('data-theme-val') === currentTheme) opt.classList.add('active');
@@ -124,11 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.classList.add('active');
             localStorage.setItem('siteTheme', val);
             document.documentElement.setAttribute('data-theme', val);
-            // Broadcast theme change if needed
+            
         });
     });
 
-    // Language Selection
+    
     const langOptions = document.querySelectorAll('.theme-option[data-lang-val]');
     const currentLang = localStorage.getItem('transitLang') || 'en';
     langOptions.forEach(opt => {
@@ -142,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Toggle Buttons (Alerts & Preferences)
+    
     const toggleBtns = document.querySelectorAll('.toggle-btn');
     toggleBtns.forEach(btn => {
         const key = btn.getAttribute('data-toggle');
@@ -159,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Avatar Update
+    
     document.getElementById('adminPhotoInput').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if(!file) return;
@@ -168,44 +130,22 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = async (ev) => {
             const photoData = ev.target.result;
             document.getElementById('profileAvatar').src = photoData;
-            localStorage.setItem('adminProfilePhoto', photoData);
+            document.getElementById('topAvatar').src = photoData;
             
-            // Update in DB
+            // Save to sessionStorage as reliable cache
+            try { sessionStorage.setItem('adminPhoto_' + adminId, photoData); } catch(e) { /* quota */ }
+
+            // Save to database using correct column name: profile_image
             try {
-                // Try to update both possible column names for compatibility
-                const { error } = await supabase.from('admins').eq('id', adminId).update({ 
-                    photo_url: photoData,
-                    photo: photoData 
-                });
-                
-                if (error) throw error;
-                
-                // Manually trigger a UI refresh for other avatars on this page
-                document.querySelectorAll('.admin-avatar-small, #topAvatar, #welcomeAvatar, .ud-avatar').forEach(img => {
-                    if (img) img.src = photoData;
-                });
-                
-                Swal.fire({ 
-                    icon: 'success', 
-                    title: 'Portrait Updated', 
-                    text: 'Your image has been saved to the database.',
-                    timer: 1500, 
-                    showConfirmButton: false 
-                });
-            } catch (err) {
-                console.error('Portrait Update Failure:', err);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Portrait Sync Failed',
-                    text: 'Error: ' + err.message,
-                    footer: '<p style="font-size:0.8rem; color:#ef4444;">Try a smaller image or check database columns.</p>'
-                });
-            }
+                await supabase.from('admins').update({ profile_image: photoData }).eq('id', adminId);
+            } catch(err) { console.warn('Photo DB save error:', err); }
+            
+            Swal.fire({ icon: 'success', title: 'Portrait Updated', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
         };
         reader.readAsDataURL(file);
     });
 
-    // Sidebar Toggle
+    
     const sidebarToggle = document.getElementById('sidebarToggle');
     if(sidebarToggle) {
         sidebarToggle.onclick = () => {
@@ -225,7 +165,7 @@ window.handlePasswordChange = async function() {
 
     try {
         await supabase.auth.updateUser({ password: newP });
-        Swal.fire({ icon: 'success', title: 'Access Keys Rotated' });
+        Swal.fire({ icon: 'success', title: 'Access Keys Rotated', background: 'var(--bg-card)', color: 'var(--text-main)' });
     } catch(err) { Swal.fire('Security Error', err.message, 'error'); }
 };
 
@@ -236,7 +176,8 @@ window.confirmClearData = async function() {
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
-        confirmButtonText: 'CONFIRM WIPE'
+        confirmButtonText: 'CONFIRM WIPE',
+        background: 'var(--bg-card)', color: 'var(--text-main)'
     });
     if (res.isConfirmed) {
         localStorage.clear();

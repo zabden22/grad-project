@@ -107,7 +107,7 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
 
             try {
-                // Step 1: Delete existing admin record with same email (if any)
+                
                 await fetch(window.SUPABASE_URL + '/rest/v1/admins?email=eq.' + encodeURIComponent(email), {
                     method: 'DELETE',
                     headers: {
@@ -116,7 +116,7 @@
                     }
                 });
 
-                // Step 2: Try to sign up in GoTrue Auth
+                
                 const signUpRes = await fetch(window.SUPABASE_URL + '/auth/v1/signup', {
                     method: 'POST',
                     headers: { 'apikey': window.SUPABASE_KEY, 'Content-Type': 'application/json' },
@@ -131,9 +131,9 @@
                 if (signUpRes.ok) {
                     userId = authData.id || (authData.user && authData.user.id);
                 } else {
-                    // User might already exist in Auth - try to sign in
+                    
                     if (authData.msg?.includes('already') || authData.message?.includes('already') || authData.error_code === 'user_already_exists') {
-                        // Try signing in with the NEW password via a token request
+                        
                         const tokenRes = await fetch(window.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
                             method: 'POST',
                             headers: { 'apikey': window.SUPABASE_KEY, 'Content-Type': 'application/json' },
@@ -144,14 +144,14 @@
                             const tokenData = await tokenRes.json();
                             userId = tokenData.user?.id;
                         } else {
-                            // Can't sign in either - need to use admin API to update password
-                            // Try to get user id from admins table
+                            
+                            
                             const lookupRes = await fetch(window.SUPABASE_URL + '/rest/v1/admins?email=eq.' + encodeURIComponent(email) + '&select=id', {
                                 headers: { 'apikey': window.SUPABASE_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_KEY }
                             });
                             const lookupData = await lookupRes.json();
                             
-                            // Try updating password via admin API
+                            
                             if (lookupData && lookupData[0]?.id) {
                                 const updatePwRes = await fetch(window.SUPABASE_URL + '/auth/v1/admin/users/' + lookupData[0].id, {
                                     method: 'PUT',
@@ -180,7 +180,7 @@
                     throw new Error('Could not retrieve user ID. If email confirmation is enabled in Supabase, please disable it: Supabase Dashboard → Authentication → Settings → Confirm Email → OFF');
                 }
 
-                // Step 3: Insert into admins table
+                
                 const insertRes = await fetch(window.SUPABASE_URL + '/rest/v1/admins', {
                     method: 'POST',
                     headers: {
@@ -202,7 +202,7 @@
 
                 if (!insertRes.ok) {
                     const errBody = await insertRes.json().catch(() => ({}));
-                    // If duplicate key, try upsert
+                    
                     if (errBody.code === '23505' || (errBody.message && errBody.message.includes('duplicate'))) {
                         await fetch(window.SUPABASE_URL + '/rest/v1/admins?id=eq.' + userId, {
                             method: 'PATCH',
@@ -256,7 +256,5 @@
             }
         });
     </script>
-    <script src="notifications.js?v=2.0"></script>
 </body>
 </html>
-

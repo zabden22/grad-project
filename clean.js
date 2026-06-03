@@ -38,13 +38,13 @@ async function clean() {
     for (const b of buses) {
         if (!keepBusIds.has(b.id)) {
             console.log(`Deleting bus ${b.id}`);
-            await supabase.from("buses").eq("id",b.id).delete().catch(console.error);
+            await supabase.from("buses").delete().eq("id",b.id).catch(console.error);
         }
     }
     for (const d of drivers) {
         if (!keepDriverIds.has(d.id)) {
             console.log(`Deleting driver ${d.id}`);
-            await supabase.from("drivers").eq("id",d.id).delete().catch(console.error);
+            await supabase.from("drivers").delete().eq("id",d.id).catch(console.error);
         }
     }
     

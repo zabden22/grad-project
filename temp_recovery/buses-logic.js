@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ==========================================
-    // 1. Theme + Admin Name
-    // ==========================================
+    
+    
+    
     const adminName = localStorage.getItem('activeAdminName') || 'Admin';
     document.getElementById('topBarName').innerText = adminName;
 
@@ -29,9 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateThemeUI(currentTheme);
     });
 
-    // ==========================================
-    // 2. Config & State
-    // ==========================================
+    
+    
+    
     const API           = 'http://transit-way.runasp.net';
     const busTableBody  = document.getElementById('busTableBody');
     const searchInput   = document.getElementById('busSearchInput');
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let busesData   = [];
     let driversData = [];
 
-    // Route color map
+    
     const routeColors = {
         'green':  'var(--primary-color)',
         'blue':   '#3b82f6',
@@ -53,9 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return routeColors[route.toLowerCase()] || 'var(--primary-color)';
     }
 
-    // ==========================================
-    // 3. Helpers
-    // ==========================================
+    
+    
+    
     function showTableLoading() {
         busTableBody.innerHTML = `
             <tr>
@@ -66,9 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>`;
     }
 
-    // ==========================================
-    // 4. GET /api/Bus — جلب كل الباصات
-    // ==========================================
+    
+    
+    
     async function loadBuses(silent = false) {
         try {
             if (!silent) showTableLoading();
@@ -77,8 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
 
             busesData = data.map(b => {
-                // Robust mapping for driverId and status
-                // Note: The API sometimes returns Bus ID as driverId, so we check driversData first
+                
+                
                 let driverId = b.driver_id || b.driver?.id || null;
                 const foundDriver = driversData.find(d => d.busId == b.id);
                 if (foundDriver) driverId = foundDriver.id;
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // جلب السواقين للـ assign dropdown
+    
     async function loadDrivers() {
         try {
             const res = await fetch(`${API}/api/Driver`);
@@ -128,9 +128,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.warn('Could not load drivers:', e); }
     }
 
-    // ==========================================
-    // 5. Render Table
-    // ==========================================
+    
+    
+    
     function renderTable(list = busesData) {
         busTableBody.innerHTML = '';
 
@@ -211,13 +211,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Load drivers first so we can map them to buses correctly
+    
     loadDrivers().then(() => loadBuses());
     setInterval(() => loadBuses(true), 15000);
 
-    // ==========================================
-    // 6. Search (محلي)
-    // ==========================================
+    
+    
+    
     searchInput.addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         if (!term) { renderTable(busesData); return; }
@@ -231,9 +231,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTable(filtered);
     });
 
-    // ==========================================
-    // 7. Modals
-    // ==========================================
+    
+    
+    
     window.openModal  = (id) => document.getElementById(id).classList.add('active');
     window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 
@@ -260,9 +260,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    // ==========================================
-    // 8. POST /api/Bus — إضافة باص جديد
-    // ==========================================
+    
+    
+    
     document.getElementById('addBusForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
@@ -276,13 +276,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const capacity = Number(capacityVal);
         const routeId  = Number(routeIdVal);
 
-        // التحقق من الحقول الفارغة أو اللي قيمتها مش أرقام بشكل صحيح
+        
         if (busNumber === '' || plateNumber === '' || licenseNumber === '' || capacityVal === '' || routeIdVal === '') {
             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Please fill all 5 fields.', background: 'var(--bg-card)', color: 'var(--text-main)' });
             return;
         }
 
-        // الـ API بيتوقع الـ DTO مسطح (flat)، وbusNumber يكون String
+        
         const payload = {
             busNumber: busNumber,
             plateNumber: plateNumber,
@@ -317,9 +317,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ==========================================
-    // 9. POST /api/Bus/assign-driver — ربط سواق بباص
-    // ==========================================
+    
+    
+    
     document.getElementById('assignDriverForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn      = e.target.querySelector('button[type="submit"]');
@@ -335,12 +335,12 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerText = 'Assigning...';
 
         try {
-            // Using the Driver API for assignment since it is confirmed working in drivers-logic.js
+            
             const res = await fetch(`${API}/api/Driver/assign?driverId=${driverId}&busId=${busId}`, {
                 method:  'POST'
             });
             if (res.ok) {
-                // Local update for immediate feedback
+                
                 const selBus = busesData.find(b => b.id == busId);
                 const selDriver = driversData.find(d => d.id == driverId);
                 if (selBus && selDriver) {
@@ -352,10 +352,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal('assignModal');
                 e.target.reset();
                 loadDrivers();
-                // Delay silent refresh to allow backend to sync
+                
                 setTimeout(() => loadBuses(true), 1500);
             } else {
-                // Fallback to the Bus API if Driver API fails (for redundancy)
+                
                 const resBus = await fetch(`${API}/api/Bus/assign-driver?busId=${busId}&driverId=${driverId}`, { method: 'POST' });
                 if (resBus.ok) {
                     Swal.fire({ icon: 'success', title: 'Assigned! ✅', text: 'Driver linked to bus successfully.', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
@@ -376,9 +376,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ==========================================
-    // 10. Table Click Events
-    // ==========================================
+    
+    
+    
     busTableBody.addEventListener('click', async (e) => {
         const target = e.target;
         const busId  = target.getAttribute('data-id');
@@ -387,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const busObj = busesData.find(b => b.id == busId);
 
-        // ── PUT /api/Bus/status/{id} — تغيير الحالة ──
+        
         if (target.classList.contains('toggle-bus-status')) {
             const isActive = busObj?.isActive !== false;
             const action   = isActive ? 'Deactivate' : 'Activate';
@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (confirm.isConfirmed) {
                 try {
                     const newStatus = isActive ? 'Inactive' : 'Active';
-                    // We add the status parameter to match the pattern used in drivers-logic.js
+                    
                     const res = await fetch(`${API}/api/Bus/status/${busId}?status=${newStatus}`, { method: 'PUT' });
                     if (res.ok) {
                         if (busObj) {
@@ -425,9 +425,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ── POST /api/Driver/unassign/{driverId} — فك الربط (الحل المضمون) ──
+        
         if (target.classList.contains('unassign-bus-driver')) {
-            // The API is unreliable with driverId in the bus object, so we look it up from driversData
+            
             let driverId = null;
             let driverName = busObj?.driverName || 'the driver';
 
@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 driverId = foundD.id;
                 driverName = foundD.fullName || foundD.name;
             } else if (busObj?.driverId && busObj.driverId != busId) {
-                // Only use driverId if it's not the same as busId (to avoid the API bug)
+                
                 driverId = busObj.driverId;
             }
 
@@ -465,11 +465,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (confirm.isConfirmed) {
                 try {
-                    // استخدام مسار السائقين لأنه شغال ومستقر (Driver API)
+                    
                     const res = await fetch(`${API}/api/Driver/unassign/${driverId}`, { method: 'POST' });
 
                     if (res.ok) {
-                        // Local update for immediate feedback
+                        
                         if (busObj) {
                             busObj.driverName = null;
                             busObj.driverId   = null;
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             loadDrivers();
                         }, 1500);
                     } else {
-                        // Fallback: try unassigning by BUS ID directly if possible
+                        
                         const resBus = await fetch(`${API}/api/Bus/unassign-driver/${busId}`, { method: 'POST' });
                         if (resBus.ok) {
                             if (busObj) {
@@ -510,7 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ── DELETE /api/Bus/{id} — حذف باص ──
+        
         if (target.classList.contains('delete-bus')) {
             const hasDriver = !!busObj?.driverName;
 
@@ -530,22 +530,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (confirm.isConfirmed) {
                 try {
-                    // Get the driverId for this bus to unassign correctly
+                    
                     let driverToUnassignId = busObj?.driverId;
                     if (!driverToUnassignId) {
                         const drv = driversData.find(d => d.busId == busId);
                         if (drv) driverToUnassignId = drv.id;
                     }
 
-                    // Always try to unassign first (using the driver ID for better reliability)
+                    
                     if (driverToUnassignId) {
                         await fetch(`${API}/api/Driver/unassign/${driverToUnassignId}`, { method: 'POST' }).catch(() => {});
                     } else {
-                        // Fallback to bus-based unassign if driverId unknown
+                        
                         await fetch(`${API}/api/Bus/unassign-driver/${busId}`, { method: 'POST' }).catch(() => {});
                     }
 
-                    // Now delete the bus
+                    
                     const res = await fetch(`${API}/api/Bus/${busId}`, { method: 'DELETE' });
                     if (res.ok) {
                         busesData = busesData.filter(b => b.id != busId);
@@ -562,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ── AI Damage Check ──
+        
         if (target.classList.contains('open-ai-check')) {
             document.getElementById('aiBusId').value = busId;
             document.getElementById('aiResultArea').style.display = 'none';
@@ -572,9 +572,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ==========================================
-    // 11. AI Check Form — POST /api/complaints/report
-    // ==========================================
+    
+    
+    
     document.getElementById('aiCheckForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const busId    = document.getElementById('aiBusId').value;

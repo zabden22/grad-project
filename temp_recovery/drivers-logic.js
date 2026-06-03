@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ==========================================
-    // 1. Theme + Admin Name
-    // ==========================================
+    
+    
+    
     const adminName = localStorage.getItem('activeAdminName') || 'Admin';
     document.getElementById('topBarName').innerText = adminName;
 
@@ -29,9 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateThemeUI(currentTheme);
     });
 
-    // ==========================================
-    // 2. Config & State
-    // ==========================================
+    
+    
+    
     const API = 'http://transit-way.runasp.net';
     const driverTableBody = document.getElementById('driverTableBody');
     const searchInput     = document.getElementById('driverSearchInput');
@@ -39,9 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let driversData = [];
     let busesData   = [];
 
-    // ==========================================
-    // 3. Helpers
-    // ==========================================
+    
+    
+    
     function showTableLoading() {
         driverTableBody.innerHTML = `
             <tr>
@@ -62,14 +62,14 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>`;
     }
 
-    // ==========================================
-    // 4. GET /api/Driver — جلب كل السواقين
-    // ==========================================
+    
+    
+    
     async function loadDrivers(silent = false) {
         try {
             if (!silent) showTableLoading();
 
-            // تأكد إن الباصات اتحملت الأول (محتاجينها عشان نطابق الـ busNumber)
+            
             if (busesData.length === 0) {
                 await loadBuses();
             }
@@ -79,10 +79,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
 
             driversData = data.map(d => {
-                // جرب كل الأسماء الممكنة للـ busId في الـ API response
+                
                 const busId = d.busId || d.bus?.id || d.assignedBusId || d.assignedBus?.id || null;
 
-                // ابحث عن الباص في busesData عشان تاخد busNumber الصح
+                
                 let busName = null;
                 if (d.busNumber) {
                     busName = `Bus #${d.busNumber}`;
@@ -110,9 +110,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ==========================================
-    // 5. GET /api/Bus — جلب الباصات للـ assign dropdowns
-    // ==========================================
+    
+    
+    
     async function loadBuses() {
         try {
             const res = await fetch(`${API}/api/Bus`);
@@ -123,9 +123,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ==========================================
-    // 6. Render Table
-    // ==========================================
+    
+    
+    
     function renderTable(list = driversData) {
         driverTableBody.innerHTML = '';
 
@@ -197,16 +197,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initial load
+    
     loadDrivers();
     loadBuses();
 
-    // Auto-refresh كل 20 ثانية
+    
     setInterval(() => loadDrivers(true), 20000);
 
-    // ==========================================
-    // 7. Search — GET /api/Driver/search
-    // ==========================================
+    
+    
+    
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
         const term = e.target.value.trim();
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // بحث محلي فوري
+        
         const local = driversData.filter(d =>
             d.name.toLowerCase().includes(term.toLowerCase()) ||
             String(d.id).includes(term) ||
@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         renderTable(local);
 
-        // بحث من الـ API بعد 500ms — param اسمه 'name'
+        
         searchTimeout = setTimeout(async () => {
             try {
                 const res = await fetch(`${API}/api/Driver/search?name=${encodeURIComponent(term)}`);
@@ -254,13 +254,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     renderTable(mapped);
                 }
-            } catch (e) { /* keep local results */ }
+            } catch (e) {  }
         }, 500);
     });
 
-    // ==========================================
-    // 8. Modals
-    // ==========================================
+    
+    
+    
     window.openModal  = (id) => document.getElementById(id).classList.add('active');
     window.closeModal = (id) => document.getElementById(id).classList.remove('active');
 
@@ -274,14 +274,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const driverSel = document.getElementById('assignDriverSelect');
         const busSel    = document.getElementById('assignBusSelect');
 
-        // الباصات اللي عندها سواق مربوطين بيها (محجوزة)
+        
         const assignedBusIds = new Set(
             driversData
                 .filter(d => d.busId)
                 .map(d => String(d.busId))
         );
 
-        // Drivers dropdown — بس اللي مش عندهم باص
+        
         driverSel.innerHTML = '<option value="">Select Driver</option>';
         driversData
             .filter(d => !d.busName)
@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 driverSel.innerHTML += `<option value="${d.id}">${d.name}</option>`;
             });
 
-        // Buses dropdown — بس اللي مش عندها سواق (مش محجوزة)
+        
         busSel.innerHTML = '<option value="">Select Bus</option>';
         busesData
             .filter(b => !assignedBusIds.has(String(b.id)))
@@ -299,9 +299,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    // ==========================================
-    // 9. POST /api/Driver — إضافة سواق جديد
-    // ==========================================
+    
+    
+    
     document.getElementById('addDriverForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
@@ -348,9 +348,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ==========================================
-    // 10. POST /api/Bus/assign-driver — ربط سواق بباص
-    // ==========================================
+    
+    
+    
     document.getElementById('assignDriverForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn      = e.target.querySelector('button[type="submit"]');
@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerText = 'Assigning...';
 
         try {
-            // POST /api/Driver/assign بيستخدم query params مش body
+            
             const res = await fetch(`${API}/api/Driver/assign?driverId=${driverId}&busId=${busId}`, {
                 method: 'POST'
             });
@@ -388,9 +388,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ==========================================
-    // 11. Table Click Events
-    // ==========================================
+    
+    
+    
     driverTableBody.addEventListener('click', async (e) => {
         const target   = e.target;
         const driverId = target.getAttribute('data-id');
@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const driverObj = driversData.find(d => d.id == driverId);
 
-        // ── GET /api/Driver/{id} — عرض تفاصيل السواق ──
+        
         if (target.classList.contains('view-driver')) {
             try {
                 const res = await fetch(`${API}/api/Driver/${driverId}`);
@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const license = d.licenseNumber || d.license || driverObj?.license || '—';
                 const phone   = d.phoneNumber || d.phone   || driverObj?.phone   || '—';
                 const status  = d.isActive === false ? 'Inactive' : (d.status || driverObj?.status || 'Active');
-                // جرب كل الأسماء الممكنة للـ busId في الـ response وفي driverObj
+                
                 const resolvedBusId = driverObj?.busId
                     || d.busId || d.bus?.id || d.assignedBusId || d.assignedBus?.id
                     || null;
@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ── PUT /api/Driver/status/{id} — تغيير الحالة ──
+        
         if (target.classList.contains('toggle-driver-status')) {
             const displayName = driverObj?.name || `Driver #${driverId}`;
             const isActive    = driverObj?.status === 'Active';
@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (confirm.isConfirmed) {
                 try {
-                    // status بيجي كـ query parameter مش body
+                    
                     const newStatus = isActive ? 'Inactive' : 'Active';
                     const res = await fetch(`${API}/api/Driver/status/${driverId}?status=${newStatus}`, {
                         method: 'PUT'
@@ -474,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ── POST /api/Driver/unassign/{driverId} — فك الربط ──
+        
         if (target.classList.contains('unassign-driver')) {
             const displayName = driverObj?.name || `Driver #${driverId}`;
 
@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ── DELETE /api/Driver/{id} — حذف سواق ──
+        
         if (target.classList.contains('delete-driver')) {
             const displayName = driverObj?.name || `Driver #${driverId}`;
             const isAssigned  = !!driverObj?.busName;
@@ -526,10 +526,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (confirm.isConfirmed) {
                 try {
-                    // دايماً نحاول نفك الربط الأول — بنتجاهل نتيجته
+                    
                     await fetch(`${API}/api/Driver/unassign/${driverId}`, { method: 'POST' }).catch(() => {});
 
-                    // دلوقتي امسح السواق
+                    
                     const res = await fetch(`${API}/api/Driver/${driverId}`, { method: 'DELETE' });
                     if (res.ok) {
                         driversData = driversData.filter(d => d.id != driverId);

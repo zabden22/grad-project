@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true';
+
     const adminName = localStorage.getItem('activeAdminName') || 'Admin';
     if (document.getElementById('topBarName')) document.getElementById('topBarName').innerText = adminName;
     const currentTheme = localStorage.getItem('siteTheme') || 'light';
@@ -12,8 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateStats() {
         const total = usersData.length;
-        const banned = usersData.filter(u => u.is_banned === true || (u.ban_reason && u.ban_reason !== null && u.ban_reason !== '')).length;
-        const warned = usersData.filter(u => u.warning_count > 0 || (u.last_warning_reason && u.last_warning_reason !== '')).length;
+        const banned = usersData.filter(u => u.is_banned === true).length;
+        const warned = usersData.filter(u => (u.warning_count || 0) > 0).length;
         const active = total - banned;
 
         if (document.getElementById('statTotalUsers')) document.getElementById('statTotalUsers').innerText = total;
@@ -35,8 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         dataToRender.forEach((user, index) => {
             const serialNum = String(index + 1).padStart(4, '0');
-            const isBanned = user.is_banned === true || (user.ban_reason && user.ban_reason !== null && user.ban_reason !== '');
-            const isWarned = user.warning_count > 0 || (user.last_warning_reason && user.last_warning_reason !== '');
+            const isBanned = user.is_banned === true;
+            const isWarned = (user.warning_count || 0) > 0;
             
             let statusBadge = `<span class="user-badge badge-active"><i class="fas fa-check-circle"></i> Active</span>`;
             if (isBanned) {
@@ -45,7 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusBadge = `<span class="user-badge badge-warned"><i class="fas fa-exclamation-triangle"></i> Warned</span>`;
             }
 
-            const avatarUrl = user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=568e74&color=fff`;
+            const displayName = user.name || user.full_name || 'User';
+            const avatarUrl = user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=568e74&color=fff`;
 
             const card = document.createElement('div');
             card.className = `user-card ${isBanned ? 'banned' : ''}`;
@@ -53,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="user-card-header">
                     <img src="${avatarUrl}" class="user-avatar" alt="Avatar" onerror="this.src='https://ui-avatars.com/api/?name=User&background=568e74&color=fff'">
                     <div class="user-info-block">
-                        <h3 class="user-name">${user.full_name || 'Unnamed User'}</h3>
+                        <h3 class="user-name">${displayName}</h3>
                         <p class="user-email">${user.email || 'No email'}</p>
                     </div>
                 </div>
@@ -65,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="user-detail-item">
                         <label>Wallet Balance</label>
-                        <span style="color: #10b981;">EGP ${Number(user.wallet_balance || user.balance || 0).toFixed(2)}</span>
+                        <span style="color: #10b981;">EGP ${(user.wallet_balance || 0).toFixed(2)}</span>
                     </div>
                     <div class="user-detail-item">
                         <label>Status</label>
@@ -74,13 +77,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 
                 <div class="user-actions">
-                    <button class="user-action-btn btn-warn" onclick="window.warnUser('${user.id}', '${user.full_name}')" ${isBanned ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
+                    ${isSuperAdmin ? `
+                    <button class="user-action-btn btn-warn" onclick="window.warnUser('${user.id}', '${displayName}')" ${isBanned ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
                         <i class="fas fa-exclamation-triangle"></i> Warn
                     </button>
                     ${isBanned 
-                        ? `<button class="user-action-btn btn-unban" onclick="window.unbanUser('${user.id}', '${user.full_name}')"><i class="fas fa-unlock"></i> Unban</button>`
-                        : `<button class="user-action-btn btn-ban" onclick="window.banUser('${user.id}', '${user.full_name}')"><i class="fas fa-ban"></i> Ban</button>`
+                        ? `<button class="user-action-btn btn-unban" onclick="window.unbanUser('${user.id}', '${displayName}')"><i class="fas fa-unlock"></i> Unban</button>`
+                        : `<button class="user-action-btn btn-ban" onclick="window.banUser('${user.id}', '${displayName}')"><i class="fas fa-ban"></i> Ban</button>`
                     }
+                    <button class="user-action-btn btn-delete" onclick="window.deleteUser('${user.id}', '${displayName}')" style="background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2);">
+                        <i class="fas fa-trash-alt"></i> Delete
+                    </button>
+                    ` : ''}
                     <button class="user-action-btn btn-info" onclick="window.viewUserDetails('${user.id}')" style="margin-left:auto;">
                         <i class="fas fa-eye"></i> Details
                     </button>
@@ -95,15 +103,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!silent && grid && usersData.length === 0) {
                 grid.innerHTML = Array(6).fill('<div class="user-card"><div class="skeleton" style="width:100%;height:150px;border-radius:12px;"></div></div>').join('');
             }
-            const { data, error } = await supabase.from('users').select('*');
-            if (error) throw error;
-            usersData = data || [];
+            const [uRes, wRes] = await Promise.all([
+                supabase.from('users').select('*'),
+                supabase.from('wallets').select('*')
+            ]);
+            if (uRes.error) throw uRes.error;
+            
+            const wallets = wRes.data || [];
+            usersData = (uRes.data || []).map(u => {
+                const w = wallets.find(wall => wall.user_id === u.id);
+                return {
+                    id: u.id,
+                    name: u.name || u.full_name || 'User',
+                    email: u.email,
+                    phone: u.phone || u.phone_number || 'N/A',
+                    role: u.role,
+                    created_at: u.created_at,
+                    photo: u.photo || null,
+                    wallet_balance: (w && typeof w.balance === 'number') ? w.balance : (typeof u.balance === 'number' ? u.balance : 0),
+                    is_banned: u.is_banned === true || localStorage.getItem('user_banned_' + u.id) === 'true',
+                    ban_reason: u.ban_reason || localStorage.getItem('user_ban_reason_' + u.id) || null,
+                    warning_count: parseInt(localStorage.getItem('user_warn_count_' + u.id)) || 0,
+                    last_warning_reason: localStorage.getItem('user_warn_reason_' + u.id) || null
+                };
+            });
+            
             updateStats();
             filterUsers();
         } catch (e) {
             console.error('Error loading users:', e);
-            const errorMsg = e.message || 'Error loading users from server.';
-            if (!usersData.length && grid) grid.innerHTML = `<div style="padding:20px;color:var(--danger-color);grid-column:1/-1;text-align:center;">${errorMsg}</div>`;
+            if (!usersData.length && grid) grid.innerHTML = `<div style="padding:20px;color:var(--danger-color);grid-column:1/-1;text-align:center;">Error loading users from server.</div>`;
         }
     }
 
@@ -112,24 +141,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function filterUsers() {
         let filtered = usersData;
 
-        // Apply Status Filter
         if (currentFilter === 'active') {
-            filtered = filtered.filter(u => !(u.is_banned === true || (u.ban_reason && u.ban_reason !== null && u.ban_reason !== '')));
+            filtered = filtered.filter(u => !(u.is_banned === true));
         } else if (currentFilter === 'banned') {
-            filtered = filtered.filter(u => u.is_banned === true || (u.ban_reason && u.ban_reason !== null && u.ban_reason !== ''));
+            filtered = filtered.filter(u => u.is_banned === true);
         } else if (currentFilter === 'warned') {
-            filtered = filtered.filter(u => u.warning_count > 0 || (u.last_warning_reason && u.last_warning_reason !== ''));
+            filtered = filtered.filter(u => (u.warning_count || 0) > 0);
         }
 
-        // Apply Search Filter
         if (searchInput) {
             const query = searchInput.value.toLowerCase().trim();
             if (query) {
                 filtered = filtered.filter(u => 
-                    (u.full_name || '').toLowerCase().includes(query) ||
+                    (u.name || '').toLowerCase().includes(query) ||
                     (u.email || '').toLowerCase().includes(query) ||
-                    (u.phone_number || '').toLowerCase().includes(query) ||
-                    (u.id || '').toLowerCase() === query ||
+                    (u.phone || '').toLowerCase().includes(query) ||
                     (u.id || '').toLowerCase().includes(query)
                 );
             }
@@ -162,13 +188,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    async function sendUserNotification(userId, title, body, type) {
+    async function sendUserNotification(userId, title, body) {
         try {
             await supabase.from('notifications').insert({
                 user_id: userId,
                 title: title,
-                body: body,
-                type: type
+                message: body,
+                is_read: false
             });
         } catch (err) {
             console.error('[Notifications] Failed to send signal:', err);
@@ -186,36 +212,23 @@ document.addEventListener('DOMContentLoaded', () => {
             inputPlaceholder: 'Enter warning reason...',
             showCancelButton: true,
             confirmButtonColor: '#f59e0b',
+            background: 'var(--bg-card)', color: 'var(--text-main)',
             inputValidator: (val) => !val && 'You need to write something!'
         });
 
         if (reason) {
             try {
-                const { error } = await supabase.from('users')
-                    .eq('id', userId)
-                    .update({ 
-                        last_warning_reason: reason,
-                        warning_count: currentCount + 1
-                    });
+                const newCount = currentCount + 1;
+                localStorage.setItem('user_warn_count_' + userId, newCount);
+                localStorage.setItem('user_warn_reason_' + userId, reason);
                 
-                if (error) throw error;
-                
-                // Send notification to mobile app
-                await sendUserNotification(userId, 'warning ⚠️', reason, 'warning');
+                await sendUserNotification(userId, 'Warning Issued ⚠️', reason);
 
-                Swal.fire({ icon: 'success', title: 'Warning Sent!', text: `${userName || 'User'} has been warned.`, timer: 1500, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Warning Sent!', text: `${userName || 'User'} has been warned.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                 loadUsers(true);
             } catch (err) {
                 console.error(err);
-                if(err.message && err.message.includes('row-level security')) {
-                    Swal.fire('Permission Denied ⛔', 'You need to configure RLS UPDATE policies for the users table in Supabase.', 'error');
-                } else if (err.message && err.message.includes('column')) {
-                    Swal.fire('Database Error', `Database schema mismatch: ${err.message}. Please add 'last_warning_reason' and 'warning_count' columns to Supabase.`, 'error');
-                } else if (err.message && err.message.includes('record "new" has no field')) {
-                    Swal.fire('Database Error', 'Please add a numeric column named "warning_count" to the users table in Supabase.', 'error');
-                } else {
-                    Swal.fire('Error', `Could not warn user. Details: ${err.message || 'Unknown Error'}`, 'error');
-                }
+                Swal.fire('Error', `Could not warn user: ${err.message}`, 'error');
             }
         }
     };
@@ -229,22 +242,26 @@ document.addEventListener('DOMContentLoaded', () => {
             showCancelButton: true,
             confirmButtonText: 'Yes, Ban',
             confirmButtonColor: '#ef4444',
+            background: 'var(--bg-card)', color: 'var(--text-main)',
             inputValidator: (val) => !val && 'Please provide a reason'
         });
 
         if (reason) {
             try {
-                const { error } = await supabase.from('users')
-                    .eq('id', userId)
-                    .update({
-                        ban_reason: reason,
-                        is_banned: true
-                    });
+                const { error: dbError } = await supabase
+                    .from('users')
+                    .update({ 
+                        is_banned: true,
+                        ban_reason: reason
+                    })
+                    .eq('id', userId);
+
+                if (dbError) throw dbError;
+
+                localStorage.setItem('user_banned_' + userId, 'true');
+                localStorage.setItem('user_ban_reason_' + userId, reason);
                 
-                if (error) throw error;
-                
-                // Send notification to mobile app
-                await sendUserNotification(userId, 'your acount has been banned 🚫', reason, 'ban');
+                await sendUserNotification(userId, 'Account Suspended 🚫', reason);
 
                 banCounter++;
                 localStorage.setItem('banCounter', banCounter);
@@ -254,18 +271,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     title: 'User Banned', 
                     html: `<p>${userName || 'User'} has been banned.</p><p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">Total Bans Issued: <strong style="color:#ef4444;">${banCounter}</strong></p>`, 
                     timer: 1500, 
-                    showConfirmButton: false 
+                    showConfirmButton: false, 
+                    background: 'var(--bg-card)', color: 'var(--text-main)' 
                 });
                 loadUsers(true);
             } catch (err) {
                 console.error(err);
-                if(err.message && err.message.includes('row-level security')) {
-                    Swal.fire('Permission Denied ⛔', 'You need to configure RLS UPDATE policies for the users table in Supabase.', 'error');
-                } else if (err.message && err.message.includes('column')) {
-                    Swal.fire('Database Error', `Database schema mismatch: ${err.message}. Please add 'is_banned' and 'ban_reason' columns to Supabase.`, 'error');
-                } else {
-                    Swal.fire('Error', `Could not ban user. Details: ${err.message || 'Unknown Error'}`, 'error');
-                }
+                Swal.fire('Error', `Could not ban user: ${err.message}`, 'error');
             }
         }
     };
@@ -277,28 +289,106 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Yes, Unban',
-            confirmButtonColor: '#10b981'
+            confirmButtonColor: '#10b981',
+            background: 'var(--bg-card)', color: 'var(--text-main)'
         });
 
         if (result.isConfirmed) {
             try {
-                const { error } = await supabase.from('users')
-                    .eq('id', userId)
-                    .update({
-                        ban_reason: null,
-                        is_banned: false
-                    });
-                
-                if (error) throw error;
-                
-                // Send notification to mobile app
-                await sendUserNotification(userId, 'تم تفعيل حسابك ✅', 'لقد تمت إزالة الحظر عن حسابك، يمكنك الآن استخدام النظام بشكل طبيعي.', 'unban');
+                const { error: dbError } = await supabase
+                    .from('users')
+                    .update({ 
+                        is_banned: false,
+                        ban_reason: null
+                    })
+                    .eq('id', userId);
 
-                Swal.fire({ icon: 'success', title: 'User Unbanned!', text: `${userName || 'User'} can now access the system.`, timer: 1500, showConfirmButton: false });
+                if (dbError) throw dbError;
+
+                localStorage.setItem('user_banned_' + userId, 'false');
+                localStorage.removeItem('user_ban_reason_' + userId);
+                
+                await sendUserNotification(userId, 'Account Restored ✅', 'Your account restriction has been lifted.');
+
+                Swal.fire({ icon: 'success', title: 'User Unbanned!', text: `${userName || 'User'} can now access the system.`, timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                 loadUsers(true);
             } catch (err) {
                 console.error(err);
-                Swal.fire('Error', `Could not unban user. Details: ${err.message || 'Unknown Error'}`, 'error');
+                Swal.fire('Error', `Could not unban user: ${err.message}`, 'error');
+            }
+        }
+    };
+
+    window.deleteUser = async (userId, userName) => {
+        const isAr = (typeof getLang === 'function' && getLang() === 'ar');
+        const result = await Swal.fire({
+            title: isAr ? 'حذف المستخدم؟' : 'Delete User?',
+            html: isAr 
+                ? `<p style="color:#ef4444; font-weight:700;">⚠ هل أنت متأكد من حذف <strong>"${userName}"</strong> وجميع بياناته؟</p>
+                   <p style="color:var(--text-muted); font-size:0.85rem;">سيؤدي ذلك إلى حذف محفظتهم، وتذاكرهم، واشتراكاتهم، وشكاويهم بشكل نهائي.</p>`
+                : `<p style="color:#ef4444; font-weight:700;">⚠ Remove <strong>"${userName}"</strong> and all their data?</p>
+                   <p style="color:var(--text-muted); font-size:0.85rem;">This will permanently delete their wallet, tickets, subscriptions, and complaints.</p>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: 'var(--text-muted)',
+            confirmButtonText: isAr ? 'نعم، احذف!' : 'Yes, delete it!',
+            cancelButtonText: isAr ? 'إلغاء' : 'Cancel',
+            background: 'var(--bg-card)',
+            color: 'var(--text-main)'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                // Fetch user's wallets to clean up transactions
+                const { data: wallets } = await supabase.from('wallets').select('id').eq('user_id', userId);
+                const walletIds = (wallets || []).map(w => w.id);
+
+                const deletePromises = [];
+                if (walletIds.length > 0) {
+                    walletIds.forEach(wId => {
+                        deletePromises.push(supabase.from('transactions').delete().eq('wallet_id', wId));
+                    });
+                }
+                deletePromises.push(supabase.from('wallets').delete().eq('user_id', userId));
+                deletePromises.push(supabase.from('subscriptions').delete().eq('user_id', userId));
+                deletePromises.push(supabase.from('complaints').delete().eq('user_id', userId));
+                deletePromises.push(supabase.from('tickets').delete().eq('user_id', userId));
+                deletePromises.push(supabase.from('notifications').delete().eq('user_id', userId));
+                deletePromises.push(supabase.from('reports').delete().eq('user_id', userId));
+                deletePromises.push(supabase.from('sos').delete().eq('user_id', userId));
+
+                await Promise.all(deletePromises);
+                
+                // Now delete the user
+                const { error } = await supabase.from('users').delete().eq('id', userId);
+                if (error) throw error;
+
+                // Clean local storage cache keys
+                localStorage.removeItem('user_banned_' + userId);
+                localStorage.removeItem('user_ban_reason_' + userId);
+                localStorage.removeItem('user_warn_count_' + userId);
+                localStorage.removeItem('user_warn_reason_' + userId);
+
+                Swal.fire({
+                    title: isAr ? 'تم الحذف!' : 'Deleted!',
+                    text: isAr ? `تمت إزالة "${userName}" بنجاح.` : `"${userName}" has been removed.`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)'
+                });
+                loadUsers();
+            } catch (err) {
+                console.error(err);
+                Swal.fire({
+                    title: isAr ? 'خطأ!' : 'Error!',
+                    text: isAr ? `فشل حذف المستخدم: ${err.message}` : `Could not delete user: ${err.message}`,
+                    icon: 'error',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)'
+                });
             }
         }
     };
@@ -310,11 +400,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const isAr = (typeof getLang === 'function' && getLang() === 'ar');
         const serialNum = String(index + 1).padStart(4, '0');
-        const isBanned = user.is_banned === true || (user.ban_reason && user.ban_reason !== null && user.ban_reason !== '');
-        const isWarned = user.warning_count > 0 || (user.last_warning_reason && user.last_warning_reason !== '');
-        const balance = Number(user.wallet_balance || user.balance || 0).toFixed(2);
+        const isBanned = user.is_banned === true;
+        const isWarned = (user.warning_count || 0) > 0;
+        const balance = (user.wallet_balance || 0).toFixed(2);
         
-        const avatarUrl = user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0ea5e9&color=fff&bold=true`;
+        const displayName = user.name || 'User';
+        const avatarUrl = user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0ea5e9&color=fff&bold=true`;
 
         let statusText = isAr ? 'نشط' : 'Active';
         let statusColor = '#10b981';
@@ -337,10 +428,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="position: absolute; inset: 0; background: linear-gradient(135deg, rgba(14,165,233,0.3), transparent);"></div>
                     </div>
                     <div style="text-align: center; margin-top: -60px; position: relative; z-index: 2;">
-                        <img src="${avatarUrl}" style="width: 120px; height: 120px; border-radius: 50%; border: 6px solid var(--bg-card); object-fit: cover; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
+                        <img src="${avatarUrl}" style="width: 120px; height: 120px; border-radius: 50%; border: 6px solid var(--bg-card); object-fit: cover; box-shadow: 0 15px 35px rgba(0,0,0,0.3);" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0ea5e9&color=fff&bold=true'">
                     </div>
                     <div style="padding: 25px 35px 35px;">
-                        <h2 style="margin: 10px 0 5px; font-weight: 900; font-size: 2rem; text-align: center; color:var(--text-main); letter-spacing: -0.5px;">${user.full_name || 'Unnamed User'}</h2>
+                        <h2 style="margin: 10px 0 5px; font-weight: 900; font-size: 2rem; text-align: center; color:var(--text-main); letter-spacing: -0.5px;">${displayName}</h2>
                         <div style="text-align: center; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; gap: 10px;">
                             <span style="padding: 6px 18px; border-radius: 50px; background: rgba(14,165,233,0.1); color: #0ea5e9; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; border: 1.5px solid rgba(14,165,233,0.2);">
                                 #${serialNum}
@@ -351,7 +442,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         
                         <div style="display: grid; grid-template-columns: 1fr; gap: 15px; direction: ${isAr ? 'rtl' : 'ltr'};">
-                            <!-- Basic Info -->
                             <div style="background: var(--bg-main); padding: 18px; border-radius: 18px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 18px;">
                                 <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(14,165,233,0.1); color: #0ea5e9; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;"><i class="fas fa-envelope"></i></div>
                                 <div style="flex: 1;">
@@ -364,11 +454,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(59,130,246,0.1); color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;"><i class="fas fa-phone"></i></div>
                                 <div style="flex: 1;">
                                     <p style="font-size: 0.65rem; font-weight: 900; color: var(--text-muted); text-transform: uppercase; margin: 0; letter-spacing: 0.8px;">${isAr ? 'رقم الهاتف' : 'Phone Number'}</p>
-                                    <p style="font-weight: 800; margin: 2px 0 0; font-size: 1.1rem; color: var(--text-main);">${user.phone_number || 'N/A'}</p>
+                                    <p style="font-weight: 800; margin: 2px 0 0; font-size: 1.1rem; color: var(--text-main);">${user.phone || 'N/A'}</p>
                                 </div>
                             </div>
 
-                            <!-- Financial & Safety -->
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div style="background: rgba(16,185,129,0.05); padding: 18px; border-radius: 18px; border: 1.5px solid rgba(16,185,129,0.2); display: flex; flex-direction: column; gap: 5px;">
                                     <p style="font-size: 0.65rem; font-weight: 900; color: #10b981; text-transform: uppercase; margin: 0; letter-spacing: 0.8px;">${isAr ? 'الرصيد' : 'Wallet Balance'}</p>
@@ -380,7 +469,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
 
-                            <!-- Additional Info -->
                             ${user.last_warning_reason ? `
                             <div style="background: rgba(245,158,11,0.05); padding: 15px 18px; border-radius: 15px; border-left: 4px solid #f59e0b;">
                                 <p style="font-size: 0.65rem; font-weight: 900; color: #f59e0b; text-transform: uppercase; margin: 0 0 5px; letter-spacing: 0.8px;">${isAr ? 'آخر إنذار' : 'Last Warning Reason'}</p>
@@ -398,6 +486,8 @@ document.addEventListener('DOMContentLoaded', () => {
             showConfirmButton: true,
             confirmButtonText: isAr ? 'إغلاق' : 'Close',
             confirmButtonColor: '#0ea5e9',
+            background: 'var(--bg-card)',
+            color: 'var(--text-main)',
             width: '520px',
             padding: '0',
             customClass: {
@@ -411,19 +501,17 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadUsers();
         const jumpTo = localStorage.getItem('jumpToUserId');
         if (jumpTo && searchInput) {
-            // Check if it's a UUID, if so we might need to filter by ID specifically or just name
-            // For now we'll put it in the search input
             searchInput.value = jumpTo;
             filterUsers();
             localStorage.removeItem('jumpToUserId');
             
-            // Subtle indicator that we jumped
             Swal.fire({
                 icon: 'info',
                 title: 'User Profile Located',
                 text: 'Filtered by associated ticket signal.',
                 timer: 2000,
                 showConfirmButton: false,
+                background: 'var(--bg-card)', color: 'var(--text-main)',
                 toast: true, position: 'top-end'
             });
         }
@@ -434,17 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.supabaseAuth) {
         window.supabaseAuth.channel('users_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
-                if (payload.eventType === 'INSERT') {
-                    usersData.unshift(payload.new);
-                } else if (payload.eventType === 'UPDATE') {
-                    const idx = usersData.findIndex(u => u.id === payload.new.id);
-                    if (idx !== -1) usersData[idx] = { ...usersData[idx], ...payload.new };
-                } else if (payload.eventType === 'DELETE') {
-                    const idx = usersData.findIndex(u => u.id === payload.old.id);
-                    if (idx !== -1) usersData.splice(idx, 1);
-                }
-                updateStats();
-                filterUsers();
+                loadUsers(true);
             })
             .subscribe();
     }

@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TransitWay - Forgot Password</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="forgot.css">
+    <link rel="stylesheet" href="auth.css?v=1.2">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="theme-init.js"></script>
-    
 </head>
 <body>
+
+    <button id="themeToggle" class="auth-theme-toggle" title="Toggle Theme">
+        <i class="fas fa-moon"></i>
+    </button>
 
     <div class="auth-wrapper">
         <div class="auth-card">
@@ -21,11 +24,6 @@
                 </div>
 
                 <div class="login-box">
-                    <div style="position: absolute; top: 20px; right: 20px; z-index: 100;">
-                        <button id="themeToggle" style="background: var(--forgot-input-bg); border: 1px solid var(--forgot-input-border); color: var(--forgot-text); width: 45px; height: 45px; border-radius: 12px; cursor: pointer; transition: 0.3s;">
-                            <i class="fas fa-moon"></i>
-                        </button>
-                    </div>
                     <button class="back-btn" onclick="window.location.href='index.html'">
                         <i class="fas fa-chevron-left"></i> Back
                     </button>
@@ -39,7 +37,9 @@
                             <input type="email" placeholder="Enter your Email" id="userEmail" required>
                         </div>
 
-                        <button type="submit" id="sendBtn" class="btn-continue">Send Reset Link</button>
+                        <button type="submit" id="sendBtn" class="btn-continue">
+                            Send Reset Link <i class="fas fa-paper-plane"></i>
+                        </button>
                     </form>
                 </div>
             </div>
@@ -65,7 +65,5 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="forgot.js?v=1.1"></script>
-    <script src="notifications.js?v=2.0"></script>
 </body>
 </html>
-

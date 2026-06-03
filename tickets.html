@@ -28,10 +28,26 @@
         .form-group label { display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
         .form-group input, .form-group select { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main); font-weight: 600; outline: none; transition: 0.3s; }
         .form-group input:focus, .form-group select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(86, 142, 116, 0.1); }
-        /* Route Color Legend */
+        
         .route-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
         .route-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
         .route-legend-dot { width: 12px; height: 12px; border-radius: 4px; }
+        
+        .ticket-stats .v-card {
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 2px solid transparent;
+        }
+        .ticket-stats .v-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-color: var(--primary-color);
+        }
+        .ticket-stats .v-card.active-filter {
+            background: rgba(86, 142, 116, 0.08) !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 10px 25px rgba(86, 142, 116, 0.15) !important;
+        }
     </style>
 </head>
 <body>
@@ -85,11 +101,11 @@
             </header>
 
             <div class="ticket-stats" style="grid-template-columns: repeat(5, 1fr);">
-                <div class="v-card"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">TOTAL TICKETS</p><h3 id="summaryTotalSold">0</h3></div>
-                <div class="v-card"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">VALID / ACTIVE</p><h3 id="summaryAvailable" style="color:#10b981;">0</h3></div>
-                <div class="v-card"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">REDEEMED / USED</p><h3 id="summaryUsed" style="color:#3b82f6;">0</h3></div>
-                <div class="v-card"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">SOLD</p><h3 id="summarySold" style="color:#568e74;">0</h3></div>
-                <div class="v-card"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">EXPIRED</p><h3 id="summaryExpired" style="color:#f59e0b;">0</h3></div>
+                <div class="v-card" id="cardTotal"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">TOTAL TICKETS</p><h3 id="summaryTotalSold">0</h3></div>
+                <div class="v-card" id="cardValid"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">VALID / ACTIVE</p><h3 id="summaryAvailable" style="color:#10b981;">0</h3></div>
+                <div class="v-card" id="cardUsed"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">REDEEMED / USED</p><h3 id="summaryUsed" style="color:#3b82f6;">0</h3></div>
+                <div class="v-card" id="cardSold"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">SOLD</p><h3 id="summarySold" style="color:#568e74;">0</h3></div>
+                <div class="v-card" id="cardExpired"><p style="font-size:0.7rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">EXPIRED</p><h3 id="summaryExpired" style="color:#f59e0b;">0</h3></div>
             </div>
 
             <div class="action-row">
@@ -127,8 +143,10 @@
             </div>
             <form id="addTicketForm">
                 <div class="form-group">
-                    <label>Passenger User ID (UUID)</label>
-                    <input type="text" name="user_id" placeholder="e.g. 0b3fa401-..." required>
+                    <label>Passenger User</label>
+                    <select name="user_id" id="modalUserSelect" required>
+                        <option value="">Select Passenger</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Assigned Route</label>
@@ -153,9 +171,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="auth.js"></script>
-    <script src="tickets-logic.js?v=3.4"></script>
+    <script src="tickets-logic.js?v=3.2"></script>
 <script src="notifications.js?v=2.0"></script>
 </body>
 </html>
-
 

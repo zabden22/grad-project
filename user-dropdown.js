@@ -1,6 +1,6 @@
 (function () {
     document.addEventListener('DOMContentLoaded', () => {
-        // --- GLOBAL THEME INITIALIZATION ---
+        
         const initTheme = () => {
             const currentTheme = localStorage.getItem('siteTheme') || 'light';
             document.documentElement.setAttribute('data-theme', currentTheme);
@@ -8,7 +8,7 @@
         };
         initTheme();
 
-        // Observe theme changes to trigger background
+        
         const themeObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.attributeName === 'data-theme') {
@@ -18,7 +18,7 @@
         });
         themeObserver.observe(document.documentElement, { attributes: true });
 
-        // INJECT CSS FOR USER DROPDOWN
+        
         const udStyles = document.createElement('style');
         udStyles.innerHTML = `
             .user-dropdown {
@@ -74,7 +74,7 @@
             const langLabel = currentLang === 'ar' ? 'العربية' : 'English';
             const langNext = currentLang === 'ar' ? 'EN' : 'AR';
 
-            // Ensure unique ID if multiple triggers exist
+            
             const dropId = 'udDrop_' + index;
             trigger.setAttribute('data-target-drop', dropId);
             trigger.style.cursor = 'pointer';
@@ -83,8 +83,8 @@
             dropdown.className = 'user-dropdown';
             dropdown.id = dropId;
             
-            // Default avatar
-            const initialAvatarUrl = localStorage.getItem('adminProfilePhoto') || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=568e74&color=fff&size=80&bold=true`;
+            
+            const initialAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=568e74&color=fff&size=80&bold=true`;
 
             dropdown.innerHTML = `
                 <div class="ud-header" style="background: linear-gradient(135deg, ${roleColor}15 0%, ${roleColor}08 100%); padding: 20px; border-radius: 16px 16px 0 0; text-align: center; border-bottom: 1px solid var(--border-color);">
@@ -118,23 +118,22 @@
                 </div>
             `;
             
-            // Append to trigger
+            
             trigger.appendChild(dropdown);
 
-            // Fetch Live Photo
+            
             const updateAvatarUI = (url) => {
-                localStorage.setItem('adminProfilePhoto', url);
+                // Photo used in-memory only, not stored in localStorage (quota issues)
                 const avatars = document.querySelectorAll('.admin-avatar-small, #topAvatar, #welcomeAvatar, .ud-avatar');
                 avatars.forEach(img => {
                     if (img) img.src = url;
                 });
-                // Also update header-right profile pill if it exists
+                
                 const pillImg = trigger.querySelector('img');
                 if (pillImg) pillImg.src = url;
             };
 
             if (typeof window.supabaseAuth !== 'undefined' && window.supabaseAuth) {
-                // 1. Try Supabase Auth metadata first
                 try {
                     window.supabaseAuth.auth.getUser().then(({data: {user}}) => {
                         if (user?.user_metadata?.avatar_url) {
@@ -143,48 +142,33 @@
                     }).catch(()=>{});
                 } catch(e){}
 
-                // 2. Try Database record
                 if (adminEmail && adminEmail !== 'admin@transitway.com') {
-                    supabase.from('admins').select('photo_url, photo').eq('email', adminEmail).single().then(({data}) => {
-                        if (data && (data.photo_url || data.photo)) {
-                            const dbPhoto = data.photo_url || data.photo;
-                            updateAvatarUI(dbPhoto);
+                    supabase.from('admins').select('*').eq('email', adminEmail).single().then(({data}) => {
+                        if (data) {
+                            const dbPhoto = data.profile_image || data.photo_url || data.photo;
+                            const cachedPhoto = localStorage.getItem('adminPhoto_' + data.id) || sessionStorage.getItem('adminPhoto_' + data.id);
+                            const photo = dbPhoto || cachedPhoto;
+                            if (photo) updateAvatarUI(photo);
                         }
                     }).catch(()=>{});
-                }
-
-                // 3. Real-time listener for profile changes
-                if (adminEmail) {
-                    supabase.channel('admin_profile_sync')
-                        .on('postgres_changes', { 
-                            event: 'UPDATE', 
-                            schema: 'public', 
-                            table: 'admins',
-                            filter: `email=eq.${adminEmail}`
-                        }, (payload) => {
-                            if (payload.new && (payload.new.photo_url || payload.new.photo)) {
-                                updateAvatarUI(payload.new.photo_url || payload.new.photo);
-                            }
-                        })
-                        .subscribe();
                 }
             }
         });
 
-        // Simpler Event Delegation for Toggle
+        
         document.addEventListener('click', (e) => {
             const isClickInsideTrigger = e.target.closest('.profile-pill, .dropdown-trigger');
             const isClickInsideDropdown = e.target.closest('.user-dropdown');
             
-            // Close all dropdowns if clicking outside
+            
             if (!isClickInsideTrigger && !isClickInsideDropdown) {
                 document.querySelectorAll('.user-dropdown.show').forEach(d => d.classList.remove('show'));
                 return;
             }
 
-            // If clicked on trigger, toggle the specific dropdown
+            
             if (isClickInsideTrigger) {
-                // If the click is actually INSIDE an already open dropdown, let it pass (don't toggle)
+                
                 if (isClickInsideDropdown) return;
                 
                 e.preventDefault();
@@ -199,7 +183,7 @@
             }
         });
 
-        // Event Delegation for Dropdown Actions
+        
         document.addEventListener('click', (e) => {
             if (e.target.closest('.ud-logout-btn')) {
                 if (typeof window.confirmLogout === 'function') window.confirmLogout();
@@ -238,12 +222,12 @@
             });
         }
 
-        // --- DYNAMIC HEADER TOGGLES INJECTION ---
+        
         const headerRight = document.querySelector('.header-right');
         if (headerRight) {
             const profilePill = headerRight.querySelector('.profile-pill, .dropdown-trigger');
             
-            // 1. Language Toggle
+            
             if (!document.getElementById('headerLangToggle') && !document.getElementById('langToggle')) {
                 const langBtn = document.createElement('button');
                 langBtn.id = 'headerLangToggle';
@@ -255,7 +239,7 @@
                 else headerRight.appendChild(langBtn);
             }
 
-            // 2. Theme Toggle
+            
             if (!document.getElementById('headerThemeToggle') && !document.getElementById('themeToggle')) {
                 const themeBtn = document.createElement('button');
                 themeBtn.id = 'themeToggle';
@@ -272,7 +256,7 @@
 
         }
 
-        // --- GLOBAL LISTENERS (Theme & Language) ---
+        
         document.addEventListener('click', (e) => {
             const themeBtn = e.target.closest('#themeToggle, #headerThemeToggle');
             if (themeBtn) {
@@ -304,7 +288,7 @@
         if (headerRight) {
             const profilePill = headerRight.querySelector('.profile-pill, .dropdown-trigger');
             
-            // 3. Notification Toggle (NEW PREMIUM)
+            
             if (!document.getElementById('notifBtn')) {
                 const notifWrap = document.createElement('div');
                 notifWrap.className = 'notif-wrapper';
@@ -339,7 +323,7 @@
         }
     });
 
-    /* ── confirmLogout — GLOBAL SCOPE (accessible from onclick in HTML) ── */
+    
     window.confirmLogout = function() {
         if (typeof Swal !== 'undefined') {
             const isAr = (typeof getLang === 'function' && getLang() === 'ar');
@@ -420,15 +404,15 @@
         bg.style.zIndex = '-1';
         bg.style.overflow = 'hidden';
         
-        const particleCount = 40; // Increased for a more immersive feel
+        const particleCount = 40; 
         for (let i = 0; i < particleCount; i++) {
             const p = document.createElement('div');
             p.className = 'neural-particle';
             p.style.position = 'absolute';
             p.style.borderRadius = '50%';
             
-            // Randomize properties for a high-end feel
-            const size = Math.random() * 10 + 2; // 2px to 12px
+            
+            const size = Math.random() * 10 + 2; 
             const animIndex = Math.floor(Math.random() * 3) + 1;
             const duration = (Math.random() * 20 + 25) + 's';
             const delay = (Math.random() * -40) + 's';
@@ -441,7 +425,7 @@
             p.style.filter = `blur(${blur}px)`;
             p.style.animation = `neuralFloatVar${animIndex} ${duration} linear infinite ${delay}`;
             
-            // Premium glow with varied intensity
+            
             const glowIntensity = (Math.random() * 15 + 10);
             const secondaryGlow = glowIntensity * 2;
             const opacity = (Math.random() * 0.5 + 0.3);

@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true';
+    if (!isSuperAdmin) {
+        const addBtn = document.getElementById('openAddStationModalBtn');
+        if (addBtn) addBtn.style.display = 'none';
+    }
+
     const adminName = localStorage.getItem('activeAdminName') || 'Admin';
     if (document.getElementById('topBarName')) document.getElementById('topBarName').innerText = adminName;
 
@@ -31,34 +37,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('stationSearchInput');
 
     let stationsData = [];
-    let routesMap = {}; // { id: name }
+    let routesMap = {}; 
     const routeSelect = document.getElementById('routeSelect');
 
-    async function loadRoutes() {
-        try {
-            const { data, error } = await supabase.from('routes').select('*');
-            if (error) throw error;
-            if (routeSelect) routeSelect.innerHTML = `<option value="">${t('select_route')}</option>`;
-            data.forEach(r => {
-                routesMap[r.id] = r.name;
-                if (routeSelect) {
-                    const opt = document.createElement('option');
-                    opt.value = r.id;
-                    opt.textContent = `${r.name} (Route #${r.id})`;
-                    routeSelect.appendChild(opt);
+    let routesLoadedPromise = null;
+
+    function loadRoutes() {
+        if (!routesLoadedPromise) {
+            routesLoadedPromise = (async () => {
+                try {
+                    const { data, error } = await supabase.from('routes').select('*');
+                    if (error) throw error;
+                    if (routeSelect) routeSelect.innerHTML = `<option value="">${t('select_route')}</option>`;
+                    data.forEach(r => {
+                        routesMap[r.id] = r.name;
+                        if (routeSelect) {
+                            const opt = document.createElement('option');
+                            opt.value = r.id;
+                            opt.textContent = `${r.name} (Route #${r.id})`;
+                            routeSelect.appendChild(opt);
+                        }
+                    });
+                } catch (e) {
+                    console.error('loadRoutes error:', e);
+                    if (routeSelect) routeSelect.innerHTML = `<option value="">${t('failed_load_routes')}</option>`;
                 }
-            });
-        } catch (e) {
-            if (routeSelect) routeSelect.innerHTML = `<option value="">${t('failed_load_routes')}</option>`;
+            })();
         }
+        return routesLoadedPromise;
     }
     loadRoutes();
 
-    function getRouteInfo(routeId, zoneName) {
-        const rName = routesMap[routeId] || '';
-        // Prioritize zone-based coloring for visual distinction as requested
-        const color = window.getRouteColor(routeId, zoneName || rName);
-        return { line: rName || 'Route', color: color };
+    function getRouteInfo(routeId) {
+        const name = routesMap[routeId] || '';
+        if (name.toLowerCase().includes('blue')) return { line: name, color: '#3b82f6' };
+        if (name.toLowerCase().includes('orange')) return { line: name, color: '#f59e0b' };
+        return { line: name || 'Route', color: 'var(--primary-color)' };
     }
 
     async function loadStations(silent = false) {
@@ -73,22 +87,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const { data, error } = await supabase.from('stations').select('*').order('created_at', { ascending: false });
-            if (error) throw error;
+            await loadRoutes();
 
-            stationsData = data.map(s => {
-                const rId = s.route_id || 0;
-                const routeInfo = getRouteInfo(rId, s.zone);
+            const [stRes, rpRes] = await Promise.all([
+                supabase.from('stations').select('*').order('created_at', { ascending: false }),
+                supabase.from('route_points').select('*')
+            ]);
+            if (stRes.error) throw stRes.error;
+
+            const rPoints = rpRes.data || [];
+
+            stationsData = (stRes.data || []).map(s => {
+                const pt = rPoints.find(p => String(p.station_id) === String(s.id));
+                const rId = pt ? pt.route_id : (s.line_id || '');
+                const routeInfo = getRouteInfo(rId);
+                
+                let lat = parseFloat(s.latitude) || 0;
+                let lng = parseFloat(s.longitude) || 0;
+                if ((!lat || !lng) && s.latLong) {
+                    const parts = s.latLong.split('&');
+                    if (parts.length === 2) {
+                        lat = parseFloat(parts[0].trim()) || 0;
+                        lng = parseFloat(parts[1].trim()) || 0;
+                    }
+                }
+
+                const cachedZone = s.zone || localStorage.getItem('station_zone_' + s.id) || 'Central Zone';
+                const cachedStatus = s.status || localStorage.getItem('station_status_' + s.id) || 'Active';
+
                 return {
                     id: s.id,
                     name: s.name || 'Unknown Station',
-                    lat: parseFloat(s.latitude) || 0,
-                    lng: parseFloat(s.longitude) || 0,
-                    zone: s.zone || '—',
+                    lat: lat,
+                    lng: lng,
+                    zone: cachedZone,
                     routeId: rId,
                     line: routeInfo.line,
                     color: routeInfo.color,
-                    status: s.status || 'Active'
+                    status: cachedStatus
                 };
             });
 
@@ -148,25 +184,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr>
                     <td style="font-weight:bold; color:var(--text-muted);" data-id="${st.id}">#ST-${serialNum}</td>
                     <td>
-                        <div style="display:flex; align-items:center; gap:10px; font-weight:900; font-size:1.1rem; color:${st.color};">
-                            <i class="fas fa-map-marker-alt" style="font-size:1.2rem;"></i>
+                        <div style="display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.05rem;">
+                            <i class="fas fa-map-marker-alt" style="color:${st.color}; font-size:1.2rem;"></i>
                             ${st.name}
                         </div>
-                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px; padding-left:28px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">
-                            <span style="background:${st.color}; color:#fff !important; padding:3px 10px; border-radius:6px; box-shadow: 0 4px 8px ${st.color}40;">${st.zone}</span>
-                        </div>
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px; padding-left:28px;">Zone: ${st.zone}</div>
                     </td>
                     <td style="font-family:monospace; color:var(--text-muted); font-size:0.9rem;">
                         <i class="fas fa-location-arrow" style="font-size:0.8rem; margin-right:5px;"></i>
                         ${parseFloat(st.lat).toFixed(4)}, ${parseFloat(st.lng).toFixed(4)}
                     </td>
                     <td>
-                        <span style="background:${st.color}; color:#fff !important; padding:6px 14px; border-radius:50px; font-weight:900; font-size:0.85rem; box-shadow: 0 4px 12px ${st.color}40; display: inline-flex; align-items: center; gap: 6px;">
-                            <i class="fas fa-route" style="font-size:0.7rem; color:rgba(255,255,255,0.8);"></i> ${st.line} ${t('line')}
+                        <span style="background:${st.color}15; color:${st.color}; padding:6px 12px; border-radius:8px; font-weight:800; font-size:0.85rem; border:1px solid ${st.color}30;">
+                            ${st.line} ${t('line')}
                         </span>
                     </td>
                     <td>${statusBadge}</td>
                     <td>
+                        ${isSuperAdmin ? `
                         <i class="fas fa-exchange-alt change-status-station" 
                            style="color:#3b82f6; cursor:pointer; margin-right:12px; font-size:1.1rem; transition:0.3s;" 
                            title="${t('change_status')}"
@@ -191,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                            onmouseover="this.style.filter='brightness(0.8)'" 
                            onmouseout="this.style.filter='brightness(1)'">
                         </i>
+                        ` : ''}
                     </td>
                 </tr>`;
             stationTableBody.innerHTML += row;
@@ -201,35 +237,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (window.supabaseAuth) {
         window.supabaseAuth.channel('stations_realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, (payload) => {
-                const mapStationData = (s) => {
-                    const rId = s.route_id || 0;
-                    const routeInfo = getRouteInfo(rId, s.zone);
-                    return {
-                        id: s.id,
-                        name: s.name || 'Unknown Station',
-                        lat: parseFloat(s.latitude) || 0,
-                        lng: parseFloat(s.longitude) || 0,
-                        zone: s.zone || '—',
-                        routeId: rId,
-                        line: routeInfo.line,
-                        color: routeInfo.color,
-                        status: s.status || 'Active'
-                    };
-                };
-                if (payload.eventType === 'INSERT') {
-                    stationsData.unshift(mapStationData(payload.new));
-                } else if (payload.eventType === 'UPDATE') {
-                    const idx = stationsData.findIndex(s => s.id === payload.new.id);
-                    if (idx !== -1) stationsData[idx] = mapStationData(payload.new);
-                } else if (payload.eventType === 'DELETE') {
-                    const idx = stationsData.findIndex(s => s.id === payload.old.id);
-                    if (idx !== -1) stationsData.splice(idx, 1);
-                }
-                renderTable();
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, () => {
+                loadStations(true);
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => {
-                loadRoutes().then(() => loadStations(true));
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'route_points' }, () => {
+                loadStations(true);
             })
             .subscribe();
     }
@@ -261,10 +273,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerText = t('saving');
 
             const formData = new FormData(e.target);
-            const routeId = parseInt(formData.get('route'), 10) || 0;
+            const routeId = formData.get('route') || '';
 
             if (!routeId) {
-                Swal.fire({ icon: 'warning', title: 'Missing Route', text: 'Please select a route.' });
+                Swal.fire({ icon: 'warning', title: 'Missing Route', text: 'Please select a route.', background: 'var(--bg-card)', color: 'var(--text-main)' });
                 btn.disabled = false;
                 btn.innerText = 'Save Station';
                 return;
@@ -276,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const longitude = lngRaw ? parseFloat(lngRaw)  : null;
 
             if (!latRaw || !lngRaw || isNaN(latitude) || isNaN(longitude)) {
-                Swal.fire({ icon: 'warning', title: 'Invalid Coordinates', text: 'Please enter valid Latitude and Longitude numbers.' });
+                Swal.fire({ icon: 'warning', title: 'Invalid Coordinates', text: 'Please enter valid Latitude and Longitude numbers.', background: 'var(--bg-card)', color: 'var(--text-main)' });
                 btn.disabled = false;
                 btn.innerText = 'Save Station';
                 return;
@@ -284,21 +296,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const stationName = formData.get('name') || '';
             if (!stationName.trim()) {
-                Swal.fire({ icon: 'warning', title: 'Missing Name', text: 'Please enter a station name.' });
+                Swal.fire({ icon: 'warning', title: 'Missing Name', text: 'Please enter a station name.', background: 'var(--bg-card)', color: 'var(--text-main)' });
                 btn.disabled = false;
                 btn.innerText = 'Save Station';
                 return;
             }
 
             try {
-                const { error } = await supabase.from('stations').insert({
+                const zoneVal = formData.get('zone') || 'Central Zone';
+                const latLongVal = `${latitude} & ${longitude}`;
+                const codeVal = 'S-' + String(Math.floor(Math.random() * 900) + 100);
+
+                const { data, error } = await supabase.from('stations').insert({
                     name: stationName.trim(),
-                    zone: formData.get('zone') || '',
                     latitude: latitude,
                     longitude: longitude,
-                    route_id: parseInt(routeId, 10)
+                    latLong: latLongVal,
+                    zone: zoneVal,
+                    status: 'Active',
+                    code: codeVal,
+                    route_id: routeId
                 });
                 if (error) throw error;
+
+                const newStation = data && data[0] ? data[0] : null;
+                if (newStation) {
+                    const newId = newStation.id;
+                    localStorage.setItem('station_zone_' + newId, zoneVal);
+
+                    // Link station to route via route_points
+                    await supabase.from('route_points').insert({
+                        route_id: routeId,
+                        station_id: newId,
+                        step_order: 1
+                    });
+                }
 
                 Swal.fire({
                     icon: 'success',
@@ -306,14 +338,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     html: `<p style="margin:0; font-weight:600;">"${stationName}" added to the network.</p>
                            <p style="margin:5px 0 0 0; color:var(--text-muted);">Route ID: ${routeId}</p>`,
                     timer: 2500,
-                    showConfirmButton: false
+                    showConfirmButton: false,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)'
                 });
                 closeModal('addStationModal');
                 e.target.reset();
                 loadStations();
             } catch (err) {
                 console.error('Add station error:', err);
-                Swal.fire({ icon: 'error', title: 'Error!', text: `Failed to add station: ${err.message}` });
+                Swal.fire({ icon: 'error', title: 'Error!', text: `Failed to add station: ${err.message}`, background: 'var(--bg-card)', color: 'var(--text-main)' });
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Save Station';
@@ -337,15 +371,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     showCancelButton: true,
                     confirmButtonColor: '#ef4444',
                     cancelButtonColor: 'var(--text-muted)',
-                    confirmButtonText: 'Yes, delete it!'
+                    confirmButtonText: 'Yes, delete it!',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)'
                 }).then(async (result) => {
                     if (result.isConfirmed) {
                         try {
-                            await supabase.from('stations').eq('id', stationId).delete();
-                            Swal.fire({ title: 'Deleted!', text: `"${stationName}" has been removed.`, icon: 'success', timer: 2000, showConfirmButton: false });
+                            // Clear references to this station in routes and route_points
+                            await Promise.all([
+                                supabase.from('routes').update({ start_station_id: null }).eq('start_station_id', stationId),
+                                supabase.from('routes').update({ end_station_id: null }).eq('end_station_id', stationId),
+                                supabase.from('route_points').delete().eq('station_id', stationId)
+                            ]);
+                            await supabase.from('stations').delete().eq('id', stationId);
+                            Swal.fire({ title: 'Deleted!', text: `"${stationName}" has been removed.`, icon: 'success', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                             loadStations();
                         } catch (err) {
-                            Swal.fire({ title: 'Error!', text: `Could not delete station: ${err.message}`, icon: 'error' });
+                            Swal.fire({ title: 'Error!', text: `Could not delete station: ${err.message}`, icon: 'error', background: 'var(--bg-card)', color: 'var(--text-main)' });
                         }
                     }
                 });
@@ -355,6 +397,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const stationId = target.getAttribute('data-id');
                 const st = stationsData.find(s => String(s.id) === String(stationId));
                 if (!st) return;
+
+                let routeOptionsHtml = `<option value="">None / Unassigned</option>`;
+                Object.keys(routesMap).forEach(rId => {
+                    const selected = String(st.routeId) === String(rId) ? 'selected' : '';
+                    routeOptionsHtml += `<option value="${rId}" ${selected}>${routesMap[rId]} (Route #${rId})</option>`;
+                });
 
                 Swal.fire({
                     title: 'Modify Node Parameters',
@@ -381,6 +429,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             <input id="swal-stZone" class="swal2-input" value="${st.zone}" style="margin-top:8px; width:100%; box-sizing:border-box; border-radius:12px; height:45px; font-weight:700;">
                         </div>
 
+                        <div style="text-align:left; margin-bottom:18px;">
+                            <label style="font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-left:5px; display:flex; align-items:center; gap:5px;">
+                                <i class="fas fa-route" style="color:var(--primary-color);"></i> Assigned Route
+                            </label>
+                            <select id="swal-stRoute" class="swal2-input" style="margin-top:8px; width:100%; box-sizing:border-box; border-radius:12px; height:45px; font-weight:700; padding:0 10px; background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color);">
+                                ${routeOptionsHtml}
+                            </select>
+                        </div>
+
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:10px;">
                             <div style="text-align:left;">
                                 <label style="font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-left:5px; display:flex; align-items:center; gap:5px;">
@@ -395,35 +452,58 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <input id="swal-stLng" class="swal2-input" value="${st.lng}" style="margin-top:8px; width:100%; box-sizing:border-box; border-radius:12px; height:45px; font-weight:700; font-family:monospace;">
                             </div>
                         </div>
-                        <div style="margin-top:20px; padding:12px; background:rgba(148,163,184,0.05); border-radius:12px; border:1px solid rgba(148,163,184,0.1);">
-                            <p style="margin:0; font-size:0.75rem; color:var(--text-muted); font-weight:600; text-align:center; line-height:1.4;">
-                                <i class="fas fa-info-circle" style="margin-right:5px;"></i> Operational status is managed independently via the primary telemetry dashboard.
-                            </p>
-                        </div>
                     `,
                     showCancelButton: true,
                     confirmButtonText: 'Save Changes',
                     confirmButtonColor: '#3b82f6',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)',
                     preConfirm: () => {
                         const name = document.getElementById('swal-stName').value;
                         const zone = document.getElementById('swal-stZone').value;
                         const lat = parseFloat(document.getElementById('swal-stLat').value);
                         const lng = parseFloat(document.getElementById('swal-stLng').value);
+                        const routeId = document.getElementById('swal-stRoute').value;
                         if (!name || !zone || isNaN(lat) || isNaN(lng)) {
                             Swal.showValidationMessage('Please enter valid details');
                             return false;
                         }
-                        return { name, zone, latitude: lat, longitude: lng };
+                        return { name, zone, latitude: lat, longitude: lng, routeId };
                     }
                 }).then(async (result) => {
                     if (result.isConfirmed) {
                         try {
-                            const { error } = await supabase.from('stations').eq('id', stationId).update(result.value);
+                            localStorage.setItem('station_zone_' + stationId, result.value.zone);
+                            const latLongVal = `${result.value.latitude} & ${result.value.longitude}`;
+                            const routeId = result.value.routeId || null;
+                            
+                            const { error } = await supabase.from('stations').update({
+                                name: result.value.name,
+                                latitude: result.value.latitude,
+                                longitude: result.value.longitude,
+                                latLong: latLongVal,
+                                zone: result.value.zone,
+                                route_id: routeId
+                            }).eq('id', stationId);
                             if (error) throw error;
-                            Swal.fire({ title: 'Success!', text: 'Station updated successfully.', icon: 'success', timer: 2000, showConfirmButton: false });
+
+                            // Update route_points table
+                            // 1. Delete old points for this station
+                            await supabase.from('route_points').delete().eq('station_id', stationId);
+                            
+                            // 2. Insert new point if a route is assigned
+                            if (routeId) {
+                                await supabase.from('route_points').insert({
+                                    route_id: routeId,
+                                    station_id: stationId,
+                                    step_order: 1
+                                });
+                            }
+
+                            Swal.fire({ title: 'Success!', text: 'Station updated successfully.', icon: 'success', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                             loadStations();
                         } catch (err) {
-                            Swal.fire({ title: 'Error!', text: `Failed to update: ${err.message}`, icon: 'error' });
+                            Swal.fire({ title: 'Error!', text: `Failed to update: ${err.message}`, icon: 'error', background: 'var(--bg-card)', color: 'var(--text-main)' });
                         }
                     }
                 });
@@ -461,6 +541,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     confirmButtonText: 'Update Signal',
                     confirmButtonColor: '#3b82f6',
                     cancelButtonColor: 'var(--text-muted)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)',
                     customClass: {
                         input: 'swal-custom-select'
                     },
@@ -471,16 +553,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (result.isConfirmed) {
                         const newStatus = result.value;
                         try {
-                            const { error: updErr } = await supabase.from('stations').eq('id', stationId).update({ status: newStatus });
-                            
-                            if (updErr) {
-                                if (updErr.message && updErr.message.includes('column')) {
-                                    throw new Error('Status tracking column is missing in database. Please add "status" to the stations table.');
-                                }
-                                throw updErr;
-                            }
-
-                            Swal.fire({ title: 'Updated!', text: `Station status changed to "${newStatus}".`, icon: 'success', timer: 2000, showConfirmButton: false });
+                            localStorage.setItem('station_status_' + stationId, newStatus);
+                            await supabase.from('stations').update({
+                                status: newStatus
+                            }).eq('id', stationId);
+                            Swal.fire({ title: 'Updated!', text: `Station status changed to "${newStatus}".`, icon: 'success', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
                             loadStations();
                         } catch (err) {
                             console.error('Update status error:', err);

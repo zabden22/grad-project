@@ -1,25 +1,49 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Basic UI Setup
+    const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true';
+    if (!isSuperAdmin) {
+        const addBtn = document.getElementById('openAddDriverModalBtn');
+        const assignBtn = document.getElementById('openAssignModalBtn');
+        const dpEditBtn = document.getElementById('dpEditBtn');
+        const dpEditPhoto = document.querySelector('label[for="dpEditPhotoInput"]');
+        if (addBtn) addBtn.style.display = 'none';
+        if (assignBtn) assignBtn.style.display = 'none';
+        if (dpEditBtn) dpEditBtn.style.display = 'none';
+        if (dpEditPhoto) dpEditPhoto.style.display = 'none';
+    }
+    
     const adminName = localStorage.getItem('activeAdminName') || 'Admin';
     if (document.getElementById('topBarName')) document.getElementById('topBarName').innerText = adminName;
     const currentTheme = localStorage.getItem('siteTheme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
 
-    // Global Registry for Data
+    
     window.driversData = [];
     window.busesData   = [];
     window.routesData  = [];
     window.currentViewingDriverId = null;
 
-    // Helper: Colors
-    function getDriverRouteColor(driver) {
-        if (!driver || !driver.routeId) return '#64748b';
-        const routeObj = (window.routesData || []).find(r => String(r.id) === String(driver.routeId));
-        const routeName = routeObj ? routeObj.name : null;
-        return window.getRouteColor(driver.routeId, routeName);
-    }
+    
+    window.getRouteColor = function(routeId) {
+        if (!routeId) return '#0ea5e9';
+        const routeObj = window.routesData.find(r => String(r.id) === String(routeId));
+        const name = routeObj ? (routeObj.name || '').toLowerCase() : String(routeId).toLowerCase();
 
-    // Helper: Populate Dropdowns
+        if (name.includes('capital') || name.includes('عاصمة') || name.includes('العاصمة')) return '#14b8a6';
+        if (name.includes('cairo') || name.includes('قاهرة')) return '#3b82f6';
+        if (name.includes('badr') || name.includes('بدر') || String(routeId) === 'ba494dc9-7d4b-4c6d-b37e-0ffbd47f7014') return '#8b5cf6';
+        if (name.includes('shorouk') || name.includes('shrouk') || name.includes('شروق') || String(routeId) === '9d9f642d-31cd-4cb1-ae7e-daf930983bcf') return '#ef4444';
+        if (name.includes('madinaty') || name.includes('madinty') || name.includes('مدينتي') || name.includes('مدينتى') || String(routeId) === 'e8cd6c96-8f89-474d-b86f-fb0c9efd990f') return '#f59e0b';
+        
+        if (name.includes('1')) return '#f43f5e';
+        if (name.includes('2')) return '#8b5cf6';
+        if (name.includes('3')) return '#3b82f6';
+        if (name.includes('4')) return '#f59e0b';
+        if (name.includes('5')) return '#10b981';
+        
+        return '#0ea5e9';
+    };
+
+    
     window.populateAssignDropdowns = function() {
         const drvSel = document.getElementById('assignDriverSelect');
         const busSel = document.getElementById('assignBusSelect');
@@ -31,59 +55,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if(busSel) {
             busSel.innerHTML = '<option value="">Select Operational Bus</option>';
-            window.busesData.filter(b => !b.driver_id).forEach(b => {
-                busSel.innerHTML += `<option value="${b.id}">B-${b.bus_number || b.id}</option>`;
+            window.busesData.filter(b => {
+                // Check if bus is not currently linked in active shifts
+                const isAssigned = window.driversData.some(d => String(d.busId) === String(b.id));
+                return !isAssigned;
+            }).forEach(b => {
+                busSel.innerHTML += `<option value="${b.id}">B-${b.plate_number || b.id.substring(0, 5).toUpperCase()}</option>`;
             });
         }
     };
 
-    // Core Logic: Load Buses & Routes
-    window.loadBusesAndRoutes = async function() {
-        try {
-            const { data: bData } = await supabase.from('buses').select('*');
-            if (bData) window.busesData = bData;
-            const { data: rData } = await supabase.from('routes').select('*');
-            if (rData) window.routesData = rData;
-        } catch (e) { console.warn('Buses/Routes link offline', e); }
-    };
-
-    // Core Logic: Load All Data in Parallel
+    
     window.loadDrivers = async function(silent = false) {
         const tbody = document.getElementById('driverTableBody');
         if(!tbody) return;
 
         try {
             if (!silent) {
-                tbody.innerHTML = Array(5).fill('<tr><td colspan="7"><div class="skeleton" style="width:100%;height:45px;border-radius:12px;margin-bottom:10px;"></div></td></tr>').join('');
+                tbody.innerHTML = Array(5).fill('<tr><td colspan="7"><div class="skeleton" style="width:100%;height:35px;border-radius:8px;"></div></td></tr>').join('');
             }
 
-            // Fetch everything in parallel for maximum speed
-            const [driversRes, busesRes, routesRes] = await Promise.all([
-                supabase.from('drivers').select('*'),
+            const [bRes, rRes, shRes, trRes, drRes] = await Promise.all([
                 supabase.from('buses').select('*'),
-                supabase.from('routes').select('*')
+                supabase.from('routes').select('*'),
+                supabase.from('shifts').select('*').is('end_time', null),
+                supabase.from('trips').select('*').is('end_time', null),
+                supabase.from('drivers').select('*').order('created_at', { ascending: false })
             ]);
 
-            if (driversRes.error) throw driversRes.error;
-            
-            window.busesData = busesRes.data || [];
-            window.routesData = routesRes.data || [];
-            
-            window.driversData = (driversRes.data || []).map(d => {
-                const busId = d.bus_id || null;
-                const busObj = busId ? window.busesData.find(b => b.id == busId) : null;
-                const routeObj = busObj ? window.routesData.find(r => r.id == busObj.route_id) : null;
+            if (drRes.error) throw drRes.error;
+
+            window.busesData = bRes.data || [];
+            window.routesData = rRes.data || [];
+            const shifts = shRes.data || [];
+            const trips = trRes.data || [];
+
+            window.driversData = (drRes.data || []).map(d => {
+                const activeShift = shifts.find(s => s.driver_id === d.id);
+                const busId = activeShift ? activeShift.bus_id : null;
+                const busObj = busId ? window.busesData.find(b => b.id === busId) : null;
+                
+                const activeTrip = busId ? trips.find(t => t.bus_id === busId) : null;
+                const routeId = activeTrip ? activeTrip.route_id : null;
+                const routeObj = routeId ? window.routesData.find(r => r.id === routeId) : null;
+
+                const cachedEmail = d.email || localStorage.getItem('driver_email_' + d.id) || (d.name.toLowerCase().replace(/\s+/g, '') + '@transitway.com');
+                const cachedLicense = d.license_number || d.license || localStorage.getItem('driver_license_' + d.id) || ('LNC-' + d.id.substring(0, 4).toUpperCase());
+                const cachedStatus = d.status || localStorage.getItem('driver_status_' + d.id) || 'Active';
+                const cachedPhoto = d.photo || null;
+
                 return {
                     id: d.id,
-                    name: d.full_name || d.name || 'Personnel Candidate',
-                    license: d.license_number || d.license || '—',
-                    phone: d.phone_number || d.phone || '—',
-                    email: d.email || '--',
-                    photo_url: d.photo_url || d.photo || null,
-                    busId,
-                    busObj,
-                    routeObj,
-                    status: d.status || 'Active'
+                    name: d.name || d.full_name || 'Personnel Candidate',
+                    license: cachedLicense,
+                    phone: d.phone || d.phone_number || '—',
+                    email: cachedEmail,
+                    photo_url: cachedPhoto,
+                    busId: busId,
+                    busObj: busObj,
+                    routeObj: routeObj,
+                    status: cachedStatus
                 };
             });
 
@@ -91,8 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error('Personnel Error:', err);
-            const errorMsg = err.message || JSON.stringify(err);
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px; color:#ef4444;"><i class="fas fa-exclamation-triangle" style="font-size:2.5rem;"></i><p style="font-weight:900; margin-top:15px;">Personnel Intelligence Offline</p><p style="font-size:0.8rem; opacity:0.7;">Error: ${errorMsg}</p></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px; color:#ef4444;"><i class="fas fa-exclamation-triangle" style="font-size:2.5rem;"></i><p style="font-weight:900; margin-top:15px;">Personnel Intelligence Offline</p></td></tr>`;
         }
     };
 
@@ -123,14 +153,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const serialNum = String(index + 1).padStart(4, '0');
             const isActive  = (driver.status || '').toLowerCase() === 'active';
             const statusBadge = isActive ? `<span class="status-badge status-active"><div class="pulse-dot"></div> OPERATIONAL</span>` : `<span class="status-badge status-inactive">STANDBY</span>`;
-            const busColor = driver.busObj ? window.getRouteColor(driver.busObj.route_id) : 'var(--text-muted)';
-            const busBadge = driver.busObj ? `<div class="bus-badge-cell" style="color:${busColor}; border-color:${busColor}40;">B-${driver.busObj.bus_number || driver.busObj.id}</div>` : `<span style="opacity:0.5;">Unlinked</span>`;
+            const busColor = driver.busObj ? window.getRouteColor(driver.routeObj?.id) : 'var(--text-muted)';
+            const busBadge = driver.busObj ? `<div class="bus-badge-cell" style="color:${busColor}; border-color:${busColor}40;">B-${driver.busObj.plate_number || driver.busObj.id.substring(0, 5).toUpperCase()}</div>` : `<span style="opacity:0.5;">Unlinked</span>`;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>
                     <div style="display:flex; align-items:center; gap:12px;">
-                        <img src="${driver.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name)}&background=1e293b&color=fff&size=40`}" style="width:40px; height:40px; border-radius:12px; object-fit:cover;">
+                        <img src="${driver.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name)}&background=568e74&color=fff`}" style="width:40px; height:40px; border-radius:12px; object-fit:cover;">
                         <span style="font-weight:900;">${driver.name}</span>
                     </div>
                 </td>
@@ -142,9 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>
                     <div style="display:flex; gap:8px;">
                         <button class="btn-action" onclick="window.viewProfile('${driver.id}', '${serialNum}')"><i class="fas fa-fingerprint"></i></button>
+                        ${isSuperAdmin ? `
                         <button class="btn-action" onclick="window.toggleStatus('${driver.id}')"><i class="fas fa-shield-alt" style="color:${isActive ? '#10b981' : 'var(--text-muted)'};"></i></button>
                         ${driver.busId ? `<button class="btn-action" onclick="window.unassign('${driver.id}')"><i class="fas fa-unlink" style="color:#f59e0b;"></i></button>` : ''}
                         <button class="btn-action" onclick="window.deleteDriver('${driver.id}', '${driver.name}')" style="color:#ef4444;"><i class="fas fa-user-minus"></i></button>
+                        ` : ''}
                     </div>
                 </td>
             `;
@@ -175,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Dynamic Modal Content ---
+    
     let efficiencyChart = null;
     let performanceChart = null;
 
@@ -193,12 +225,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            // 1. Fetch real tickets for this bus to simulate activity
-            const { data: tickets, error } = await supabase.from('tickets').eq('bus_id', driver.busId).select('*').order('created_at', { ascending: false }).limit(20);
+            const { data: tickets, error } = await supabase.from('tickets').select('*').eq('trip_id', driver.busId).order('created_at', { ascending: false }).limit(20);
             
-            // 2. Populate "Recent Tactical Sorties" with real tickets
-            if(tripBody && tickets) {
-                if(tickets.length === 0) {
+            if(tripBody) {
+                if(!tickets || tickets.length === 0) {
                     tripBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px; opacity:0.5;">No ticket logs detected for this asset.</td></tr>';
                 } else {
                     tripBody.innerHTML = tickets.map(t => {
@@ -216,13 +246,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // 3. Generate Chart Data based on ticket volume
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const today = new Date().getDay();
             const labels = [];
             for(let i=6; i>=0; i--) labels.push(days[(today - i + 7) % 7]);
 
-            // Mocked volume based on ticket count for chart "feel"
             const ticketVolume = labels.map((_, i) => Math.floor(Math.random() * 20) + (tickets ? tickets.length : 10));
 
             if(effCtx) {
@@ -267,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.currentViewingDriverId = id;
         
         const avatar = document.getElementById('dpAvatar');
-        if(avatar) avatar.src = driver.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name)}&background=1e293b&color=fff&size=200&bold=true`;
+        if(avatar) avatar.src = driver.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name)}&background=568e74&color=fff`;
         
         if(document.getElementById('dpName')) document.getElementById('dpName').innerText = driver.name;
         if(document.getElementById('dpId')) document.getElementById('dpId').innerText = serial;
@@ -286,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sector = document.getElementById('dpRoute');
 
         if(driver.busObj) {
-            if(busNumber) busNumber.innerText = `B-${driver.busObj.bus_number || driver.busObj.id}`;
+            if(busNumber) busNumber.innerText = `B-${driver.busObj.id.substring(0, 5).toUpperCase()}`;
             if(plateNumber) plateNumber.innerText = driver.busObj.plate_number || '—';
             if(sector) sector.innerText = driver.routeObj ? driver.routeObj.name : 'Tactical Sector';
         } else {
@@ -299,15 +327,15 @@ document.addEventListener('DOMContentLoaded', () => {
         window.updateDriverAnalytics(driver);
     };
 
-    // --- Actions ---
+    
     window.toggleStatus = async (id) => {
         const drv = window.driversData.find(d => d.id == id);
         if(!drv) return;
         const newStatus = drv.status === 'Active' ? 'Inactive' : 'Active';
         try {
-            Swal.fire({ title: 'Overriding Protocol...', didOpen: () => Swal.showLoading() });
-            await supabase.from('drivers').eq('id', id).update({ status: newStatus });
-            Swal.fire({ icon: 'success', title: 'Updated', timer: 1000, showConfirmButton: false });
+            localStorage.setItem('driver_status_' + id, newStatus);
+            await supabase.from('drivers').update({ status: newStatus }).eq('id', id);
+            Swal.fire({ icon: 'success', title: 'Status Overridden', timer: 1000, showConfirmButton: false });
             window.loadDrivers(true);
         } catch (err) { Swal.fire('Error', err.message, 'error'); }
     };
@@ -326,8 +354,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if(res.isConfirmed) {
             try {
                 Swal.fire({ title: 'Severing...', didOpen: () => Swal.showLoading() });
-                await supabase.from('buses').eq('id', drv.busId).update({ driver_id: null });
-                await supabase.from('drivers').eq('id', id).update({ bus_id: null });
+                const busId = drv.busId;
+                const { data: activeShifts } = await supabase.from('shifts').select('id').eq('driver_id', id).is('end_time', null).limit(1);
+                if (activeShifts && activeShifts[0]) {
+                    await supabase.from('shifts').update({ end_time: new Date().toISOString() }).eq('id', activeShifts[0].id);
+                }
+                
+                // Clear references in drivers and buses tables for mobile app compatibility
+                await Promise.all([
+                    supabase.from('drivers').update({ busId: null, current_bus_id: null }).eq('id', id),
+                    supabase.from('buses').update({ driver_id: null }).eq('id', busId)
+                ]);
+
                 Swal.fire({ icon: 'success', title: 'Severed', timer: 1000, showConfirmButton: false });
                 window.loadDrivers(true);
             } catch(e) { Swal.fire('Error', e.message, 'error'); }
@@ -344,34 +382,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (res.isConfirmed) {
             try {
-                await supabase.from('drivers').eq('id', id).delete();
+                // Clear references in buses, trips and delete shifts
+                await Promise.all([
+                    supabase.from('buses').update({ driver_id: null }).eq('driver_id', id),
+                    supabase.from('trips').update({ driver_id: null }).eq('driver_id', id),
+                    supabase.from('shifts').delete().eq('driver_id', id)
+                ]);
+                await supabase.from('drivers').delete().eq('id', id);
                 Swal.fire({ icon: 'success', title: 'Purged', timer: 1000, showConfirmButton: false });
                 window.loadDrivers();
             } catch(e) { Swal.fire('Error', e.message, 'error'); }
         }
     };
 
-    // --- Identity Update ---
+    
     const dpPhotoInput = document.getElementById('dpEditPhotoInput');
     if(dpPhotoInput) {
         dpPhotoInput.onchange = async (e) => {
             const file = e.target.files[0];
             if(!file || !window.currentViewingDriverId) return;
             try {
-                Swal.fire({ title: 'Uploading...', didOpen: () => Swal.showLoading() });
-                const fileName = `driver-${window.currentViewingDriverId}-${Date.now()}.png`;
-                const { data, error } = await supabaseAuth.storage.from('avatars').upload(fileName, file);
-                if(error) throw error;
-                const { data: { publicUrl } } = supabaseAuth.storage.from('avatars').getPublicUrl(fileName);
-                await supabase.from('drivers').eq('id', window.currentViewingDriverId).update({ photo_url: publicUrl });
-                Swal.fire({ icon: 'success', title: 'Updated', timer: 1000, showConfirmButton: false });
-                window.loadDrivers(true);
-                if(document.getElementById('dpAvatar')) document.getElementById('dpAvatar').src = publicUrl;
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                    const base64 = ev.target.result;
+                    // Photo saved to DB only - not localStorage (quota issues)
+                    await supabase.from('drivers').update({ photo: base64 }).eq('id', window.currentViewingDriverId);
+                    Swal.fire({ icon: 'success', title: 'Portrait Updated', timer: 1000, showConfirmButton: false });
+                    window.loadDrivers(true);
+                    if(document.getElementById('dpAvatar')) document.getElementById('dpAvatar').src = base64;
+                };
+                reader.readAsDataURL(file);
             } catch(err) { Swal.fire('Error', err.message, 'error'); }
         };
     }
 
-    // --- Static Handlers ---
+    
     window.openModal = (id) => document.getElementById(id)?.classList.add('active');
     window.closeModal = (id) => document.getElementById(id)?.classList.remove('active');
 
@@ -386,26 +431,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const addForm = document.getElementById('addDriverForm');
     if(addForm) {
+        const photoInput = document.getElementById('addDriverPhoto');
+        const photoLabel = document.getElementById('addDriverPhotoLabel');
+        if (photoInput && photoLabel) {
+            photoInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) photoLabel.innerText = file.name;
+            };
+        }
+
         addForm.onsubmit = async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
             btn.disabled = true; btn.innerText = "Registering...";
-            const payload = {
-                full_name: document.getElementById('addDriverName').value,
-                email: document.getElementById('addDriverEmail').value,
-                phone_number: document.getElementById('addDriverPhone').value,
-                license_number: document.getElementById('addDriverLicense').value,
-                status: 'Active'
-            };
+            
+            const name = document.getElementById('addDriverName').value;
+            const email = document.getElementById('addDriverEmail').value;
+            const phone = document.getElementById('addDriverPhone').value;
+            const license = document.getElementById('addDriverLicense').value;
+            const password = document.getElementById('addDriverPassword').value;
+            const file = photoInput?.files[0];
+
             try {
-                const { error } = await supabase.from('drivers').insert(payload);
+                let photoBase64 = null;
+                if (file) {
+                    photoBase64 = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => resolve(ev.target.result);
+                        reader.readAsDataURL(file);
+                    });
+                }
+
+                const { data, error } = await supabase.from('drivers').insert({
+                    name: name,
+                    full_name: name,
+                    phone: phone,
+                    phone_number: phone,
+                    email: email,
+                    license_number: license,
+                    password: password,
+                    status: 'Active',
+                    photo: photoBase64
+                });
                 if (error) throw error;
+
+                const newDriver = data && data[0] ? data[0] : null;
+                if (newDriver) {
+                    const drvId = newDriver.id;
+                    localStorage.setItem('driver_email_' + drvId, email);
+                    localStorage.setItem('driver_license_' + drvId, license);
+                    localStorage.setItem('driver_status_' + drvId, 'Active');
+                }
+
                 Swal.fire({ icon: 'success', title: 'Registered!', timer: 1500, showConfirmButton: false });
                 window.closeModal('addDriverModal');
                 e.target.reset();
+                if (photoLabel) photoLabel.innerText = "Upload High-Res Portrait";
                 window.loadDrivers();
-            } catch(err) { Swal.fire('Error', err.message, 'error'); }
-            finally { btn.disabled = false; btn.innerText = "Register & Link"; }
+            } catch(err) { 
+                Swal.fire('Error', err.message, 'error'); 
+            } finally { 
+                btn.disabled = false; btn.innerText = "Register & Link"; 
+            }
         };
     }
 
@@ -418,12 +505,85 @@ document.addEventListener('DOMContentLoaded', () => {
             if(!dId || !bId) return;
             try {
                 Swal.fire({ title: 'Linking...', didOpen: () => Swal.showLoading() });
-                await supabase.from('drivers').eq('id', dId).update({ bus_id: bId });
-                await supabase.from('buses').eq('id', bId).update({ driver_id: dId });
+                await supabase.from('shifts').insert({
+                    driver_id: dId,
+                    bus_id: bId,
+                    start_time: new Date().toISOString()
+                });
+                
+                // Update references in drivers and buses tables for mobile app compatibility
+                await Promise.all([
+                    supabase.from('drivers').update({ busId: bId, current_bus_id: bId }).eq('id', dId),
+                    supabase.from('buses').update({ driver_id: dId }).eq('id', bId)
+                ]);
+
                 Swal.fire({ icon: 'success', title: 'Established', timer: 1000, showConfirmButton: false });
                 window.closeModal('assignModal');
                 window.loadDrivers();
             } catch(err) { Swal.fire('Error', err.message, 'error'); }
+        };
+    }
+
+    const editBtn = document.getElementById('dpEditBtn');
+    if (editBtn) {
+        editBtn.onclick = () => {
+            if (!window.currentViewingDriverId) return;
+            const driver = window.driversData.find(d => d.id == window.currentViewingDriverId);
+            if (!driver) return;
+            
+            document.getElementById('editDriverId').value = driver.id;
+            document.getElementById('editDriverName').value = driver.name;
+            document.getElementById('editDriverEmail').value = driver.email;
+            document.getElementById('editDriverPhone').value = driver.phone;
+            document.getElementById('editDriverLicense').value = driver.license;
+            document.getElementById('editDriverPassword').value = ''; // empty by default
+            
+            window.closeModal('driverProfileModal');
+            window.openModal('editDriverModal');
+        };
+    }
+
+    const editForm = document.getElementById('editDriverForm');
+    if (editForm) {
+        editForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editDriverId').value;
+            const name = document.getElementById('editDriverName').value;
+            const email = document.getElementById('editDriverEmail').value;
+            const phone = document.getElementById('editDriverPhone').value;
+            const license = document.getElementById('editDriverLicense').value;
+            const password = document.getElementById('editDriverPassword').value;
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true; btn.innerText = "Saving...";
+
+            try {
+                const updatePayload = {
+                    name: name,
+                    full_name: name,
+                    phone: phone,
+                    phone_number: phone,
+                    email: email,
+                    license_number: license
+                };
+                if (password.trim() !== '') {
+                    updatePayload.password = password;
+                }
+
+                const { error } = await supabase.from('drivers').update(updatePayload).eq('id', id);
+                if (error) throw error;
+
+                localStorage.setItem('driver_email_' + id, email);
+                localStorage.setItem('driver_license_' + id, license);
+
+                Swal.fire({ icon: 'success', title: 'Details Updated!', timer: 1500, showConfirmButton: false });
+                window.closeModal('editDriverModal');
+                window.loadDrivers();
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+            } finally {
+                btn.disabled = false; btn.innerText = "Save Changes";
+            }
         };
     }
 
@@ -443,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => {
                 window.loadDrivers(true);
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'buses' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
                 window.loadDrivers(true);
             })
             .subscribe();

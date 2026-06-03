@@ -41,7 +41,7 @@
         .form-group input, .form-group select { width: 100%; padding: 14px 18px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main); font-weight: 700; outline: none; transition: 0.3s; }
         .form-group input:focus, .form-group select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(86, 142, 116, 0.1); }
         
-        /* Driver Profile Professional Overlay */
+        
         .driver-profile-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); display: none; align-items: center; justify-content: center; z-index: 4000; backdrop-filter: blur(10px); }
         .driver-profile-overlay.active { display: flex; }
         .driver-profile-panel { width: 900px; background: var(--bg-card); border-radius: 36px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 40px 100px rgba(0,0,0,0.6); }
@@ -164,7 +164,7 @@
         </main>
     </div>
 
-    <!-- Modals -->
+    
     <div class="modal-overlay" id="addDriverModal">
         <div class="modal-card">
              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
@@ -231,7 +231,8 @@
                         <span id="dpStatusBadge" class="status-badge"></span>
                     </div>
                 </div>
-                <button id="dpCloseBtn" style="background:rgba(255,255,255,0.1); border:none; color:#fff; width:44px; height:44px; border-radius:14px; cursor:pointer; margin-left:auto; font-size:1.2rem; display:flex; align-items:center; justify-content:center; transition:0.3s;"><i class="fas fa-times"></i></button>
+                <button id="dpEditBtn" style="background:rgba(255,255,255,0.1); border:none; color:#fff; width:44px; height:44px; border-radius:14px; cursor:pointer; margin-left:auto; font-size:1.2rem; display:flex; align-items:center; justify-content:center; transition:0.3s;" title="Edit Personnel Details"><i class="fas fa-user-edit"></i></button>
+                <button id="dpCloseBtn" style="background:rgba(255,255,255,0.1); border:none; color:#fff; width:44px; height:44px; border-radius:14px; cursor:pointer; margin-left:12px; font-size:1.2rem; display:flex; align-items:center; justify-content:center; transition:0.3s;"><i class="fas fa-times"></i></button>
             </div>
             <div class="dp-body" style="max-height: calc(90vh - 150px); overflow-y: auto;">
                 <div class="dp-info-grid">
@@ -270,10 +271,33 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="editDriverModal">
+        <div class="modal-card">
+             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+                <h2 style="margin:0; font-weight:900; font-size:1.6rem;">Edit Personnel</h2>
+                <button class="btn-outline" style="width:36px; height:36px; padding:0; border-radius:12px;" onclick="closeModal('editDriverModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="editDriverForm">
+                <input type="hidden" id="editDriverId">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                    <div class="form-group" style="grid-column: span 2;"><label>Full Legal Name</label><input type="text" id="editDriverName" placeholder="e.g. John Doe" required></div>
+                    <div class="form-group"><label>Email Address</label><input type="email" id="editDriverEmail" placeholder="email@transitway.com" required></div>
+                    <div class="form-group"><label>Phone Signal</label><input type="tel" id="editDriverPhone" placeholder="+20 XXX XXX XXXX" required></div>
+                    <div class="form-group" style="grid-column: span 2;"><label>License Token</label><input type="text" id="editDriverLicense" placeholder="LNC-XXXX" required></div>
+                    <div class="form-group" style="grid-column: span 2;"><label>Update Password (Optional)</label><input type="password" id="editDriverPassword" placeholder="Leave blank to keep current"></div>
+                </div>
+                <div style="display:flex; gap:15px; margin-top:20px;">
+                    <button type="button" class="btn-outline" style="flex:1; padding:15px;" onclick="closeModal('editDriverModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" style="flex:2; padding:15px; background:var(--primary-color);">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="auth.js"></script>
-    <script src="drivers-logic.js?v=3.2"></script>
+    <script src="drivers-logic.js?v=3.0"></script>
     <script>function closeModal(id){ document.getElementById(id).classList.remove('active'); }</script>
     <script src="notifications.js?v=2.0"></script>
 </body>

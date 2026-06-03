@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="i18n.js?v=1.1"></script>
     <style>
-        /* Premium Dashboard Design */
+        
         .report-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 25px; }
         .stat-card {
             background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 22px;
@@ -148,7 +148,7 @@
             <section class="v-card" style="padding:0; overflow:hidden;">
                 <table class="data-table" style="width:100%;">
                     <thead>
-                        <tr><th>Ticket</th><th>Category</th><th>Source Asset</th><th>Reporter</th><th>Priority</th><th>Status</th><th>Actions</th></tr>
+                        <tr><th>Ticket</th><th>Category</th><th>Reporter</th><th>Priority</th><th>Status</th><th>Actions</th></tr>
                     </thead>
                     <tbody id="reportsTableBody"></tbody>
                 </table>
@@ -166,19 +166,25 @@
             </div>
             <div class="rd-body">
                 <div class="rd-grid" id="rdGrid">
-                    <!-- Dynamic Fields -->
+                    
                 </div>
                 <div id="rdMessage" style="background:var(--bg-main); padding:20px; border-radius:18px; border:1px solid var(--border-color); margin-bottom:30px;">
-                    <!-- Message Content -->
+                    
+                </div>
+                <div id="rdPredictionsContainer" style="display:none; margin-bottom:30px; background:var(--bg-main); padding:20px; border-radius:18px; border:1px solid var(--border-color);">
+                    <p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;"><i class="fas fa-microchip"></i> Cognitive AI Detection</p>
+                    <div id="rdPredictionsList" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
                 </div>
                 <div class="rd-image-section" id="rdImageBox">
                     <div class="rd-img-box">
                         <div class="rd-img-label"><i class="fas fa-camera"></i> Source Evidence</div>
-                        <img id="rdImageOrig" src="" alt="Source">
+                        <img id="rdImageOrig" src="" alt="Source" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="img-fallback" style="display:none; width:100%; height:200px; align-items:center; justify-content:center; flex-direction:column; background:var(--bg-main); color:var(--text-muted); font-weight:700;"><i class="fas fa-image" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i>Image Unavailable</div>
                     </div>
                     <div class="rd-img-box" style="border-color:#3b82f644;">
                         <div class="rd-img-label" style="background:rgba(59,130,246,0.8);"><i class="fas fa-robot"></i> AI Neural View</div>
-                        <img id="rdImageAI" src="" alt="AI Result">
+                        <img id="rdImageAI" src="" alt="AI Result" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="img-fallback" style="display:none; width:100%; height:200px; align-items:center; justify-content:center; flex-direction:column; background:var(--bg-main); color:var(--text-muted); font-weight:700;"><i class="fas fa-robot" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i>AI Image Expired / Down</div>
                     </div>
                 </div>
                 <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:35px;">
@@ -193,10 +199,9 @@
     <script src="supabase-client.js"></script>
     <script src="user-dropdown.js"></script>
     <script src="auth.js"></script>
-    <script src="reports-logic.js?v=3.1"></script>
-    <script src="notifications.js?v=999.0"></script>
+    <script src="reports-logic.js?v=4.0"></script>
+    <script src="notifications.js?v=2.0"></script>
 </body>
 </html>
-
 
 
