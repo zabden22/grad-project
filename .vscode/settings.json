@@ -4,6 +4,6 @@
     "editor.insertSpaces": true,
     "editor.wordWrap": "on",
     "files.autoSave": "afterDelay",
-    "liveServer.settings.port": 5501,
+    "liveServer.settings.port": 5502,
     "deno.enable": true
 }

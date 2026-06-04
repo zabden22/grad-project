@@ -1,7 +1,5 @@
-window.SUPABASE_URL = (window.location.port === '8000') 
-    ? window.location.origin + '/supabase-proxy' 
-    : 'http://localhost:8000/supabase-proxy';
-window.SUPABASE_KEY = 'sb_publishable_9Wx6xT9aRlDu_ms9iQqJgw_y0Nncy44';
+window.SUPABASE_URL = 'https://vrgcsoeepbwnedzjwiqb.supabase.co';
+window.SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyZ2Nzb2VlcGJ3bmVkemp3aXFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjAwNjcsImV4cCI6MjA5NTk5NjA2N30.Y8xNowU9NoE9y8IXH-9wL0S7paHcVR4kqYKif0BqiDE';
 
 
 // Photo caching is now handled via the DB `profile_image` column
@@ -229,9 +227,7 @@ window.supabase = {
     var localRealtimeChannels = {};
 
     function initLocalRealtime() {
-        var sseUrl = (window.location.port === '8000') 
-            ? window.location.origin + '/local-realtime' 
-            : 'http://localhost:8000/local-realtime';
+        var sseUrl = window.SUPABASE_URL + '/realtime/v1';
             
         console.log('[TransitWay Realtime] Connecting to local SSE at:', sseUrl);
         var es = new EventSource(sseUrl);
