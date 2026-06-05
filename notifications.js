@@ -88,19 +88,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof supabase === 'undefined') return;
             
             try {
-                const { data } = await supabase
+                // Fetch latest complaints to populate alertedIds
+                const { data: compData } = await supabase
                     .from('complaints')
-                    .select('created_at, id')
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-                
-                if (data && data.length > 0) {
-                    baselineTime = new Date(data[0].created_at).getTime();
-                    alertedIds.add(data[0].id);
+                    .select('id');
+                if (compData) {
+                    compData.forEach(c => alertedIds.add(c.id));
                 }
-                console.log('[TransitWay] Intelligence Link Established. Baseline:', new Date(baselineTime).toLocaleTimeString());
+
+                // Fetch latest sos_alerts to populate alertedIds
+                const { data: sosData } = await supabase
+                    .from('sos_alerts')
+                    .select('id');
+                if (sosData) {
+                    sosData.forEach(a => alertedIds.add(a.id));
+                }
+
+                console.log('[TransitWay] Intelligence Link Established. Known IDs populated:', alertedIds.size);
             } catch (e) { 
-                console.warn('[TransitWay] Baseline sync failed, using client time.');
+                console.warn('[TransitWay] Baseline sync failed.', e);
             }
 
             pollNotifications();
@@ -109,34 +115,32 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.supabaseAuth) {
                 console.log('[TransitWay] Using Realtime for notifications.');
                 window.supabaseAuth.channel('notifications_realtime')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, (payload) => {
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaints' }, (payload) => {
                         console.log('[TransitWay Realtime Notif]', payload);
-                        if (payload.eventType === 'INSERT') {
-                            const report = payload.new;
-                            const reportTime = new Date(report.created_at || report.createdAt).getTime();
-                            if (reportTime > baselineTime && !alertedIds.has(report.id)) {
-                                alertedIds.add(report.id);
-                                triggerAlert(report);
-                            }
+                        const report = payload.new;
+                        if (!alertedIds.has(report.id)) {
+                            alertedIds.add(report.id);
+                            triggerAlert(report);
                         }
                         pollNotifications();
                     })
                     .subscribe();
 
                 window.supabaseAuth.channel('notifications_sos_realtime')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'sos_alerts' }, (payload) => {
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sos_alerts' }, (payload) => {
                         console.log('[TransitWay Realtime SOS Notif]', payload);
-                        if (payload.eventType === 'INSERT') {
-                            const alert = payload.new;
-                            const alertTime = new Date(alert.created_at).getTime();
-                            if (alertTime > baselineTime && !alertedIds.has(alert.id)) {
-                                alertedIds.add(alert.id);
-                                triggerSOSAlert(alert);
-                            }
-                            updateSOSLinkPulse(true);
-                        } else if (payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
-                            checkActiveSOS();
+                        const alert = payload.new;
+                        if (!alertedIds.has(alert.id)) {
+                            alertedIds.add(alert.id);
+                            triggerSOSAlert(alert);
                         }
+                        updateSOSLinkPulse(true);
+                    })
+                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sos_alerts' }, (payload) => {
+                        checkActiveSOS();
+                    })
+                    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'sos_alerts' }, (payload) => {
+                        checkActiveSOS();
                     })
                     .subscribe();
             } else {
@@ -393,12 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const pendingReports = data.filter(r => (r.status || '').toLowerCase() === 'pending');
                     
                     pendingReports.forEach(report => {
-                        const reportTime = new Date(report.created_at || report.createdAt).getTime();
-                        
-                        
-                        console.log(`[TransitWay] Checking Report ${report.id}: Time=${new Date(reportTime).toLocaleTimeString()}, Baseline=${new Date(baselineTime).toLocaleTimeString()}`);
-
-                        if (reportTime > baselineTime && !alertedIds.has(report.id)) {
+                        if (!alertedIds.has(report.id)) {
                             alertedIds.add(report.id);
                             triggerAlert(report);
                         }

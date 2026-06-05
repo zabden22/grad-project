@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedRouteFilter === 'shorouk') {
             filtered = filtered.filter(t => {
                 const trip = tripsMap[t.trip_id];
-                const routeId = trip ? trip.routeId : null;
+                const routeId = t.route_id || (trip ? trip.routeId : null);
                 const routeInfo = routesMap[routeId] || { name: "" };
                 const name = (routeInfo.name || "").toLowerCase();
                 return name.includes('shorouk') || name.includes('shrouk') || name.includes('شروق');
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (selectedRouteFilter === 'madinaty') {
             filtered = filtered.filter(t => {
                 const trip = tripsMap[t.trip_id];
-                const routeId = trip ? trip.routeId : null;
+                const routeId = t.route_id || (trip ? trip.routeId : null);
                 const routeInfo = routesMap[routeId] || { name: "" };
                 const name = (routeInfo.name || "").toLowerCase();
                 return name.includes('madinaty') || name.includes('madinty') || name.includes('مدينتي') || name.includes('مدينتى');
@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (selectedRouteFilter === 'badr') {
             filtered = filtered.filter(t => {
                 const trip = tripsMap[t.trip_id];
-                const routeId = trip ? trip.routeId : null;
+                const routeId = t.route_id || (trip ? trip.routeId : null);
                 const routeInfo = routesMap[routeId] || { name: "" };
                 const name = (routeInfo.name || "").toLowerCase();
                 return name.includes('badr') || name.includes('بدر');
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const simulatedCode = 'TCK-' + String(tck.id).substring(0, 8).toUpperCase();
             const passenger = usersMap[tck.user_id] || "Guest User";
             const trip = tripsMap[tck.trip_id];
-            const routeId = trip ? trip.routeId : null;
+            const routeId = tck.route_id || (trip ? trip.routeId : null);
             const routeInfo = routesMap[routeId] || { name: "General Route", price: 15 };
             const status = (tck.status || 'Active').toLowerCase();
             const rColor = getRouteColor(routeInfo.name);
@@ -256,8 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const simulatedCode = 'TCK-' + String(tck.id).substring(0, 8).toUpperCase();
         const passenger = usersMap[tck.user_id] || "Guest User";
         const trip = tripsMap[tck.trip_id];
-        const routeId = trip ? trip.routeId : null;
-        const busId = trip ? trip.busId : null;
+        const routeId = tck.route_id || (trip ? trip.routeId : null);
+        const busId = tck.bus_id || (trip ? trip.busId : null);
         const routeInfo = routesMap[routeId] || { name: "General Route", price: 15 };
         const busPlate = busesMap[busId] || "Not Assigned";
         const status = (tck.status || 'Active').toLowerCase();
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const rows = ticketsData.map(t => {
             const passenger = usersMap[t.user_id] || 'Guest';
             const trip = tripsMap[t.trip_id];
-            const routeId = trip ? trip.routeId : null;
+            const routeId = t.route_id || (trip ? trip.routeId : null);
             const route = routesMap[routeId] ? routesMap[routeId].name : 'Unknown';
             const price = t.price || (routesMap[routeId] ? routesMap[routeId].price : 15);
             const simulatedCode = 'TCK-' + String(t.id).substring(0, 8).toUpperCase();
@@ -526,6 +526,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const { error } = await supabase.from('tickets').insert({
                     trip_id: tripId,
                     user_id: userId,
+                    route_id: routeId || null,
+                    bus_id: busId || null,
                     price: 15,
                     status: 'active'
                 });
