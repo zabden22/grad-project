@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.supabaseAuth.channel('dashboard_realtime')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, (p) => updateLocalData('drivers', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'buses' }, (p) => updateLocalData('buses', p))
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, (p) => updateLocalData('complaints', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, (p) => updateLocalData('complaints', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (p) => updateLocalData('tickets', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (p) => updateLocalData('users', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, (p) => updateLocalData('stations', p))
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const [dRes, bRes, cRes, tRes, uRes, sRes, rRes] = await Promise.all([
                 supabase.from('drivers').select('*'),
                 supabase.from('buses').select('*'),
-                supabase.from('complaints').select('*'),
+                supabase.from('reports').select('*'),
                 supabase.from('tickets').select('*'),
                 supabase.from('users').select('*'),
                 supabase.from('stations').select('*').order('created_at', { ascending: true }),
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         end.setHours(23, 59, 59, 999);
         return arr.filter(item => {
             const val = item[dateKey];
-            if (!val) return false;
+            if (!val) return true;
             const d = new Date(val);
             return d >= start && d <= end;
         });
@@ -701,7 +701,8 @@ document.addEventListener('DOMContentLoaded', () => {
         kill('complaintsTimelineChart');
         const dayMap = {};
         complaints.forEach(c => {
-            const d = new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const dateVal = c.created_at;
+            const d = dateVal ? new Date(dateVal).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Pending/General';
             dayMap[d] = (dayMap[d] || 0) + 1;
         });
         const labels = Object.keys(dayMap).length > 0 ? Object.keys(dayMap) : ['No Data'];
@@ -722,8 +723,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let prevComplaintIds = [];
 
     function timeAgo(dateStr) {
+        if (!dateStr) return '';
         const now = new Date();
         const past = new Date(dateStr);
+        if (isNaN(past.getTime())) return '';
         const diffMs = now - past;
         const secs = Math.floor(diffMs / 1000);
         if (secs < 10) return 'just now';
@@ -754,7 +757,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 (c.status && c.status.toLowerCase().includes(searchQuery))
             );
         }
-        fc = fc.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
+        fc = fc.sort((a, b) => {
+            const aId = Number(a.id) || 0;
+            const bId = Number(b.id) || 0;
+            return bId - aId;
+        }).slice(0, 10);
         
         if (fc.length === 0) { 
             feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>No complaints yet</div>'; 
@@ -767,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
         feed.innerHTML = fc.map((c, i) => {
             const ago = timeAgo(c.created_at);
             const isNew = newIds.includes(c.id);
-            const icon = (c.problem_detected ?? c.problemDetected) !== false ? 'fa-exclamation-triangle' : 'fa-check-circle';
+            const icon = (c.problem_detected ?? c.problemDetected ?? c.problem_detec) !== false ? 'fa-exclamation-triangle' : 'fa-check-circle';
             const color = c.priority === 'Critical' ? '#ef4444' : c.priority === 'Medium' ? '#f59e0b' : '#10b981';
             
             const st = (c.status || '').toLowerCase();
@@ -781,11 +788,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border-color);transition:0.2s;${animStyle}" onmouseover="this.style.background='rgba(16,185,129,0.03)'" onmouseout="this.style.background='transparent'">
                 <div style="width:38px;height:38px;background:${color}15;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${color};flex-shrink:0;"><i class="fas ${icon}"></i></div>
                 <div style="flex:1;min-width:0;">
-                    <p style="margin:0;font-weight:800;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.subject || c.category || 'Report'} — Trip #${c.trip_id || c.bus_id || c.busId || 'N/A'} ${stBadge}</p>
-                    <p style="margin:0;font-size:0.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.description || c.text_complaint || c.textComplaint || 'No description'}</p>
+                    <p style="margin:0;font-weight:800;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.subject || c.category || 'Report'} — RPT #${c.id} ${stBadge}</p>
+                    <p style="margin:0;font-size:0.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.description || c.text_complain || c.text_complaint || c.textComplaint || 'No description'}</p>
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
-                    <span class="feed-time-ago" data-time="${c.created_at}" style="font-size:0.7rem;font-weight:700;color:${color};white-space:nowrap;">${ago}</span>
+                    <span class="feed-time-ago" data-time="${c.created_at || ''}" style="font-size:0.7rem;font-weight:700;color:${color};white-space:nowrap;">${ago}</span>
                 </div>
             </div>`;
         }).join('');

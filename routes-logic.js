@@ -464,7 +464,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const deletePromises = [];
                 if (tripIds.length > 0) {
-                    deletePromises.push(supabase.from('complaints').delete().in('trip_id', tripIds));
                     deletePromises.push(supabase.from('tickets').delete().in('trip_id', tripIds));
                     deletePromises.push(supabase.from('bus_locations').delete().in('trip_id', tripIds));
                 }

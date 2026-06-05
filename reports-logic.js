@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.loadReports = async function() {
         try {
-            const { data, error } = await supabase.from('complaints').select('*').order('created_at', { ascending: false });
+            const { data, error } = await supabase.from('reports').select('*').order('id', { ascending: false });
             if (error) throw error;
             reportsData = data || [];
             updateStats();
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             filtered = filtered.filter(r => 
                 (r.subject || r.category || '').toLowerCase().includes(query) ||
                 (r.reporter_name || '').toLowerCase().includes(query) ||
-                (r.description || r.text_complaint || '').toLowerCase().includes(query) ||
+                (r.description || r.text_complaint || r.text_complain || '').toLowerCase().includes(query) ||
                 (String(r.id)).includes(query) ||
                 (String(r.trip_id || r.bus_id)).includes(query)
             );
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const summaryText = langHelper ? t('ai_obs_summary') : 'AI Observation Summary';
         const emptyText = langHelper ? t('no_evidence_data') : 'No detailed neural data available for this signal.';
-        if(document.getElementById('rdMessage')) document.getElementById('rdMessage').innerHTML = `<p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;">${summaryText}</p><div style="font-weight:700; line-height:1.7; color:var(--text-main); font-size:1.05rem;">${rpt.description || rpt.text_complaint || rpt.content || emptyText}</div>`;
+        if(document.getElementById('rdMessage')) document.getElementById('rdMessage').innerHTML = `<p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;">${summaryText}</p><div style="font-weight:700; line-height:1.7; color:var(--text-main); font-size:1.05rem;">${rpt.description || rpt.text_complain || rpt.text_complaint || rpt.content || emptyText}</div>`;
         
         const originatorLabel = langHelper ? t('originator') : 'Originator';
         const interceptTimeLabel = langHelper ? t('intercept_time') : 'Intercept Time';
@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPredictions(rpt.ai_predictions);
 
         if(imgBox) {
-            const hasOrig = rpt.original_image || rpt.photo_url;
+            const hasOrig = rpt.original_image || rpt.photo_url || rpt.result_image;
             const hasAI = rpt.processed_image || rpt.result_image;
             
             // Helper: convert AI server URL to local proxy URL
@@ -307,15 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     // Update predictions in the UI
                                     renderPredictions(result.predictions);
                                     
-                                    // Update the database with the new URL and predictions
-                                    supabase.from('complaints').update({ 
-                                        processed_image: result.output_image,
-                                        ai_predictions: result.predictions || []
-                                    }).eq('id', rpt.id)
-                                        .then(res => {
-                                            if(res.error) console.warn('[AI] Failed to update DB:', res.error);
-                                            else console.log('[AI] Database updated with new processed_image URL and predictions');
-                                        });
+                                    // Skip database update as processed_image is not in reports table
+                                    console.log('[AI] Re-prediction completed locally');
                                     
                                     // Also update local data
                                     const localRpt = reportsData.find(r => String(r.id) === String(rpt.id));
@@ -366,14 +359,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                         // Update predictions in UI
                                         renderPredictions(result.predictions);
                                         
-                                        // Update database
-                                        supabase.from('complaints').update({ 
-                                            processed_image: result.output_image,
-                                            ai_predictions: result.predictions || []
-                                        }).eq('id', rpt.id).then(res => {
-                                            if(res.error) console.warn('[AI] Failed to update DB:', res.error);
-                                            else console.log('[AI] Database updated with new AI results');
-                                        });
+                                        // Skip database update as processed_image is not in reports table
+                                        console.log('[AI] Prediction completed locally');
                                         
                                         const localRpt = reportsData.find(r => String(r.id) === String(rpt.id));
                                         if(localRpt) {
@@ -420,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if(res.isConfirmed) {
             try {
-                const { error } = await supabase.from('complaints').update({ status: 'Resolved' }).eq('id', id);
+                const { error } = await supabase.from('reports').update({ status: 'Resolved' }).eq('id', id);
                 if(error) throw error;
                 Swal.fire({
                     icon: 'success', 
@@ -442,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (window.supabaseAuth) {
         window.supabaseAuth.channel('reports_realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, (payload) => {
                 if (payload.eventType === 'INSERT') {
                     reportsData.unshift(payload.new);
                 } else if (payload.eventType === 'UPDATE') {

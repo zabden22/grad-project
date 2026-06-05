@@ -88,9 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof supabase === 'undefined') return;
             
             try {
-                // Fetch latest complaints to populate alertedIds
+                // Fetch latest reports to populate alertedIds
                 const { data: compData } = await supabase
-                    .from('complaints')
+                    .from('reports')
                     .select('id');
                 if (compData) {
                     compData.forEach(c => alertedIds.add(c.id));
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.supabaseAuth) {
                 console.log('[TransitWay] Using Realtime for notifications.');
                 window.supabaseAuth.channel('notifications_realtime')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaints' }, (payload) => {
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, (payload) => {
                         console.log('[TransitWay Realtime Notif]', payload);
                         const report = payload.new;
                         if (!alertedIds.has(report.id)) {
@@ -153,9 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function triggerAlert(report) {
-            const text = report.text_complaint || report.textComplaint || 'Signal anomaly detected';
+            const text = report.text_complain || report.text_complaint || report.textComplaint || 'Signal anomaly detected';
             const category = report.category || 'System Alert';
-            const user = report.user_name || report.userName || 'Anonymous User';
+            const user = report.user_name || report.userName || report.user_id || 'Anonymous User';
             
             console.log('[TransitWay] TRIGGERING ALERT for report:', report.id);
 
@@ -386,9 +386,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof supabase === 'undefined') return;
             try {
                 const { data, error } = await supabase
-                    .from('complaints')
+                    .from('reports')
                     .select('*')
-                    .order('created_at', { ascending: false })
+                    .order('id', { ascending: false })
                     .limit(10);
 
                 if (error) throw error;
@@ -448,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const color = priority === 'critical' ? '#ef4444' : (priority === 'high' ? '#f59e0b' : '#3b82f6');
                         const icon = priority === 'critical' ? 'fa-radiation-alt' : (priority === 'high' ? 'fa-exclamation-triangle' : 'fa-info-circle');
                         
-                        const text = item.text_complaint || item.textComplaint || 'Signal anomaly detected';
+                        const text = item.text_complain || item.text_complaint || item.textComplaint || 'Signal anomaly detected';
                         const category = item.category || 'System Alert';
 
                         return `

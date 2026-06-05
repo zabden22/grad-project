@@ -352,7 +352,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 deletePromises.push(supabase.from('wallets').delete().eq('user_id', userId));
                 deletePromises.push(supabase.from('subscriptions').delete().eq('user_id', userId));
-                deletePromises.push(supabase.from('complaints').delete().eq('user_id', userId));
                 deletePromises.push(supabase.from('tickets').delete().eq('user_id', userId));
                 deletePromises.push(supabase.from('notifications').delete().eq('user_id', userId));
                 deletePromises.push(supabase.from('reports').delete().eq('user_id', userId));
