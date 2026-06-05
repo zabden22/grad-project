@@ -124,7 +124,7 @@
                 <div class="v-card donut-box" style="cursor:pointer;" onclick="window.location.href='buses.html'">
                     <div class="metric-header"><span data-i18n="bus_status">BUS STATUS</span></div>
                     <div class="donut-container">
-                        <canvas id="busStatusDonut"></canvas>
+                        <canvas id="busStatusDonut" onclick="event.stopPropagation()"></canvas>
                         <div class="donut-center-text"><h4 id="busTotalLabel">--</h4><span data-i18n="buses">Buses</span></div>
                     </div>
                 </div>
@@ -149,7 +149,7 @@
                         <h4 style="font-weight:900;"><i class="fas fa-ticket-alt" style="color:#8b5cf6; margin-right:8px;"></i>Ticket Revenue Analytics</h4>
                     </div>
                     <div style="height:320px; position:relative;">
-                        <canvas id="ticketRevenueChart"></canvas>
+                        <canvas id="ticketRevenueChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
@@ -158,7 +158,7 @@
                         <h4 style="font-weight:900;"><i class="fas fa-chart-bar" style="color:#06b6d4; margin-right:8px;"></i>Ticket Status Overview</h4>
                     </div>
                     <div style="height:320px; position:relative;">
-                        <canvas id="ticketStatusChart"></canvas>
+                        <canvas id="ticketStatusChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
@@ -168,7 +168,7 @@
                         <h4 style="font-weight:900;"><i class="fas fa-chart-pie" style="color:var(--primary-color); margin-right:8px;"></i>Complaints Breakdown</h4>
                     </div>
                     <div style="height:320px; position:relative;">
-                        <canvas id="complaintsBreakdownChart"></canvas>
+                        <canvas id="complaintsBreakdownChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
@@ -196,7 +196,7 @@
                         </div>
                     </div>
                     <div style="height:200px; position:relative;">
-                        <canvas id="userAnalyticsChart"></canvas>
+                        <canvas id="userAnalyticsChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
@@ -205,7 +205,7 @@
                         <h4 style="font-weight:900;"><i class="fas fa-trophy" style="color:#f59e0b; margin-right:8px;"></i>Top Drivers Performance</h4>
                     </div>
                     <div style="height:320px; position:relative;">
-                        <canvas id="driverPerformanceChart"></canvas>
+                        <canvas id="driverPerformanceChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
@@ -237,7 +237,7 @@
                         <h4 style="font-weight:900;"><i class="fas fa-route" style="color:#06b6d4; margin-right:8px;"></i>Route Distribution</h4>
                     </div>
                     <div style="height:300px; position:relative;">
-                        <canvas id="routeDistributionChart"></canvas>
+                        <canvas id="routeDistributionChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
@@ -248,7 +248,7 @@
 
                 <div class="v-card" style="grid-column: span 1; cursor:pointer;" onclick="window.location.href='reports.html'">
                     <h4 style="font-weight:900; margin-bottom:20px;"><i class="fas fa-fire" style="color:#ef4444; margin-right:8px;"></i>Complaint Priority</h4>
-                    <div style="height:220px;"><canvas id="complaintPriorityChart"></canvas></div>
+                    <div style="height:220px;"><canvas id="complaintPriorityChart" onclick="event.stopPropagation()"></canvas></div>
                 </div>
 
                 
@@ -271,7 +271,7 @@
                         <h4 style="font-weight:900;"><i class="fas fa-chart-area" style="color:#8b5cf6; margin-right:8px;"></i>Complaints Timeline</h4>
                     </div>
                     <div style="height:300px; position:relative;">
-                        <canvas id="complaintsTimelineChart"></canvas>
+                        <canvas id="complaintsTimelineChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
@@ -304,7 +304,7 @@
                         </div>
                     </div>
                     <div style="height:250px; position:relative;">
-                        <canvas id="stationDistributionChart"></canvas>
+                        <canvas id="stationDistributionChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
