@@ -101,7 +101,7 @@
             <header class="top-header">
                 <div class="header-left">
                     <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
-                    <h2 data-i18n="reports">Strategic Reports</h2>
+                    <h2 data-i18n="strategic_reports">Strategic Reports</h2>
                 </div>
                 <div class="header-right">
                     <div class="search-bar" style="width:300px;"><i class="fas fa-search"></i><input type="text" id="reportSearchInput" placeholder="Filter alerts or IDs..."></div>
@@ -116,39 +116,46 @@
             <div class="report-stats-grid">
                 <div class="stat-card">
                     <div class="sc-icon" style="background:rgba(139,92,246,0.1); color:#8b5cf6;"><i class="fas fa-satellite-dish"></i></div>
-                    <div class="sc-info"><h4 id="rptTotal">0</h4><p>Total Alerts</p></div>
+                    <div class="sc-info"><h4 id="rptTotal">0</h4><p data-i18n="total_alerts">Total Alerts</p></div>
                 </div>
                 <div class="stat-card">
                     <div class="sc-icon" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><i class="fas fa-clock"></i></div>
-                    <div class="sc-info"><h4 id="rptPending">0</h4><p>Pending</p></div>
+                    <div class="sc-info"><h4 id="rptPending">0</h4><p data-i18n="pending">Pending</p></div>
                 </div>
                 <div class="stat-card">
                     <div class="sc-icon" style="background:rgba(16,185,129,0.1); color:#10b981;"><i class="fas fa-check-double"></i></div>
-                    <div class="sc-info"><h4 id="rptResolved">0</h4><p>Resolved</p></div>
+                    <div class="sc-info"><h4 id="rptResolved">0</h4><p data-i18n="resolved">Resolved</p></div>
                 </div>
                 <div class="stat-card">
                     <div class="sc-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-bolt"></i></div>
-                    <div class="sc-info"><h4 id="rptCritical">0</h4><p>Critical</p></div>
+                    <div class="sc-info"><h4 id="rptCritical">0</h4><p data-i18n="critical">Critical</p></div>
                 </div>
             </div>
 
             <div class="filter-header">
                 <div style="display:flex; align-items:center; gap:20px;">
                     <div class="filter-chips" id="reportFilters">
-                        <div class="filter-chip active" data-filter="all">All Logs</div>
-                        <div class="filter-chip" data-filter="pending">Pending</div>
-                        <div class="filter-chip" data-filter="critical">Critical</div>
-                        <div class="filter-chip" data-filter="resolved">Archived</div>
+                        <div class="filter-chip active" data-filter="all" data-i18n="all_logs">All Logs</div>
+                        <div class="filter-chip" data-filter="pending" data-i18n="pending">Pending</div>
+                        <div class="filter-chip" data-filter="critical" data-i18n="critical">Critical</div>
+                        <div class="filter-chip" data-filter="resolved" data-i18n="archived">Archived</div>
                     </div>
-                    <div class="live-indicator"><div class="pulse-dot"></div> Live Monitoring</div>
+                    <div class="live-indicator"><div class="pulse-dot"></div> <span data-i18n="live_monitoring">Live Monitoring</span></div>
                 </div>
-                <button class="btn-primary" onclick="loadReports()"><i class="fas fa-sync-alt"></i> Force Refresh</button>
+                <button class="btn-primary" onclick="loadReports()"><i class="fas fa-sync-alt"></i> <span data-i18n="force_refresh">Force Refresh</span></button>
             </div>
 
             <section class="v-card" style="padding:0; overflow:hidden;">
                 <table class="data-table" style="width:100%;">
                     <thead>
-                        <tr><th>Ticket</th><th>Category</th><th>Reporter</th><th>Priority</th><th>Status</th><th>Actions</th></tr>
+                        <tr>
+                            <th data-i18n="id">ID</th>
+                            <th data-i18n="category">Category</th>
+                            <th data-i18n="reporter">Reporter</th>
+                            <th data-i18n="priority">Priority</th>
+                            <th data-i18n="status">Status</th>
+                            <th data-i18n="actions">Actions</th>
+                        </tr>
                     </thead>
                     <tbody id="reportsTableBody"></tbody>
                 </table>
@@ -161,7 +168,7 @@
         <div class="report-detail-card">
             <div class="rd-header">
                 <div class="rd-close" onclick="closeReportDetail()"><i class="fas fa-times"></i></div>
-                <h2 id="rdTitle" style="margin:0; font-size:1.8rem; font-weight:900;">Report Analysis</h2>
+                <h2 id="rdTitle" style="margin:0; font-size:1.8rem; font-weight:900;" data-i18n="report_analysis">Report Analysis</h2>
                 <p id="rdSubtitle" style="margin:5px 0 0; color:var(--text-muted); font-weight:700; font-size:0.9rem;">ID: RPT-000</p>
             </div>
             <div class="rd-body">
@@ -172,23 +179,23 @@
                     
                 </div>
                 <div id="rdPredictionsContainer" style="display:none; margin-bottom:30px; background:var(--bg-main); padding:20px; border-radius:18px; border:1px solid var(--border-color);">
-                    <p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;"><i class="fas fa-microchip"></i> Cognitive AI Detection</p>
+                    <p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;"><i class="fas fa-microchip"></i> <span data-i18n="cognitive_ai_detect">Cognitive AI Detection</span></p>
                     <div id="rdPredictionsList" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
                 </div>
                 <div class="rd-image-section" id="rdImageBox">
                     <div class="rd-img-box">
-                        <div class="rd-img-label"><i class="fas fa-camera"></i> Source Evidence</div>
+                        <div class="rd-img-label"><i class="fas fa-camera"></i> <span data-i18n="source_evidence">Source Evidence</span></div>
                         <img id="rdImageOrig" src="" alt="Source" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <div class="img-fallback" style="display:none; width:100%; height:200px; align-items:center; justify-content:center; flex-direction:column; background:var(--bg-main); color:var(--text-muted); font-weight:700;"><i class="fas fa-image" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i>Image Unavailable</div>
+                        <div class="img-fallback" style="display:none; width:100%; height:200px; align-items:center; justify-content:center; flex-direction:column; background:var(--bg-main); color:var(--text-muted); font-weight:700;"><i class="fas fa-image" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i><span data-i18n="image_unavailable">Image Unavailable</span></div>
                     </div>
                     <div class="rd-img-box" style="border-color:#3b82f644;">
-                        <div class="rd-img-label" style="background:rgba(59,130,246,0.8);"><i class="fas fa-robot"></i> AI Neural View</div>
+                        <div class="rd-img-label" style="background:rgba(59,130,246,0.8);"><i class="fas fa-robot"></i> <span data-i18n="ai_neural_view">AI Neural View</span></div>
                         <img id="rdImageAI" src="" alt="AI Result" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <div class="img-fallback" style="display:none; width:100%; height:200px; align-items:center; justify-content:center; flex-direction:column; background:var(--bg-main); color:var(--text-muted); font-weight:700;"><i class="fas fa-robot" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i>AI Image Expired / Down</div>
+                        <div class="img-fallback" style="display:none; width:100%; height:200px; align-items:center; justify-content:center; flex-direction:column; background:var(--bg-main); color:var(--text-muted); font-weight:700;"><i class="fas fa-robot" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i><span data-i18n="ai_image_expired">AI Image Expired / Down</span></div>
                     </div>
                 </div>
                 <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:35px;">
-                    <button class="btn-outline" style="padding:12px 25px;" onclick="closeReportDetail()">Dismiss View</button>
+                    <button class="btn-outline" style="padding:12px 25px;" onclick="closeReportDetail()" data-i18n="dismiss_view">Dismiss View</button>
                     <div id="rdActionBtnContainer"></div>
                 </div>
             </div>

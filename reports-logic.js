@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
             filterReports();
         } catch(e) {
             console.error('Error loading reports', e);
-            if(tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:60px;color:#ef4444;font-weight:800;">Failed to fetch reports from neural network. Check connection.</td></tr>`;
+            if(tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:60px;color:#ef4444;font-weight:800;">${typeof t === 'function' ? t('failed_fetch_reports') : 'Failed to fetch reports from base console. Check connection.'}</td></tr>`;
         }
     };
 
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tbody.innerHTML = '';
         if(filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:60px;color:var(--text-muted);font-weight:700;"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:10px;opacity:0.2;"></i>No signals found matching your parameters.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:60px;color:var(--text-muted);font-weight:700;"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:10px;opacity:0.2;"></i>${typeof t === 'function' ? t('no_signals_found') : 'No signals found matching your parameters.'}</td></tr>`;
             return;
         }
 
@@ -139,8 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tr.innerHTML = `
                 <td><div style="font-weight:900; color:var(--primary-color);">#RPT-${String(rpt.id).padStart(3,'0')}</div></td>
-                <td><div style="font-weight:800; color:var(--text-main);">${rpt.subject || rpt.category || 'General'}</div></td>
-                <td><div style="font-weight:700;">${rpt.reporter_name || rpt.user_id || 'Guest User'}</div></td>
+                <td><div style="font-weight:800; color:var(--text-main);">${rpt.subject || rpt.category || (typeof t === 'function' ? t('general') : 'General')}</div></td>
+                <td><div style="font-weight:700;">${rpt.reporter_name || rpt.user_id || (typeof t === 'function' ? t('guest_user') : 'Guest User')}</div></td>
                 <td>${prioBadge}</td>
                 <td>${statusBadge}</td>
                 <td>
@@ -152,6 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             tbody.appendChild(tr);
         });
+        if (typeof applyLang === 'function') applyLang();
     }
 
     if(searchInput) searchInput.addEventListener('input', filterReports);
@@ -164,14 +165,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const rpt = reportsData.find(r => String(r.id) === String(id));
         if(!rpt) return;
         
-        if(document.getElementById('rdTitle')) document.getElementById('rdTitle').innerText = rpt.subject || rpt.category || 'Signal Analysis';
+        const langHelper = typeof t === 'function';
+        if(document.getElementById('rdTitle')) document.getElementById('rdTitle').innerText = rpt.subject || rpt.category || (langHelper ? t('strategic_reports') : 'Signal Analysis');
         if(document.getElementById('rdSubtitle')) document.getElementById('rdSubtitle').innerText = 'IDENTIFIER: RPT-' + String(rpt.id).padStart(3,'0');
-        if(document.getElementById('rdMessage')) document.getElementById('rdMessage').innerHTML = `<p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;">AI Observation Summary</p><div style="font-weight:700; line-height:1.7; color:var(--text-main); font-size:1.05rem;">${rpt.description || rpt.text_complaint || rpt.content || 'No detailed neural data available for this signal.'}</div>`;
+        
+        const summaryText = langHelper ? t('ai_obs_summary') : 'AI Observation Summary';
+        const emptyText = langHelper ? t('no_evidence_data') : 'No detailed neural data available for this signal.';
+        if(document.getElementById('rdMessage')) document.getElementById('rdMessage').innerHTML = `<p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;">${summaryText}</p><div style="font-weight:700; line-height:1.7; color:var(--text-main); font-size:1.05rem;">${rpt.description || rpt.text_complaint || rpt.content || emptyText}</div>`;
+        
+        const originatorLabel = langHelper ? t('originator') : 'Originator';
+        const interceptTimeLabel = langHelper ? t('intercept_time') : 'Intercept Time';
+        const threatLevelLabel = langHelper ? t('threat_level') : 'Threat Level';
+        const guestUserText = langHelper ? t('guest_user') : 'External Signal';
         
         let gridHtml = `
-            <div class="rd-field"><p class="rd-label"><i class="fas fa-user-astronaut"></i> Originator</p><p class="rd-value">${rpt.reporter_name || rpt.user_id || 'External Signal'}</p></div>
-            <div class="rd-field"><p class="rd-label"><i class="fas fa-clock"></i> Intercept Time</p><p class="rd-value">${rpt.created_at ? new Date(rpt.created_at).toLocaleString() : 'Timestamp Unknown'}</p></div>
-            <div class="rd-field"><p class="rd-label"><i class="fas fa-shield-alt"></i> Threat Level</p><p class="rd-value" style="color:${(rpt.priority||'').toLowerCase()==='critical'?'#ef4444':'#3b82f6'}">${rpt.priority || 'Standard'}</p></div>
+            <div class="rd-field"><p class="rd-label"><i class="fas fa-user-astronaut"></i> ${originatorLabel}</p><p class="rd-value">${rpt.reporter_name || rpt.user_id || guestUserText}</p></div>
+            <div class="rd-field"><p class="rd-label"><i class="fas fa-clock"></i> ${interceptTimeLabel}</p><p class="rd-value">${rpt.created_at ? new Date(rpt.created_at).toLocaleString() : 'Timestamp Unknown'}</p></div>
+            <div class="rd-field"><p class="rd-label"><i class="fas fa-shield-alt"></i> ${threatLevelLabel}</p><p class="rd-value" style="color:${(rpt.priority||'').toLowerCase()==='critical'?'#ef4444':'#3b82f6'}">${rpt.priority || 'Standard'}</p></div>
         `;
         if(document.getElementById('rdGrid')) document.getElementById('rdGrid').innerHTML = gridHtml;
 
@@ -179,9 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if(actionBtnContainer) {
             const status = (rpt.status || 'Pending').toLowerCase();
             if(status !== 'resolved') {
-                actionBtnContainer.innerHTML = `<button class="btn-primary" style="padding:12px 30px; background:#10b981;" onclick="window.resolveReport('${rpt.id}')"><i class="fas fa-check-double"></i> Mark Resolved</button>`;
+                const resolveText = langHelper ? t('mark_resolved') : 'Mark Resolved';
+                actionBtnContainer.innerHTML = `<button class="btn-primary" style="padding:12px 30px; background:#10b981;" onclick="window.resolveReport('${rpt.id}')"><i class="fas fa-check-double"></i> ${resolveText}</button>`;
             } else {
-                actionBtnContainer.innerHTML = `<button class="btn-primary" style="padding:12px 30px; background:#64748b; cursor:default;" disabled><i class="fas fa-archive"></i> Archived</button>`;
+                const archivedText = langHelper ? t('archived') : 'Archived';
+                actionBtnContainer.innerHTML = `<button class="btn-primary" style="padding:12px 30px; background:#64748b; cursor:default;" disabled><i class="fas fa-archive"></i> ${archivedText}</button>`;
             }
         }
 
@@ -394,13 +406,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.resolveReport = async (id) => {
+        const isAr = typeof getLang === 'function' && getLang() === 'ar';
         const res = await Swal.fire({
-            title: 'Close Signal?',
-            text: "This will archive the report and notify the intelligence network.",
+            title: isAr ? 'إغلاق البلاغ؟' : 'Close Signal?',
+            text: isAr ? 'سيؤدي هذا إلى أرشفة التقرير وإعلام شبكة العمليات.' : 'This will archive the report and notify the intelligence network.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#10b981',
-            confirmButtonText: 'Yes, Archive',
+            confirmButtonText: isAr ? 'نعم، أرشفة' : 'Yes, Archive',
+            cancelButtonText: isAr ? 'إلغاء' : 'Cancel',
             background: 'var(--bg-card)', color: 'var(--text-main)'
         });
 
@@ -408,11 +422,18 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const { error } = await supabase.from('complaints').update({ status: 'Resolved' }).eq('id', id);
                 if(error) throw error;
-                Swal.fire({icon: 'success', title: 'Signal Archived', timer: 1000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)'});
+                Swal.fire({
+                    icon: 'success', 
+                    title: isAr ? 'تمت أرشفة البلاغ' : 'Signal Archived', 
+                    timer: 1000, 
+                    showConfirmButton: false, 
+                    background: 'var(--bg-card)', 
+                    color: 'var(--text-main)'
+                });
                 window.closeReportDetail();
                 window.loadReports();
             } catch(e) {
-                Swal.fire('Error', 'Internal telemetry error', 'error');
+                Swal.fire(isAr ? 'خطأ' : 'Error', isAr ? 'حدث خطأ في النظام الداخلي' : 'Internal telemetry error', 'error');
             }
         }
     };
