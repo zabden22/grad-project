@@ -156,6 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
         filteredList.forEach((bus, index) => {
             const serialNum   = String(index + 1).padStart(4, '0');
             const color       = getRouteColor(bus.routeId, index);
+            const routeObj    = routesData.find(r => String(r.id) === String(bus.routeId) || String(r.line_number) === String(bus.routeId));
+            const routeName   = routeObj ? routeObj.name : (bus.routeId ? `Route #${bus.routeId}` : 'Unassigned');
             const statusBadge = bus.isActive 
                 ? `<span class="status-badge status-active"><div class="pulse-dot"></div> Operational</span>`
                 : `<span class="status-badge status-inactive">Standby</span>`;
@@ -176,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td style="font-family:monospace; font-weight:900;">${bus.plateNumber}</td>
                 <td><span style="font-weight:800;">${bus.license}</span></td>
-                <td><span class="route-badge" style="background:${color}; color:#fff; padding:4px 12px; border-radius:8px; font-weight:900; font-size:0.7rem;">ROUTE #${bus.routeId || '?' }</span></td>
+                <td><span class="route-badge" style="background:${color}; color:#fff; padding:4px 12px; border-radius:8px; font-weight:900; font-size:0.7rem;">${routeName}</span></td>
                 <td><div style="display:flex; align-items:center; gap:8px; font-weight:900;"><i class="fas fa-users" style="color:${color};"></i> ${bus.capacity}</div></td>
                 <td>${bus.driverName || 'Unassigned'}</td>
                 <td>${statusBadge}</td>
@@ -196,7 +198,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase().trim();
-            const filtered = busesData.filter(b => String(b.busNumber).includes(query) || b.plateNumber.toLowerCase().includes(query));
+            const filtered = busesData.filter(b => {
+                const routeObj = routesData.find(r => String(r.id) === String(b.routeId) || String(r.line_number) === String(b.routeId));
+                const routeName = routeObj ? routeObj.name.toLowerCase() : '';
+                return String(b.busNumber).includes(query) || 
+                       b.plateNumber.toLowerCase().includes(query) ||
+                       routeName.includes(query);
+            });
             renderTable(filtered);
         });
     }

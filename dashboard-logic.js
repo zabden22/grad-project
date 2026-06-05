@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.setAttribute('data-theme', theme);
 
     let drivers = [], buses = [], complaints = [], driverDetails = [], tickets = [], users = [], stations = [], routes = [];
+    let searchQuery = '';
     let calendarInstance = null;
     const initNow = new Date();
     let dateFrom = new Date(initNow.getFullYear(), initNow.getMonth(), 1);
@@ -138,6 +139,21 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.setAttribute('data-theme', nw);
             localStorage.setItem('siteTheme', nw);
         };
+
+        const searchInput = document.getElementById('globalSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase().trim();
+                updateLiveFeed();
+                renderStationZoneBreakdown();
+                renderRecentActivity();
+            });
+            const searchIcon = document.querySelector('.search-bar i');
+            if (searchIcon) {
+                searchIcon.style.cursor = 'pointer';
+                searchIcon.addEventListener('click', () => searchInput.focus());
+            }
+        }
     }
 
     function initCalendar() {
@@ -723,7 +739,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateLiveFeed() {
         const feed = document.getElementById('liveTelemetryList');
         if (!feed) return;
-        const fc = complaints.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
+        let fc = complaints.slice();
+        if (searchQuery) {
+            fc = fc.filter(c => 
+                (c.subject && c.subject.toLowerCase().includes(searchQuery)) ||
+                (c.category && c.category.toLowerCase().includes(searchQuery)) ||
+                (c.description && c.description.toLowerCase().includes(searchQuery)) ||
+                (c.text_complaint && c.text_complaint.toLowerCase().includes(searchQuery)) ||
+                (c.textComplaint && c.textComplaint.toLowerCase().includes(searchQuery)) ||
+                (String(c.trip_id || '').toLowerCase().includes(searchQuery)) ||
+                (String(c.bus_id || '').toLowerCase().includes(searchQuery)) ||
+                (String(c.busId || '').toLowerCase().includes(searchQuery)) ||
+                (c.priority && c.priority.toLowerCase().includes(searchQuery)) ||
+                (c.status && c.status.toLowerCase().includes(searchQuery))
+            );
+        }
+        fc = fc.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
         
         if (fc.length === 0) { 
             feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>No complaints yet</div>'; 
@@ -835,7 +866,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const ZONE_COLORS = { 'cairo zone': '#3b82f6', 'el-shrouk zone': '#ef4444', 'el- shrouk zone': '#ef4444', 'el shrouk zone': '#ef4444', 'shrouk zone': '#ef4444', 'shorouk zone': '#ef4444', 'madinty zone': '#f59e0b', 'madinaty zone': '#f59e0b', 'badr zone': '#8b5cf6', 'capital zone': '#14b8a6', 'new capital zone': '#14b8a6' };
         const ZONE_ICONS = { 'cairo zone': 'fa-city', 'el-shrouk zone': 'fa-sun', 'el- shrouk zone': 'fa-sun', 'el shrouk zone': 'fa-sun', 'shrouk zone': 'fa-sun', 'shorouk zone': 'fa-sun', 'madinty zone': 'fa-building', 'madinaty zone': 'fa-building', 'badr zone': 'fa-mountain', 'capital zone': 'fa-landmark', 'new capital zone': 'fa-landmark' };
         const zoneMap = {};
-        stations.forEach(s => {
+        let filteredStations = stations;
+        if (searchQuery) {
+            filteredStations = stations.filter(s => 
+                (s.name && s.name.toLowerCase().includes(searchQuery)) ||
+                (s.zone && s.zone.toLowerCase().includes(searchQuery))
+            );
+        }
+        filteredStations.forEach(s => {
             const z = (s.zone || 'Unknown').trim();
             if (!zoneMap[z]) zoneMap[z] = [];
             zoneMap[z].push(s.name);
@@ -945,7 +983,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         
         activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-        const latest = activities.slice(0, 12);
+        let filteredActivities = activities;
+        if (searchQuery) {
+            filteredActivities = activities.filter(a => 
+                (a.title && a.title.toLowerCase().includes(searchQuery)) ||
+                (a.detail && a.detail.toLowerCase().includes(searchQuery)) ||
+                (a.type && a.type.toLowerCase().includes(searchQuery))
+            );
+        }
+        const latest = filteredActivities.slice(0, 12);
 
         if (latest.length === 0) {
             feed.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:2rem; opacity:0.3; margin-bottom:10px; display:block;"></i>No recent activity</div>';
