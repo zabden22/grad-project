@@ -159,19 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.handlePasswordChange = async function() {
-    const cur = document.getElementById('currentPassword').value;
-    const newP = document.getElementById('newPassword').value;
-    const conf = document.getElementById('confirmPassword').value;
-
-    if(!cur || !newP || !conf) return Swal.fire({ icon: 'warning', title: 'Protocol Incomplete', text: 'Fill all key fields.' });
-    if(newP !== conf) return Swal.fire({ icon: 'error', title: 'Mismatch', text: 'New keys do not match.' });
-
-    try {
-        await supabase.auth.updateUser({ password: newP });
-        Swal.fire({ icon: 'success', title: 'Access Keys Rotated', background: 'var(--bg-card)', color: 'var(--text-main)' });
-    } catch(err) { Swal.fire('Security Error', err.message, 'error'); }
-};
 
 window.confirmClearData = async function() {
     const res = await Swal.fire({

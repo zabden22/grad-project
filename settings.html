@@ -109,7 +109,6 @@
                     <div class="nav-item active" data-tab="profile" data-i18n="nav_profile"><i class="fas fa-user-shield"></i> Command Profile</div>
                     <div class="nav-item" data-tab="appearance" data-i18n="nav_appearance"><i class="fas fa-paint-brush"></i> UI Appearance</div>
                     <div class="nav-item" data-tab="alerts" data-i18n="nav_alerts"><i class="fas fa-bell"></i> Signal Alerts</div>
-                    <div class="nav-item" data-tab="security" data-i18n="nav_security"><i class="fas fa-key"></i> Protocol Security</div>
                     <div class="nav-item" data-tab="system" data-i18n="nav_system"><i class="fas fa-microchip"></i> System Core</div>
                 </nav>
 
@@ -206,21 +205,6 @@
                             </div>
                         </div>
                     </div>
-
-                    
-                    <div class="settings-content-wrap" id="tab-security">
-                        <div class="settings-card">
-                            <div class="card-header"><div class="card-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-shield-virus"></i></div><h3 style="margin:0; font-weight:900;" data-i18n="security_title">Access Encryption</h3></div>
-                            <div class="input-box"><label data-i18n="current_pass_label">Current Security Key</label><input type="password" id="currentPassword" placeholder="••••••••"></div>
-                            <div class="grid-2">
-                                <div class="input-box"><label data-i18n="new_pass_label">New Encryption Key</label><input type="password" id="newPassword" placeholder="New Password" data-i18n-ph="new_pass_ph"></div>
-                                <div class="input-box"><label data-i18n="confirm_pass_label">Confirm Key</label><input type="password" id="confirmPassword" placeholder="Confirm Password" data-i18n-ph="confirm_pass_ph"></div>
-                            </div>
-                            <button class="btn-primary" onclick="handlePasswordChange()" style="width:100%; padding:18px; background:#ef4444; margin-top:10px;" data-i18n="update_pass_btn"><i class="fas fa-lock" style="margin-right:8px;"></i> Rotate Access Protocol</button>
-                        </div>
-                    </div>
-
-                    
                     <div class="settings-content-wrap" id="tab-system">
                         <div class="settings-card danger-card">
                             <div class="card-header"><div class="card-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-radiation"></i></div><h3 style="margin:0; font-weight:900; color:#ef4444;" data-i18n="danger_zone_title">Terminal Zero</h3></div>
