@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('addRouteModal');
     const form = document.getElementById('addRouteForm');
     const stationCheckboxList = document.getElementById('routeStationCheckboxList');
+    let currentFilter = 'all'; // 'all', 'active', 'inactive', 'nodes'
 
     let dbStations = [];
 
@@ -101,8 +102,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateStats() {
         const total = routesData.length;
-        const active = total;
-        const inactive = 0;
+        
+        let active = 0;
+        let inactive = 0;
+        routesData.forEach(rt => {
+            const hasStations = dbStations.some(s => String(s.route_id || s.line_id) === String(rt.id));
+            if (hasStations) {
+                active++;
+            } else {
+                inactive++;
+            }
+        });
+
         let totalStations = routePoints.length;
 
         if(document.getElementById('rtStatTotal')) document.getElementById('rtStatTotal').innerText = total;
@@ -116,8 +127,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!container) return;
         const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
         let filtered = routesData;
+
+        // Apply stats filter
+        if (currentFilter === 'active' || currentFilter === 'nodes') {
+            filtered = routesData.filter(rt => dbStations.some(s => String(s.route_id || s.line_id) === String(rt.id)));
+        } else if (currentFilter === 'inactive') {
+            filtered = routesData.filter(rt => !dbStations.some(s => String(s.route_id || s.line_id) === String(rt.id)));
+        }
+
+        // Apply search query
         if(query) {
-            filtered = routesData.filter(r => 
+            filtered = filtered.filter(r => 
                 (r.name || '').toLowerCase().includes(query) ||
                 (String(r.id)).includes(query) ||
                 getRouteZone(r).toLowerCase().includes(query)
@@ -229,6 +249,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if(searchInput) searchInput.addEventListener('input', filterRoutes);
+
+    // Stats cards filter binding
+    const cardTotalRoutes = document.getElementById('cardTotalRoutes');
+    const cardActiveRoutes = document.getElementById('cardActiveRoutes');
+    const cardInactiveRoutes = document.getElementById('cardInactiveRoutes');
+    const cardNodesRoutes = document.getElementById('cardNodesRoutes');
+
+    if(cardTotalRoutes) cardTotalRoutes.addEventListener('click', () => setFilter('all'));
+    if(cardActiveRoutes) cardActiveRoutes.addEventListener('click', () => setFilter('active'));
+    if(cardInactiveRoutes) cardInactiveRoutes.addEventListener('click', () => setFilter('inactive'));
+    if(cardNodesRoutes) cardNodesRoutes.addEventListener('click', () => setFilter('nodes'));
+
+    function setFilter(filterName) {
+        currentFilter = filterName;
+        updateFilterVisuals();
+        filterRoutes();
+    }
+
+    function updateFilterVisuals() {
+        if(cardTotalRoutes) cardTotalRoutes.classList.toggle('selected-total', currentFilter === 'all');
+        if(cardActiveRoutes) cardActiveRoutes.classList.toggle('selected-active', currentFilter === 'active');
+        if(cardInactiveRoutes) cardInactiveRoutes.classList.toggle('selected-inactive', currentFilter === 'inactive');
+        if(cardNodesRoutes) cardNodesRoutes.classList.toggle('selected-nodes', currentFilter === 'nodes');
+    }
 
     window.openAddRouteModal = async () => {
         if(modal) modal.classList.add('active');
@@ -442,7 +486,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    loadDbStations().then(() => loadRoutes());
+    loadDbStations().then(() => {
+        loadRoutes();
+        updateFilterVisuals();
+    });
 
     if (window.supabaseAuth) {
         window.supabaseAuth.channel('routes_realtime')

@@ -26,11 +26,29 @@
 
         .route-stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 35px; }
         .stat-card-premium { 
-            
             padding: 26px; border-radius: 32px;
             position: relative; overflow: hidden;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 1px solid var(--border-color);
         }
         .stat-card-premium:hover { transform: translateY(-10px); box-shadow: 0 25px 50px rgba(16, 185, 129, 0.2); border-color: var(--primary-color); }
+        .stat-card-premium.selected-total {
+            border-color: #3b82f6 !important;
+            background: rgba(59, 130, 246, 0.05) !important;
+        }
+        .stat-card-premium.selected-active {
+            border-color: #10b981 !important;
+            background: rgba(16, 185, 129, 0.05) !important;
+        }
+        .stat-card-premium.selected-inactive {
+            border-color: #ef4444 !important;
+            background: rgba(239, 68, 68, 0.05) !important;
+        }
+        .stat-card-premium.selected-nodes {
+            border-color: #8b5cf6 !important;
+            background: rgba(139, 92, 246, 0.05) !important;
+        }
         
         
         .btn-glass {
@@ -143,22 +161,22 @@
             </header>
 
             <div class="route-stats-bar">
-                <div class="v-card stat-card-premium">
+                <div class="v-card stat-card-premium" id="cardTotalRoutes">
                     <div class="stat-icon-box" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-map-marked-alt"></i></div>
                     <p style="font-size:0.75rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin:0;">Total Network Routes</p>
                     <h3 id="rtStatTotal" style="font-size:2rem; font-weight:900; margin:5px 0 0;">0</h3>
                 </div>
-                <div class="v-card stat-card-premium">
+                <div class="v-card stat-card-premium" id="cardActiveRoutes">
                     <div class="stat-icon-box" style="background:rgba(16,185,129,0.1); color:#10b981;"><i class="fas fa-check-circle"></i></div>
                     <p style="font-size:0.75rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin:0;">Operational Assets</p>
                     <h3 id="rtStatActive" style="font-size:2rem; font-weight:900; margin:5px 0 0; color:#10b981;">0</h3>
                 </div>
-                <div class="v-card stat-card-premium">
+                <div class="v-card stat-card-premium" id="cardInactiveRoutes">
                     <div class="stat-icon-box" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-exclamation-triangle"></i></div>
                     <p style="font-size:0.75rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin:0;">Inactive / Offline</p>
                     <h3 id="rtStatInactive" style="font-size:2rem; font-weight:900; margin:5px 0 0; color:#ef4444;">0</h3>
                 </div>
-                <div class="v-card stat-card-premium">
+                <div class="v-card stat-card-premium" id="cardNodesRoutes">
                     <div class="stat-icon-box" style="background:rgba(139,92,246,0.1); color:#8b5cf6;"><i class="fas fa-network-wired"></i></div>
                     <p style="font-size:0.75rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin:0;">Network Nodes</p>
                     <h3 id="rtStatStations" style="font-size:2rem; font-weight:900; margin:5px 0 0; color:#8b5cf6;">0</h3>

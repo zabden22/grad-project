@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let tripsMap = {};
     let selectedAlert = null;
     let realtimeChannel = null;
+    let currentFilter = 'all'; // 'all', 'active', 'pending', 'resolved'
 
     // ═══════════════════════════════════════
     //  1. INITIALIZATION
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadAlerts();
         setupRealtime();
         bindEvents();
+        updateFilterVisuals();
     }
 
     // ═══════════════════════════════════════
@@ -127,9 +129,30 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderFeed() {
         if (!feedList) return;
 
+        // Apply filter
+        let filteredAlerts = allAlerts;
+        const todayStr = new Date().toDateString();
+
+        if (currentFilter === 'active') {
+            filteredAlerts = allAlerts.filter(a => {
+                const s = (a.status || '').toLowerCase();
+                return ['emergency', 'breakdown', 'critical', 'active'].includes(s);
+            });
+        } else if (currentFilter === 'pending') {
+            filteredAlerts = allAlerts.filter(a => {
+                const s = (a.status || '').toLowerCase();
+                return ['pending', 'warning', 'responding'].includes(s);
+            });
+        } else if (currentFilter === 'resolved') {
+            filteredAlerts = allAlerts.filter(a => {
+                const s = (a.status || '').toLowerCase();
+                return ['resolved', 'safe', 'secured'].includes(s) && new Date(a.created_at).toDateString() === todayStr;
+            });
+        }
+
         // Show only unresolved first, then resolved
-        const unresolved = allAlerts.filter(a => !isResolved(a));
-        const resolved = allAlerts.filter(a => isResolved(a));
+        const unresolved = filteredAlerts.filter(a => !isResolved(a));
+        const resolved = filteredAlerts.filter(a => isResolved(a));
         const sorted = [...unresolved, ...resolved];
 
         if (sorted.length === 0) {
@@ -264,6 +287,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // ═══════════════════════════════════════
     function bindEvents() {
         if (btnRefresh) btnRefresh.addEventListener('click', loadAlerts);
+
+        const cardActive = document.getElementById('cardActive');
+        const cardPending = document.getElementById('cardPending');
+        const cardResolved = document.getElementById('cardResolved');
+        const cardTotal = document.getElementById('cardTotal');
+
+        if (cardActive) cardActive.addEventListener('click', () => setFilter('active'));
+        if (cardPending) cardPending.addEventListener('click', () => setFilter('pending'));
+        if (cardResolved) cardResolved.addEventListener('click', () => setFilter('resolved'));
+        if (cardTotal) cardTotal.addEventListener('click', () => setFilter('all'));
 
         if (btnRespond) btnRespond.addEventListener('click', async () => {
             if (!selectedAlert) return;
@@ -465,6 +498,24 @@ document.addEventListener('DOMContentLoaded', () => {
             background: 'var(--bg-card)',
             color: 'var(--text-main)'
         });
+    }
+
+    function setFilter(filterName) {
+        currentFilter = filterName;
+        updateFilterVisuals();
+        renderFeed();
+    }
+
+    function updateFilterVisuals() {
+        const cardActive = document.getElementById('cardActive');
+        const cardPending = document.getElementById('cardPending');
+        const cardResolved = document.getElementById('cardResolved');
+        const cardTotal = document.getElementById('cardTotal');
+
+        if (cardActive) cardActive.classList.toggle('selected-active', currentFilter === 'active');
+        if (cardPending) cardPending.classList.toggle('selected-pending', currentFilter === 'pending');
+        if (cardResolved) cardResolved.classList.toggle('selected-resolved', currentFilter === 'resolved');
+        if (cardTotal) cardTotal.classList.toggle('selected-total', currentFilter === 'all');
     }
 
     // ─── Expose for external use ───
