@@ -65,6 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             localStorage.setItem('activeAdminName', payload.name);
             localStorage.setItem('adminLocation_' + adminId, document.getElementById('adminLocationInput').value);
+            if (phoneVal) {
+                localStorage.setItem('activeAdminPhone', phoneVal);
+                localStorage.setItem('adminPhone_' + adminId, phoneVal);
+            }
             
             document.getElementById('topBarName').innerText = payload.name;
             document.getElementById('sideProfileName').innerText = payload.name;

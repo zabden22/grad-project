@@ -103,6 +103,7 @@ function saveAdminSession(adminData, token) {
     const name = adminData.name || adminData.full_name || adminData.email?.split('@')[0] || 'Admin';
     const email = adminData.email || '';
     const role = adminData.role || 'Admin';
+    const phone = adminData.phone || adminData.phone_number || '';
 
     if (token) localStorage.setItem('adminToken', token);
     localStorage.setItem('adminName', name);
@@ -110,6 +111,7 @@ function saveAdminSession(adminData, token) {
     localStorage.setItem('activeAdminName', name);
     localStorage.setItem('activeAdminId', adminData.id);
     localStorage.setItem('activeAdminEmail', email);
+    localStorage.setItem('activeAdminPhone', phone);
     localStorage.setItem('adminRole', role);
     localStorage.setItem('isSuperAdmin', role.toLowerCase().includes('super') ? 'true' : 'false');
 }

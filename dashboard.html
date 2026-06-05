@@ -97,7 +97,7 @@
                 </div>
 
                 
-                <div class="v-card metric-card">
+                <div class="v-card metric-card" style="cursor:pointer;" onclick="window.location.href='drivers.html'">
                     <div class="metric-header"><span data-i18n="total_drivers">TOTAL DRIVERS</span><i class="fas fa-users" style="color:var(--primary-color);"></i></div>
                     <div class="metric-value-box"><h3 id="totalDriversCount">--</h3></div>
                     <div class="sparkline-box"><canvas id="driverSparkChart"></canvas></div>
@@ -105,7 +105,7 @@
                         <i class="fas fa-arrow-up"></i> <span data-i18n="active_now">Active Now</span>
                     </div>
                 </div>
-                <div class="v-card metric-card">
+                <div class="v-card metric-card" style="cursor:pointer;" onclick="window.location.href='buses.html'">
                     <div class="metric-header"><span data-i18n="total_buses">TOTAL BUSES</span><i class="fas fa-bus" style="color:#3b82f6;"></i></div>
                     <div class="metric-value-box"><h3 id="totalBusesCount">--</h3></div>
                     <div class="sparkline-box"><canvas id="busSparkChart"></canvas></div>
@@ -121,7 +121,7 @@
                         <i class="fas fa-exclamation-triangle"></i> <span data-i18n="pending">Pending</span>
                     </div>
                 </div>
-                <div class="v-card donut-box">
+                <div class="v-card donut-box" style="cursor:pointer;" onclick="window.location.href='buses.html'">
                     <div class="metric-header"><span data-i18n="bus_status">BUS STATUS</span></div>
                     <div class="donut-container">
                         <canvas id="busStatusDonut"></canvas>
@@ -144,16 +144,16 @@
                 </div>
 
                 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='tickets.html'">
                     <div class="metric-header">
-                        <h4 style="font-weight:900;" data-i18n="revenue_analytics"><i class="fas fa-ticket-alt" style="color:#8b5cf6; margin-right:8px;"></i>Ticket Revenue Analytics</h4>
+                        <h4 style="font-weight:900;"><i class="fas fa-ticket-alt" style="color:#8b5cf6; margin-right:8px;"></i>Ticket Revenue Analytics</h4>
                     </div>
                     <div style="height:320px; position:relative;">
                         <canvas id="ticketRevenueChart"></canvas>
                     </div>
                 </div>
 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='tickets.html'">
                     <div class="metric-header">
                         <h4 style="font-weight:900;"><i class="fas fa-chart-bar" style="color:#06b6d4; margin-right:8px;"></i>Ticket Status Overview</h4>
                     </div>
@@ -172,7 +172,7 @@
                     </div>
                 </div>
 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='users.html'">
                     <div class="metric-header">
                         <h4 style="font-weight:900;"><i class="fas fa-user-friends" style="color:#06b6d4; margin-right:8px;"></i>User Analytics</h4>
                         <span style="font-size:0.7rem; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:20px; font-weight:800; display:flex; align-items:center; gap:5px;"><span style="width:6px; height:6px; background:#10b981; border-radius:50%; animation:pulse 1.5s infinite;"></span>LIVE</span>
@@ -200,7 +200,7 @@
                     </div>
                 </div>
 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='drivers.html'">
                     <div class="metric-header">
                         <h4 style="font-weight:900;"><i class="fas fa-trophy" style="color:#f59e0b; margin-right:8px;"></i>Top Drivers Performance</h4>
                     </div>
@@ -232,7 +232,7 @@
                 </div>
 
                 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='routes.html'">
                     <div class="metric-header">
                         <h4 style="font-weight:900;"><i class="fas fa-route" style="color:#06b6d4; margin-right:8px;"></i>Route Distribution</h4>
                     </div>
@@ -284,7 +284,7 @@
                 </div>
 
                 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='stations.html'">
                     <div class="metric-header">
                         <h4 style="font-weight:900;"><i class="fas fa-map-marker-alt" style="color:#10b981; margin-right:8px;"></i>Station Analytics</h4>
                         <span style="font-size:0.7rem; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:20px; font-weight:800; display:flex; align-items:center; gap:5px;"><span style="width:6px; height:6px; background:#10b981; border-radius:50%; animation:pulse 1.5s infinite;"></span>LIVE</span>
@@ -308,7 +308,7 @@
                     </div>
                 </div>
 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='stations.html'">
                     <div class="metric-header">
                         <h4 style="font-weight:900;"><i class="fas fa-layer-group" style="color:#f59e0b; margin-right:8px;"></i>Stations Per Zone</h4>
                     </div>
