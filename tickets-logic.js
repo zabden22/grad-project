@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><div style="font-weight:800; cursor:pointer; color:var(--text-main);" onclick="window.jumpToUser('${tck.user_id}')" title="Jump to User Profile">${passenger} <i class="fas fa-external-link-alt" style="font-size:0.7rem; opacity:0.4; margin-left:4px;"></i></div></td>
                 <td>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="display:inline-flex; align-items:center; gap:6px; background:${rColor}12; color:${rColor}; border:1px solid ${rColor}25; padding:5px 14px; border-radius:50px; font-size:0.78rem; font-weight:800;">
+                        <span style="display:inline-flex; align-items:center; gap:6px; background:var(--bg-card); color:${rColor}; border:1.5px solid ${rColor}; padding:5px 14px; border-radius:50px; font-size:0.78rem; font-weight:900; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
                             <i class="fas fa-route" style="font-size:0.7rem;"></i>${routeLabel}
                         </span>
                     </div>
