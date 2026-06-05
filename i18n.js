@@ -64,7 +64,7 @@ const translations = {
         "reporter": "Reporter",
         "priority": "Priority",
         "status": "Status",
-        "search_hubs": "Search hubs...",,
+        "search_hubs": "Search hubs...",
         "enter_full_name": "Enter Full Name",
         "phone_placeholder": "+20 XXX XXX XXXX",
         "location_placeholder": "e.g. Cairo Headquarters",
@@ -624,12 +624,12 @@ const rtlStyles = `
   }
   
   /* Shared Toggles Styling */
-  .theme-toggle-btn, .lang-toggle-btn {
+  .theme-toggle-btn, .lang-toggle-btn, .settings-toggle-btn {
       width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border-color);
       background: var(--bg-card); color: var(--text-main); display: flex; align-items: center;
       justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.1rem;
   }
-  .theme-toggle-btn:hover, .lang-toggle-btn:hover { 
+  .theme-toggle-btn:hover, .lang-toggle-btn:hover, .settings-toggle-btn:hover { 
       border-color: var(--primary-color); color: var(--primary-color); transform: translateY(-2px); 
       background: rgba(16, 185, 129, 0.05);
   }

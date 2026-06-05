@@ -53,10 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function bc() { return theme === 'dark' ? '#334155' : '#e2e8f0'; }
     function kill(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
-    function updateThemeIcon() {
-        const i = document.querySelector('#headerThemeToggle i');
-        if (i) i.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-    }
+    // Theme icon is now managed by user-dropdown.js
 
     async function updateUserInfo() {
         const n = localStorage.getItem('activeAdminName') || localStorage.getItem('adminName') || 'Commander';
@@ -133,12 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sb = document.getElementById('sidebarToggle');
         if (sb) sb.onclick = () => document.querySelector('.sidebar').classList.toggle('collapsed');
 
-        const tt = document.getElementById('headerThemeToggle');
-        if (tt) tt.onclick = () => {
-            const nw = theme === 'light' ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', nw);
-            localStorage.setItem('siteTheme', nw);
-        };
+        // Theme toggle is now handled via user-dropdown.js
 
         const searchInput = document.getElementById('globalSearch');
         if (searchInput) {

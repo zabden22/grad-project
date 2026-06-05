@@ -74,6 +74,10 @@
             const langLabel = currentLang === 'ar' ? 'العربية' : 'English';
             const langNext = currentLang === 'ar' ? 'EN' : 'AR';
 
+            const initialTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const initialThemeLabel = initialTheme === 'dark' ? 'Light' : 'Dark';
+            const initialDotColor = initialTheme === 'dark' ? '#f59e0b' : '#a855f7';
+
             
             const dropId = 'udDrop_' + index;
             trigger.setAttribute('data-target-drop', dropId);
@@ -107,11 +111,11 @@
                     <div class="ud-divider" style="height: 1px; background: var(--border-color); margin: 6px 12px;"></div>
                     <div class="ud-item ud-lang-switch" style="border-radius:10px; cursor:pointer; justify-content:space-between;">
                         <div style="display:flex; align-items:center; gap:10px;"><i class="fas fa-globe" style="width:20px; color:#f59e0b;"></i> Language</div>
-                        <span style="background:rgba(245,158,11,0.1); color:#f59e0b; font-size:0.72rem; font-weight:900; padding:3px 10px; border-radius:20px; border:1px solid rgba(245,158,11,0.2);">${langLabel} → ${langNext}</span>
+                        <span style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:0.72rem; font-weight:900; padding:4px 12px; border-radius:20px; border:1px solid rgba(245,158,11,0.3);">${langLabel} -- ${langNext}</span>
                     </div>
                     <div class="ud-item ud-theme-switch" style="border-radius:10px; cursor:pointer; justify-content:space-between;">
-                        <div style="display:flex; align-items:center; gap:10px;"><i class="fas ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'fa-sun' : 'fa-moon'}" style="width:20px; color:#a855f7;"></i> Theme</div>
-                        <span style="background:rgba(168,85,247,0.1); color:#a855f7; font-size:0.72rem; font-weight:900; padding:3px 10px; border-radius:20px; border:1px solid rgba(168,85,247,0.2);">${document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️ Light' : '🌙 Dark'}</span>
+                        <div style="display:flex; align-items:center; gap:10px;"><i class="fas ${initialTheme === 'dark' ? 'fa-sun' : 'fa-moon'}" style="width:20px; color:#a855f7;"></i> Theme</div>
+                        <span style="background:rgba(168,85,247,0.15); color:#a855f7; font-size:0.72rem; font-weight:900; padding:4px 12px; border-radius:20px; border:1px solid rgba(168,85,247,0.3);"><span style="width:7px; height:7px; border-radius:50%; background:${initialDotColor}; display:inline-block; margin-right:5px; vertical-align:middle;"></span>${initialThemeLabel}</span>
                     </div>
                     <div class="ud-divider" style="height: 1px; background: var(--border-color); margin: 6px 12px;"></div>
                     <div class="ud-item danger ud-logout-btn" style="color: #ef4444; font-weight: 700; cursor: pointer; border-radius:10px;"><i class="fas fa-sign-out-alt" style="width: 20px;"></i> Log Out</div>
@@ -184,6 +188,22 @@
         });
 
         
+        // Helper: update all dropdown theme toggle UIs
+        const updateAllDropdownThemeUI = (theme) => {
+            document.querySelectorAll('.ud-theme-switch').forEach(el => {
+                const iconEl = el.querySelector('i:first-child') || el.querySelector('.fa-moon, .fa-sun');
+                if (iconEl) {
+                    iconEl.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                }
+                const badge = el.querySelector('span[style*="border-radius:20px"]') || el.querySelector('span:last-child');
+                if (badge) {
+                    const label = theme === 'dark' ? 'Light' : 'Dark';
+                    const dotColor = theme === 'dark' ? '#f59e0b' : '#a855f7';
+                    badge.innerHTML = `<span style="width:7px; height:7px; border-radius:50%; background:${dotColor}; display:inline-block; margin-right:5px; vertical-align:middle;"></span>${label}`;
+                }
+            });
+        };
+
         document.addEventListener('click', (e) => {
             if (e.target.closest('.ud-logout-btn')) {
                 if (typeof window.confirmLogout === 'function') window.confirmLogout();
@@ -197,6 +217,16 @@
                 const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
                 document.documentElement.setAttribute('data-theme', newTheme);
                 localStorage.setItem('siteTheme', newTheme);
+                updateAllDropdownThemeUI(newTheme);
+                // Also sync header theme toggle icon
+                const headerThemeBtn = document.querySelector('#themeToggle, #headerThemeToggle');
+                if (headerThemeBtn) {
+                    const icon = headerThemeBtn.querySelector('i');
+                    if (icon) {
+                        icon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                        icon.style.color = newTheme === 'dark' ? '#f1c40f' : 'inherit';
+                    }
+                }
                 document.querySelectorAll('.user-dropdown.show').forEach(d => d.classList.remove('show'));
             }
         });
@@ -224,7 +254,8 @@
 
         
         const headerRight = document.querySelector('.header-right');
-        if (headerRight) {
+        const isSettingsPage = window.location.pathname.includes('settings.html');
+        if (headerRight && !isSettingsPage) {
             const profilePill = headerRight.querySelector('.profile-pill, .dropdown-trigger');
             
             
@@ -240,54 +271,19 @@
             }
 
             
-            if (!document.getElementById('headerThemeToggle') && !document.getElementById('themeToggle')) {
-                const themeBtn = document.createElement('button');
-                themeBtn.id = 'themeToggle';
-                themeBtn.className = 'theme-toggle-btn';
-                themeBtn.title = 'Toggle Theme / تغيير المظهر';
-                themeBtn.style.marginRight = '10px';
+            if (!document.getElementById('headerSettingsToggle') && !document.getElementById('settingsToggle')) {
+                const settingsBtn = document.createElement('button');
+                settingsBtn.id = 'settingsToggle';
+                settingsBtn.className = 'settings-toggle-btn';
+                settingsBtn.title = 'Settings / الإعدادات';
+                settingsBtn.style.marginRight = '10px';
+                settingsBtn.innerHTML = '<i class="fas fa-cog"></i>';
+                settingsBtn.onclick = () => { window.location.href = 'settings.html'; };
                 
-                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                themeBtn.innerHTML = isDark ? '<i class="fas fa-sun" style="color:#f1c40f;"></i>' : '<i class="fas fa-moon"></i>';
-                
-                if (profilePill) headerRight.insertBefore(themeBtn, profilePill);
-                else headerRight.appendChild(themeBtn);
+                if (profilePill) headerRight.insertBefore(settingsBtn, profilePill);
+                else headerRight.appendChild(settingsBtn);
             }
 
-        }
-
-        
-        document.addEventListener('click', (e) => {
-            const themeBtn = e.target.closest('#themeToggle, #headerThemeToggle');
-            if (themeBtn) {
-                const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', newTheme);
-                localStorage.setItem('siteTheme', newTheme);
-                
-                const icon = themeBtn.querySelector('i');
-                if (icon) {
-                    if (newTheme === 'dark') {
-                        icon.className = 'fas fa-sun';
-                        icon.style.color = '#f1c40f';
-                    } else {
-                        icon.className = 'fas fa-moon';
-                        icon.style.color = 'inherit';
-                    }
-                }
-            }
-
-            const langBtn = e.target.closest('#headerLangToggle, #langToggle');
-            if (langBtn) {
-                const currentLang = localStorage.getItem('transitLang') || 'en';
-                const nextLang = currentLang === 'en' ? 'ar' : 'en';
-                localStorage.setItem('transitLang', nextLang);
-                window.location.reload();
-            }
-        });
-
-        if (headerRight) {
-            const profilePill = headerRight.querySelector('.profile-pill, .dropdown-trigger');
-            
             
             if (!document.getElementById('notifBtn')) {
                 const notifWrap = document.createElement('div');
@@ -321,6 +317,17 @@
                 else headerRight.appendChild(notifWrap);
             }
         }
+
+        
+        document.addEventListener('click', (e) => {
+            const langBtn = e.target.closest('#headerLangToggle, #langToggle');
+            if (langBtn) {
+                const currentLang = localStorage.getItem('transitLang') || 'en';
+                const nextLang = currentLang === 'en' ? 'ar' : 'en';
+                localStorage.setItem('transitLang', nextLang);
+                window.location.reload();
+            }
+        });
     });
 
     
