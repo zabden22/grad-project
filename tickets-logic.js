@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let tripsMap = {};
     let calendarInstance = null;
     let dateFrom = null, dateTo = null;
+    let selectedRouteFilter = 'all'; // 'all', 'shorouk', 'madinaty', 'badr'
 
     const routeColors = {
         'cairo': '#3b82f6',    
@@ -146,6 +147,33 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (currentFilter === 'sold') filtered = filtered.filter(t => (t.status || '').toLowerCase() !== 'canceled');
         else if (currentFilter === 'expired') filtered = filtered.filter(t => (t.status || '').toLowerCase() === 'expired');
 
+        // Apply route legend filter
+        if (selectedRouteFilter === 'shorouk') {
+            filtered = filtered.filter(t => {
+                const trip = tripsMap[t.trip_id];
+                const routeId = trip ? trip.routeId : null;
+                const routeInfo = routesMap[routeId] || { name: "" };
+                const name = (routeInfo.name || "").toLowerCase();
+                return name.includes('shorouk') || name.includes('shrouk') || name.includes('شروق');
+            });
+        } else if (selectedRouteFilter === 'madinaty') {
+            filtered = filtered.filter(t => {
+                const trip = tripsMap[t.trip_id];
+                const routeId = trip ? trip.routeId : null;
+                const routeInfo = routesMap[routeId] || { name: "" };
+                const name = (routeInfo.name || "").toLowerCase();
+                return name.includes('madinaty') || name.includes('madinty') || name.includes('مدينتي') || name.includes('مدينتى');
+            });
+        } else if (selectedRouteFilter === 'badr') {
+            filtered = filtered.filter(t => {
+                const trip = tripsMap[t.trip_id];
+                const routeId = trip ? trip.routeId : null;
+                const routeInfo = routesMap[routeId] || { name: "" };
+                const name = (routeInfo.name || "").toLowerCase();
+                return name.includes('badr') || name.includes('بدر');
+            });
+        }
+
         ticketTableBody.innerHTML = "";
         if (filtered.length === 0) {
             ticketTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:60px; color:var(--text-muted); font-weight:700;"><i class="fas fa-ticket-alt" style="font-size:2rem; display:block; margin-bottom:10px; opacity:0.2;"></i>No tickets found in the ledger.</td></tr>`;
@@ -178,14 +206,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const tr = document.createElement('tr');
             
-            tr.style.borderLeft = `4px solid ${rColor}`;
-            tr.style.background = `linear-gradient(90deg, ${rColor}08 0%, transparent 40%)`;
+            tr.style.borderLeft = `6px solid ${rColor}`;
+            tr.style.background = `linear-gradient(90deg, ${rColor}0f 0%, transparent 50%)`;
             tr.style.transition = 'all 0.3s ease';
             tr.style.animation = `ticketSlideIn 0.4s ease forwards ${idx * 0.03}s`;
             tr.style.opacity = '0';
             
-            tr.onmouseenter = function() { this.style.background = `linear-gradient(90deg, ${rColor}15 0%, ${rColor}05 100%)`; this.style.transform = 'scale(1.005)'; };
-            tr.onmouseleave = function() { this.style.background = `linear-gradient(90deg, ${rColor}08 0%, transparent 40%)`; this.style.transform = 'scale(1)'; };
+            tr.onmouseenter = function() { this.style.background = `linear-gradient(90deg, ${rColor}1c 0%, ${rColor}08 100%)`; this.style.transform = 'scale(1.005)'; };
+            tr.onmouseleave = function() { this.style.background = `linear-gradient(90deg, ${rColor}0f 0%, transparent 50%)`; this.style.transform = 'scale(1)'; };
 
             tr.innerHTML = `
                 <td><div style="font-family:monospace; font-weight:900; color:${rColor};">#${simulatedCode}</div></td>
@@ -540,8 +568,51 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function setupRouteFilters() {
+        const filters = {
+            'shorouk': document.getElementById('legendShorouk'),
+            'madinaty': document.getElementById('legendMadinaty'),
+            'badr': document.getElementById('legendBadr')
+        };
+
+        Object.keys(filters).forEach(routeName => {
+            const el = filters[routeName];
+            if (el) {
+                el.addEventListener('click', () => {
+                    if (selectedRouteFilter === routeName) {
+                        selectedRouteFilter = 'all'; // toggle off -> show all
+                    } else {
+                        selectedRouteFilter = routeName;
+                    }
+                    updateRouteFilterVisuals();
+                    renderTable();
+                });
+            }
+        });
+    }
+
+    function updateRouteFilterVisuals() {
+        const filters = {
+            'shorouk': document.getElementById('legendShorouk'),
+            'madinaty': document.getElementById('legendMadinaty'),
+            'badr': document.getElementById('legendBadr')
+        };
+
+        Object.keys(filters).forEach(routeName => {
+            const el = filters[routeName];
+            if (el) {
+                if (selectedRouteFilter === routeName) {
+                    el.classList.add('active-route-filter');
+                } else {
+                    el.classList.remove('active-route-filter');
+                }
+            }
+        });
+    }
+
     initCalendar();
     setupFilterCards();
+    setupRouteFilters();
     loadData();
     
     if (window.supabaseAuth) {

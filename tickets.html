@@ -30,7 +30,31 @@
         .form-group input:focus, .form-group select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(86, 142, 116, 0.1); }
         
         .route-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
-        .route-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
+        .route-legend-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            font-size: 0.8rem; 
+            font-weight: 700; 
+            color: var(--text-muted); 
+            cursor: pointer;
+            padding: 6px 14px;
+            border-radius: 50px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            background: var(--bg-card);
+        }
+        .route-legend-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-color: var(--primary-color);
+        }
+        .route-legend-item.active-route-filter {
+            background: rgba(86, 142, 116, 0.08) !important;
+            border-color: var(--primary-color) !important;
+            color: var(--text-main) !important;
+            box-shadow: 0 4px 12px rgba(86, 142, 116, 0.15) !important;
+        }
         .route-legend-dot { width: 12px; height: 12px; border-radius: 4px; }
         
         .ticket-stats .v-card {
@@ -117,9 +141,9 @@
             </div>
 
             <div class="route-legend">
-                <div class="route-legend-item"><div class="route-legend-dot" style="background:#ef4444;"></div> Shorouk Route</div>
-                <div class="route-legend-item"><div class="route-legend-dot" style="background:#f59e0b;"></div> Madinaty Route</div>
-                <div class="route-legend-item"><div class="route-legend-dot" style="background:#8b5cf6;"></div> Badr Route</div>
+                <div class="route-legend-item" id="legendShorouk"><div class="route-legend-dot" style="background:#ef4444;"></div> Shorouk Route</div>
+                <div class="route-legend-item" id="legendMadinaty"><div class="route-legend-dot" style="background:#f59e0b;"></div> Madinaty Route</div>
+                <div class="route-legend-item" id="legendBadr"><div class="route-legend-dot" style="background:#8b5cf6;"></div> Badr Route</div>
             </div>
 
             <section class="v-card" style="padding: 0; overflow: hidden;">
