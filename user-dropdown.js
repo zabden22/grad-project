@@ -1,4 +1,7 @@
 (function () {
+    if (window.__userDropdownInitialized) return;
+    window.__userDropdownInitialized = true;
+
     document.addEventListener('DOMContentLoaded', () => {
         
         const initTheme = () => {
@@ -146,16 +149,18 @@
                     }).catch(()=>{});
                 } catch(e){}
 
-                if (adminEmail && adminEmail !== 'admin@transitway.com') {
-                    supabase.from('admins').select('*').eq('email', adminEmail).single().then(({data}) => {
-                        if (data) {
-                            const dbPhoto = data.profile_image || data.photo_url || data.photo;
-                            const cachedPhoto = localStorage.getItem('adminPhoto_' + data.id) || sessionStorage.getItem('adminPhoto_' + data.id);
-                            const photo = dbPhoto || cachedPhoto;
-                            if (photo) updateAvatarUI(photo);
-                        }
-                    }).catch(()=>{});
-                }
+                try {
+                    if (adminEmail && adminEmail !== 'admin@transitway.com') {
+                        supabase.from('admins').select('*').eq('email', adminEmail).single().then(({data}) => {
+                            if (data) {
+                                const dbPhoto = data.profile_image || data.photo_url || data.photo;
+                                const cachedPhoto = localStorage.getItem('adminPhoto_' + data.id) || sessionStorage.getItem('adminPhoto_' + data.id);
+                                const photo = dbPhoto || cachedPhoto;
+                                if (photo) updateAvatarUI(photo);
+                            }
+                        });
+                    }
+                } catch(e){ console.warn('[user-dropdown] avatar fetch:', e); }
             }
         });
 

@@ -14,7 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.loadReports = async function() {
         try {
-            const { data, error } = await supabase.from('reports').select('*').order('id', { ascending: false });
+            // Use window.supabaseAuth (official client) to automatically pass the logged-in user's token and bypass RLS
+            const client = window.supabaseAuth || window.supabase;
+            const { data, error } = await client.from('complaints').select('*').order('id', { ascending: false });
             if (error) throw error;
             reportsData = data || [];
             updateStats();
@@ -29,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const total = reportsData.length;
         const pending = reportsData.filter(r => (r.status || '').toLowerCase() === 'pending').length;
         const resolved = reportsData.filter(r => (r.status || '').toLowerCase() === 'resolved').length;
-        const critical = reportsData.filter(r => (r.priority || '').toLowerCase() === 'critical').length;
+        const critical = reportsData.filter(r => r.problem_detected === true).length;
 
         if(document.getElementById('rptTotal')) document.getElementById('rptTotal').innerText = total;
         if(document.getElementById('rptPending')) document.getElementById('rptPending').innerText = pending;
@@ -61,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (id === 'rptTotal') targetFilter = 'all';
             else if (id === 'rptPending') targetFilter = 'pending';
             else if (id === 'rptResolved') targetFilter = 'resolved';
-            else if (id === 'rptCritical') targetFilter = 'critical';
+            else if (id === 'rptCritical') targetFilter = 'detected';
 
             currentFilter = targetFilter;
             
@@ -103,17 +105,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if(currentFilter !== 'all') {
             if(currentFilter === 'pending') filtered = filtered.filter(r => (r.status || '').toLowerCase() === 'pending');
-            if(currentFilter === 'critical') filtered = filtered.filter(r => (r.priority || '').toLowerCase() === 'critical');
+            if(currentFilter === 'detected') filtered = filtered.filter(r => r.problem_detected === true);
             if(currentFilter === 'resolved') filtered = filtered.filter(r => (r.status || '').toLowerCase() === 'resolved');
         }
 
         if(query) {
             filtered = filtered.filter(r => 
-                (r.subject || r.category || '').toLowerCase().includes(query) ||
+                (r.subject || '').toLowerCase().includes(query) ||
                 (r.reporter_name || '').toLowerCase().includes(query) ||
-                (r.description || r.text_complaint || r.text_complain || '').toLowerCase().includes(query) ||
-                (String(r.id)).includes(query) ||
-                (String(r.trip_id || r.bus_id)).includes(query)
+                (r.description || r.text_complaint || '').toLowerCase().includes(query) ||
+                (String(r.id)).includes(query)
             );
         }
 
@@ -131,17 +132,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if(status === 'resolved') statusBadge = `<span class="priority-badge" style="color:#10b981; background:rgba(16,185,129,0.1); border-color:#10b98144;"><i class="fas fa-check-circle"></i> Resolved</span>`;
             if(status === 'in progress') statusBadge = `<span class="priority-badge" style="color:#3b82f6; background:rgba(59,130,246,0.1); border-color:#3b82f644;"><i class="fas fa-satellite"></i> Active</span>`;
             
-            const prio = (rpt.priority || 'Normal').toLowerCase();
-            let prioBadge = `<span class="priority-badge priority-medium">${rpt.priority || 'Normal'}</span>`;
-            if(prio === 'critical') prioBadge = `<span class="priority-badge priority-critical"><i class="fas fa-bolt"></i> CRITICAL</span>`;
-            if(prio === 'high') prioBadge = `<span class="priority-badge priority-high">High Alert</span>`;
-            if(prio === 'low') prioBadge = `<span class="priority-badge priority-low">Low</span>`;
+            // No priority column in complaints - skip priority badge
+
+            // Evidence thumbnail
+            const thumbUrl = rpt.original_image || rpt.processed_image;
+            const thumbHtml = thumbUrl 
+                ? `<img src="${thumbUrl}" style="width:48px; height:36px; border-radius:8px; object-fit:cover; border:1px solid var(--border-color);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                   <div style="display:none; width:48px; height:36px; border-radius:8px; background:var(--bg-main); border:1px solid var(--border-color); align-items:center; justify-content:center;"><i class="fas fa-image" style="font-size:0.7rem; opacity:0.3;"></i></div>`
+                : `<div style="width:48px; height:36px; border-radius:8px; background:var(--bg-main); border:1px solid var(--border-color); display:flex; align-items:center; justify-content:center;"><i class="fas fa-image" style="font-size:0.7rem; opacity:0.3;"></i></div>`;
+
+            // Detection badge
+            const detectBadge = rpt.problem_detected === true
+                ? `<span class="priority-badge priority-critical" style="font-size:0.65rem;"><i class="fas fa-exclamation-triangle"></i> Detected</span>`
+                : `<span class="priority-badge priority-low" style="font-size:0.65rem;"><i class="fas fa-check"></i> OK</span>`;
 
             tr.innerHTML = `
                 <td><div style="font-weight:900; color:var(--primary-color);">#RPT-${String(rpt.id).padStart(3,'0')}</div></td>
-                <td><div style="font-weight:800; color:var(--text-main);">${rpt.subject || rpt.category || (typeof t === 'function' ? t('general') : 'General')}</div></td>
-                <td><div style="font-weight:700;">${rpt.reporter_name || rpt.user_id || (typeof t === 'function' ? t('guest_user') : 'Guest User')}</div></td>
-                <td>${prioBadge}</td>
+                <td><div style="display:flex; align-items:center; gap:10px;">${thumbHtml}<div style="font-weight:800; color:var(--text-main);">${rpt.subject || (typeof t === 'function' ? t('general') : 'General')}</div></div></td>
+                <td><div style="font-weight:700;">${rpt.reporter_name || (typeof t === 'function' ? t('guest_user') : 'Guest User')}</div></td>
+                <td>${detectBadge}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <div style="display:flex; gap:8px;">
@@ -166,12 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!rpt) return;
         
         const langHelper = typeof t === 'function';
-        if(document.getElementById('rdTitle')) document.getElementById('rdTitle').innerText = rpt.subject || rpt.category || (langHelper ? t('strategic_reports') : 'Signal Analysis');
+        if(document.getElementById('rdTitle')) document.getElementById('rdTitle').innerText = rpt.subject || (langHelper ? t('strategic_reports') : 'Signal Analysis');
         if(document.getElementById('rdSubtitle')) document.getElementById('rdSubtitle').innerText = 'IDENTIFIER: RPT-' + String(rpt.id).padStart(3,'0');
         
         const summaryText = langHelper ? t('ai_obs_summary') : 'AI Observation Summary';
         const emptyText = langHelper ? t('no_evidence_data') : 'No detailed neural data available for this signal.';
-        if(document.getElementById('rdMessage')) document.getElementById('rdMessage').innerHTML = `<p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;">${summaryText}</p><div style="font-weight:700; line-height:1.7; color:var(--text-main); font-size:1.05rem;">${rpt.description || rpt.text_complain || rpt.text_complaint || rpt.content || emptyText}</div>`;
+        if(document.getElementById('rdMessage')) document.getElementById('rdMessage').innerHTML = `<p style="font-weight:900; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;">${summaryText}</p><div style="font-weight:700; line-height:1.7; color:var(--text-main); font-size:1.05rem;">${rpt.description || rpt.text_complaint || emptyText}</div>`;
         
         const originatorLabel = langHelper ? t('originator') : 'Originator';
         const interceptTimeLabel = langHelper ? t('intercept_time') : 'Intercept Time';
@@ -241,146 +250,49 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPredictions(rpt.ai_predictions);
 
         if(imgBox) {
-            const hasOrig = rpt.original_image || rpt.photo_url || rpt.result_image;
-            const hasAI = rpt.processed_image || rpt.result_image;
+            const hasOrig = rpt.original_image;
+            const hasAI = rpt.processed_image;
             
-            // Helper: convert AI server URL to local proxy URL
-            const AI_SERVER_BASE = 'http://54.91.157.86:8000';
-            const toProxyUrl = (url) => {
-                if (!url) return url;
-                if (url.startsWith(AI_SERVER_BASE)) {
-                    return '/ai-proxy' + url.substring(AI_SERVER_BASE.length);
-                }
-                return url;
-            };
-
             if(hasOrig || hasAI) {
                 imgBox.style.display = 'grid';
-                if(origImg) origImg.src = hasOrig || 'https://via.placeholder.com/400x250?text=Signal+Feed+Missing';
                 
-                // AI Image: try the stored URL first, if it fails (404), re-predict from AI server
-                if(aiImg) {
-                    aiImg.parentElement.style.opacity = '1';
-                    aiImg.style.filter = 'none';
-                    
-                    if(hasAI) {
-                        // Override the default onerror to attempt re-prediction
-                        aiImg.onerror = async function() {
-                            console.log('[AI] Stored processed_image URL failed, attempting re-prediction...');
-                            aiImg.onerror = null; // prevent infinite loop
-                            
-                            if(!hasOrig) {
-                                aiImg.style.display = 'none';
-                                if(aiImg.nextElementSibling) aiImg.nextElementSibling.style.display = 'flex';
-                                return;
-                            }
-                            
-                            // Show loading state
-                            aiImg.style.display = 'none';
-                            const fallback = aiImg.nextElementSibling;
-                            if(fallback) {
-                                fallback.style.display = 'flex';
-                                fallback.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:2rem; margin-bottom:10px; color:var(--primary-color);"></i><span style="font-size:0.85rem;">Re-processing with AI...</span>';
-                            }
-                            
-                            try {
-                                const aiProxyUrl = '/ai-proxy/predict-url/?image_url=' + encodeURIComponent(hasOrig);
-                                const response = await fetch(aiProxyUrl, { method: 'POST' });
-                                
-                                if(!response.ok) throw new Error('AI server returned ' + response.status);
-                                
-                                const result = await response.json();
-                                
-                                if(result.output_image) {
-                                    console.log('[AI] Re-prediction successful:', result.output_image);
-                                    aiImg.onerror = function() {
-                                        this.style.display = 'none';
-                                        if(this.nextElementSibling) {
-                                            this.nextElementSibling.style.display = 'flex';
-                                            this.nextElementSibling.innerHTML = '<i class="fas fa-robot" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i>AI Image Expired / Down';
-                                        }
-                                    };
-                                    aiImg.src = toProxyUrl(result.output_image);
-                                    aiImg.style.display = 'block';
-                                    if(fallback) fallback.style.display = 'none';
-                                    
-                                    // Update predictions in the UI
-                                    renderPredictions(result.predictions);
-                                    
-                                    // Skip database update as processed_image is not in reports table
-                                    console.log('[AI] Re-prediction completed locally');
-                                    
-                                    // Also update local data
-                                    const localRpt = reportsData.find(r => String(r.id) === String(rpt.id));
-                                    if(localRpt) {
-                                        localRpt.processed_image = result.output_image;
-                                        if(result.predictions) localRpt.ai_predictions = result.predictions;
-                                    }
-                                } else {
-                                    throw new Error('No output_image in response');
-                                }
-                            } catch(err) {
-                                console.error('[AI] Re-prediction failed:', err);
-                                if(fallback) {
-                                    fallback.innerHTML = '<i class="fas fa-robot" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i>AI Image Expired / Down';
-                                }
-                            }
+                // Original/Source image
+                if(origImg) {
+                    if(hasOrig) {
+                        origImg.onerror = function() {
+                            this.style.display = 'none';
+                            const fb = this.nextElementSibling;
+                            if(fb) { fb.style.display = 'flex'; fb.innerHTML = '<i class="fas fa-server" style="font-size:2rem; margin-bottom:10px; opacity:0.3; color:#ef4444;"></i><span style="font-size:0.8rem; font-weight:700;">Image Server Offline</span>'; }
                         };
-                        aiImg.src = toProxyUrl(hasAI);
+                        origImg.src = hasOrig;
                     } else {
-                        // No AI image URL at all - try to predict if we have original image
-                        if(hasOrig) {
-                            aiImg.style.display = 'none';
-                            const fallback = aiImg.nextElementSibling;
-                            if(fallback) {
-                                fallback.style.display = 'flex';
-                                fallback.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:2rem; margin-bottom:10px; color:var(--primary-color);"></i><span style="font-size:0.85rem;">Processing with AI...</span>';
+                        origImg.style.display = 'none';
+                        const fb = origImg.nextElementSibling;
+                        if(fb) { fb.style.display = 'flex'; }
+                    }
+                }
+                
+                // AI Processed image
+                if(aiImg) {
+                    if(hasAI) {
+                        aiImg.onerror = function() {
+                            this.style.display = 'none';
+                            const fb = this.nextElementSibling;
+                            if(fb) { fb.style.display = 'flex'; fb.innerHTML = '<i class="fas fa-robot" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i><span style="font-size:0.8rem; font-weight:700;">AI Image Unavailable</span>'; }
+                        };
+                        aiImg.src = hasAI;
+                    } else {
+                        aiImg.style.display = 'none';
+                        const fb = aiImg.nextElementSibling;
+                        if(fb) {
+                            fb.style.display = 'flex';
+                            const hasProblem = rpt.problem_detected === true;
+                            const subj = rpt.subject || 'Unknown';
+                            if(hasProblem) {
+                                fb.innerHTML = `<i class="fas fa-exclamation-triangle" style="font-size:2.5rem; margin-bottom:12px; color:#ef4444;"></i><span style="font-size:0.9rem; font-weight:900; color:#ef4444;">Problem Detected</span><span style="font-size:1.1rem; font-weight:800; margin-top:8px; color:var(--text-main);">${subj}</span>`;
+                            } else {
+                                fb.innerHTML = `<i class="fas fa-check-circle" style="font-size:2.5rem; margin-bottom:12px; color:#10b981;"></i><span style="font-size:0.9rem; font-weight:900; color:#10b981;">No Problem Detected</span>`;
                             }
-                            
-                            (async () => {
-                                try {
-                                    const aiProxyUrl = '/ai-proxy/predict-url/?image_url=' + encodeURIComponent(hasOrig);
-                                    const response = await fetch(aiProxyUrl, { method: 'POST' });
-                                    if(!response.ok) throw new Error('AI server returned ' + response.status);
-                                    const result = await response.json();
-                                    
-                                    if(result.output_image) {
-                                        aiImg.onerror = function() {
-                                            this.style.display = 'none';
-                                            if(this.nextElementSibling) {
-                                                this.nextElementSibling.style.display = 'flex';
-                                                this.nextElementSibling.innerHTML = '<i class="fas fa-robot" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i>AI Image Expired / Down';
-                                            }
-                                        };
-                                        aiImg.src = toProxyUrl(result.output_image);
-                                        aiImg.style.display = 'block';
-                                        if(fallback) fallback.style.display = 'none';
-                                        
-                                        // Update predictions in UI
-                                        renderPredictions(result.predictions);
-                                        
-                                        // Skip database update as processed_image is not in reports table
-                                        console.log('[AI] Prediction completed locally');
-                                        
-                                        const localRpt = reportsData.find(r => String(r.id) === String(rpt.id));
-                                        if(localRpt) {
-                                            localRpt.processed_image = result.output_image;
-                                            if(result.predictions) localRpt.ai_predictions = result.predictions;
-                                        }
-                                    } else {
-                                        throw new Error('No output_image in response');
-                                    }
-                                } catch(err) {
-                                    console.error('[AI] Prediction failed:', err);
-                                    if(fallback) {
-                                        fallback.innerHTML = '<i class="fas fa-robot" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i>AI Processing Unavailable';
-                                    }
-                                }
-                            })();
-                        } else {
-                            aiImg.parentElement.style.opacity = '0.3';
-                            aiImg.style.filter = 'grayscale(1)';
-                            aiImg.src = 'https://via.placeholder.com/400x250?text=AI+Response+Pending';
                         }
                     }
                 }
@@ -407,7 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if(res.isConfirmed) {
             try {
-                const { error } = await supabase.from('reports').update({ status: 'Resolved' }).eq('id', id);
+                const client = window.supabaseAuth || window.supabase;
+                const { error } = await client.from('complaints').update({ status: 'Resolved' }).eq('id', id);
                 if(error) throw error;
                 Swal.fire({
                     icon: 'success', 
@@ -428,8 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadReports();
     
     if (window.supabaseAuth) {
-        window.supabaseAuth.channel('reports_realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, (payload) => {
+        window.supabaseAuth.channel('complaints_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, (payload) => {
                 if (payload.eventType === 'INSERT') {
                     reportsData.unshift(payload.new);
                 } else if (payload.eventType === 'UPDATE') {

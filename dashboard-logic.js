@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const obs = new MutationObserver(() => {
         const t = document.documentElement.getAttribute('data-theme');
-        if (t !== theme) { theme = t; rebuildAll(); updateThemeIcon(); }
+        if (t !== theme) { theme = t; rebuildAll(); }
     });
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
@@ -111,7 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function init() {
         updateUserInfo();
-        updateThemeIcon();
         initCalendar();
         loadAllData();
         
@@ -119,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.supabaseAuth.channel('dashboard_realtime')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, (p) => updateLocalData('drivers', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'buses' }, (p) => updateLocalData('buses', p))
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, (p) => updateLocalData('complaints', p))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, (p) => updateLocalData('complaints', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (p) => updateLocalData('tickets', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (p) => updateLocalData('users', p))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, (p) => updateLocalData('stations', p))
@@ -186,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const [dRes, bRes, cRes, tRes, uRes, sRes, rRes] = await Promise.all([
                 supabase.from('drivers').select('*'),
                 supabase.from('buses').select('*'),
-                supabase.from('reports').select('*'),
+                supabase.from('complaints').select('*'),
                 supabase.from('tickets').select('*'),
                 supabase.from('users').select('*'),
                 supabase.from('stations').select('*').order('created_at', { ascending: true }),
@@ -274,15 +273,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bChEl) bChEl.querySelector('span').textContent = buses.filter(b => b.status === 'Active').length + ' Active';
     }
     function renderSparklines() {
-        sparkline('driverSparkChart', generateTrend(drivers.length, 7), '#10b981');
-        sparkline('busSparkChart', generateTrend(buses.length, 7), '#3b82f6');
+        sparkline('driverSparkChart', generateRealTrend(drivers, 7), '#10b981');
+        sparkline('busSparkChart', generateRealTrend(buses, 7), '#3b82f6');
         sparkline('complaintSparkChart', generateComplaintTrend(), '#f59e0b');
     }
 
-    function generateTrend(base, len) {
-        const arr = [];
-        for (let i = 0; i < len; i++) arr.push(Math.max(1, base - len + i + Math.floor(Math.random() * 3)));
-        return arr;
+    function generateRealTrend(dataArray, daysCount) {
+        const counts = new Array(daysCount).fill(0);
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+        dataArray.forEach(item => {
+            const d = new Date(item.created_at || item.createdAt);
+            if (isNaN(d)) return;
+            const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+            if (diffDays >= 0 && diffDays < daysCount) {
+                counts[daysCount - 1 - diffDays]++;
+            }
+        });
+        
+        let totalBeforeWindow = dataArray.length - counts.reduce((a, b) => a + b, 0);
+        for(let i = 0; i < daysCount; i++) {
+            totalBeforeWindow += counts[i];
+            counts[i] = totalBeforeWindow;
+        }
+        return counts;
     }
 
     function generateComplaintTrend() {
@@ -490,11 +504,14 @@ document.addEventListener('DOMContentLoaded', () => {
             driverDetails.forEach(dd => {
                 labels.push(dd.name || dd.full_name || 'Driver');
                 
+                const busIds = [dd.busId, dd.current_bus_id, String(dd.busId), String(dd.current_bus_id)].filter(Boolean);
+                const driverTrips = tickets.filter(t => t.driver_id === dd.id || busIds.includes(t.bus_id) || busIds.includes(String(t.bus_id))).length;
                 
-                const driverTrips = Math.floor(Math.random() * 20) + 5;
+                trips.push(driverTrips || 0); 
                 
-                trips.push(driverTrips); 
-                ratings.push(dd.rating || (4 + Math.random()).toFixed(1)); 
+                const numericId = String(dd.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const rating = 4.0 + (numericId % 10) / 10;
+                ratings.push(dd.rating || rating.toFixed(1)); 
             });
         } else {
             labels.push('No Data');

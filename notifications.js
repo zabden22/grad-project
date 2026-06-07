@@ -20,6 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             notifDropdown.classList.toggle('active');
             document.querySelector('.user-dropdown')?.classList.remove('show');
+            
+            if (notifDropdown.classList.contains('active')) {
+                const currentIds = currentLoadedNotifs.map(i => i.id);
+                if (currentIds.length > 0) {
+                    markAsRead(currentIds);
+                }
+                badge.style.display = 'none';
+                document.querySelectorAll('.notif-item').forEach(el => el.classList.remove('unread'));
+            }
         };
 
         document.addEventListener('click', (e) => {
@@ -27,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 notifDropdown.classList.remove('active');
             }
         });
-        const notifSound = new Audio('https://cdn.pixabay.com/audio/2022/12/12/audio_e3abc0b017.mp3');
+        const notifSound = new Audio('data:audio/mp3;base64,//OExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq');
         notifSound.volume = 0.35;
 
         // Hide SOS sidebar link if not on dashboard, reports, or sos page
@@ -83,14 +92,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let baselineTime = Date.now();
         let alertedIds = new Set();
+        let currentLoadedNotifs = [];
+
+        function getReadNotifs() {
+            try { return JSON.parse(localStorage.getItem('transitReadNotifs') || '[]'); } 
+            catch { return []; }
+        }
+
+        function markAsRead(ids) {
+            const readIds = new Set(getReadNotifs());
+            ids.forEach(id => readIds.add(id));
+            localStorage.setItem('transitReadNotifs', JSON.stringify(Array.from(readIds).slice(-100)));
+        }
 
         async function initIntelligence() {
             if (typeof supabase === 'undefined') return;
             
             try {
-                // Fetch latest reports to populate alertedIds
+                // Fetch latest complaints to populate alertedIds
                 const { data: compData } = await supabase
-                    .from('reports')
+                    .from('complaints')
                     .select('id');
                 if (compData) {
                     compData.forEach(c => alertedIds.add(c.id));
@@ -115,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.supabaseAuth) {
                 console.log('[TransitWay] Using Realtime for notifications.');
                 window.supabaseAuth.channel('notifications_realtime')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, (payload) => {
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaints' }, (payload) => {
                         console.log('[TransitWay Realtime Notif]', payload);
                         const report = payload.new;
                         if (!alertedIds.has(report.id)) {
@@ -386,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof supabase === 'undefined') return;
             try {
                 const { data, error } = await supabase
-                    .from('reports')
+                    .from('complaints')
                     .select('*')
                     .order('id', { ascending: false })
                     .limit(10);
@@ -423,8 +444,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initIntelligence();
 
         function renderNotifications(items) {
+            currentLoadedNotifs = items;
             if (!notifList) return;
             notifList.style.opacity = '0.5';
+
+            const readIds = new Set(getReadNotifs());
+            const unreadCount = items.filter(i => !readIds.has(i.id)).length;
 
             setTimeout(() => {
                 if (items.length === 0) {
@@ -439,10 +464,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `;
                 } else {
-                    badge.innerText = items.length;
-                    badge.style.display = 'flex';
+                    if (unreadCount > 0) {
+                        badge.innerText = unreadCount;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
 
                     notifList.innerHTML = items.map((item, index) => {
+                        const isUnread = !readIds.has(item.id);
+                        const unreadClass = isUnread ? 'unread' : '';
                         const time = timeAgo(item.created_at || item.createdAt);
                         const priority = (item.priority || 'Medium').toLowerCase();
                         const color = priority === 'critical' ? '#ef4444' : (priority === 'high' ? '#f59e0b' : '#3b82f6');
@@ -452,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const category = item.category || 'System Alert';
 
                         return `
-                            <div class="notif-item unread" style="animation: slideInNotif 0.4s ease forwards ${index * 0.1}s; opacity: 0;" onclick="window.location.href='reports.html'">
+                            <div class="notif-item ${unreadClass}" style="animation: slideInNotif 0.4s ease forwards ${index * 0.1}s; opacity: 0;" onclick="window.location.href='reports.html'">
                                 <div class="notif-icon-circle" style="background: ${color}15; color: ${color}; border: 1px solid ${color}25;">
                                     <i class="fas ${icon}"></i>
                                 </div>
@@ -481,6 +512,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (markReadBtn) {
             markReadBtn.onclick = (e) => {
                 e.stopPropagation();
+                const currentIds = currentLoadedNotifs.map(i => i.id);
+                markAsRead(currentIds);
                 badge.style.display = 'none';
                 document.querySelectorAll('.notif-item').forEach(i => i.classList.remove('unread'));
             };

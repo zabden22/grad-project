@@ -128,7 +128,7 @@
                 </div>
                 <div class="stat-card">
                     <div class="sc-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-bolt"></i></div>
-                    <div class="sc-info"><h4 id="rptCritical">0</h4><p data-i18n="critical">Critical</p></div>
+                    <div class="sc-info"><h4 id="rptCritical">0</h4><p data-i18n="detected">Detected</p></div>
                 </div>
             </div>
 
@@ -137,7 +137,7 @@
                     <div class="filter-chips" id="reportFilters">
                         <div class="filter-chip active" data-filter="all" data-i18n="all_logs">All Logs</div>
                         <div class="filter-chip" data-filter="pending" data-i18n="pending">Pending</div>
-                        <div class="filter-chip" data-filter="critical" data-i18n="critical">Critical</div>
+                        <div class="filter-chip" data-filter="detected" data-i18n="detected">Detected</div>
                         <div class="filter-chip" data-filter="resolved" data-i18n="archived">Archived</div>
                     </div>
                     <div class="live-indicator"><div class="pulse-dot"></div> <span data-i18n="live_monitoring">Live Monitoring</span></div>
@@ -150,9 +150,9 @@
                     <thead>
                         <tr>
                             <th data-i18n="id">ID</th>
-                            <th data-i18n="category">Category</th>
+                            <th data-i18n="subject">Subject / Evidence</th>
                             <th data-i18n="reporter">Reporter</th>
-                            <th data-i18n="priority">Priority</th>
+                            <th>Detection</th>
                             <th data-i18n="status">Status</th>
                             <th data-i18n="actions">Actions</th>
                         </tr>
