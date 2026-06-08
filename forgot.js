@@ -32,10 +32,10 @@ document.getElementById('forgetForm').addEventListener('submit', async function(
 
         Swal.fire({
             icon: 'success',
-            title: 'Verification Code Sent! 📱',
-            html: `<p style="font-weight:600;">We've sent a password reset link to your email and a 6-digit OTP code to your registered phone number:</p>
+            title: 'Verification Code Sent! 📧',
+            html: `<p style="font-weight:600;">We've sent a 6-digit OTP code to your email:</p>
                    <p style="color:#10b981; font-weight:800;">${email}</p>
-                   <p style="font-size:0.85rem; color:#94a3b8;">Please enter the 6-digit verification code on the next page to proceed.</p>`,
+                   <p style="font-size:0.85rem; color:#94a3b8;">Please enter the 6-digit verification code sent to your email on the next page to proceed.</p>`,
             confirmButtonColor: '#10b981',
             confirmButtonText: 'Enter Code'
         }).then(() => {

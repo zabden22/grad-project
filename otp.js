@@ -104,17 +104,46 @@ document.addEventListener('DOMContentLoaded', () => {
     startTimer();
 
     // Resend button click handler
-    resendBtn.addEventListener('click', (e) => {
+    resendBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         if (resendBtn.classList.contains('disabled')) return;
 
-        Swal.fire({
-            icon: 'info',
-            title: 'Code Sent! 💬',
-            text: 'A new 6-digit OTP code has been sent to your registered number/email.',
-            confirmButtonColor: '#10b981'
-        });
-        startTimer();
+        resendBtn.innerHTML = 'Sending... <i class="fas fa-spinner fa-spin"></i>';
+        resendBtn.classList.add('disabled');
+
+        try {
+            if (window.supabaseAuth && window.supabaseAuth.auth && email.includes('@')) {
+                const { error } = await window.supabaseAuth.auth.resetPasswordForEmail(email);
+                if (error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Resend Failed',
+                        text: error.message,
+                        confirmButtonColor: '#10b981'
+                    });
+                    resendBtn.innerHTML = 'Resend Code <i class="fas fa-redo-alt"></i>';
+                    resendBtn.classList.remove('disabled');
+                    return;
+                }
+            }
+
+            Swal.fire({
+                icon: 'info',
+                title: 'Code Sent! 📧',
+                text: `A new 6-digit OTP code has been sent to ${email}.`,
+                confirmButtonColor: '#10b981'
+            });
+            startTimer();
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Server Error',
+                text: 'Could not send the code. Please try again later.',
+                confirmButtonColor: '#10b981'
+            });
+            resendBtn.innerHTML = 'Resend Code <i class="fas fa-redo-alt"></i>';
+            resendBtn.classList.remove('disabled');
+        }
     });
 
     // Verify OTP logic
