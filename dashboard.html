@@ -210,10 +210,10 @@
                 </div>
 
                 
-                <div class="v-card" style="grid-column: span 2;">
+                <div class="v-card" style="grid-column: span 2; cursor:pointer;" onclick="window.location.href='reports.html'">
                     <div class="metric-header"><h4 style="font-weight:900;"><i class="fas fa-clock" style="color:#8b5cf6; margin-right:8px;"></i>24h Activity Distribution</h4></div>
                     <div class="chart-container-large" style="height:320px;">
-                        <canvas id="usagePeakChart"></canvas>
+                        <canvas id="usagePeakChart" onclick="event.stopPropagation()"></canvas>
                     </div>
                 </div>
 
@@ -241,13 +241,13 @@
                     </div>
                 </div>
 
-                <div class="v-card" style="grid-column: span 1;">
+                <div class="v-card" style="grid-column: span 1; cursor:pointer;" onclick="window.location.href='reports.html'">
                     <h4 style="font-weight:900; margin-bottom:20px;"><i class="fas fa-broadcast-tower" style="color:#10b981; margin-right:8px;"></i>System Radar</h4>
-                    <div style="height:220px;"><canvas id="networkRadarChart"></canvas></div>
+                    <div style="height:220px;"><canvas id="networkRadarChart" onclick="event.stopPropagation()"></canvas></div>
                 </div>
 
                 <div class="v-card" style="grid-column: span 1; cursor:pointer;" onclick="window.location.href='reports.html'">
-                    <h4 style="font-weight:900; margin-bottom:20px;"><i class="fas fa-fire" style="color:#ef4444; margin-right:8px;"></i>Complaint Priority</h4>
+                    <h4 style="font-weight:900; margin-bottom:20px;"><i class="fas fa-fire" style="color:#ef4444; margin-right:8px;"></i>AI Detection Status</h4>
                     <div style="height:220px;"><canvas id="complaintPriorityChart" onclick="event.stopPropagation()"></canvas></div>
                 </div>
 
@@ -342,7 +342,7 @@
     <script src="supabase-client.js"></script>
     <script src="user-dropdown.js"></script>
     <script src="auth.js"></script>
-    <script src="dashboard-logic.js?v=32.0"></script>
+    <script src="dashboard-logic.js?v=34.0"></script>
     <script src="notifications.js?v=2.0"></script>
 </body>
 </html>

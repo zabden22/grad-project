@@ -264,8 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const fc = getFiltered(complaints, 'created_at');
         el('totalComplaintsCount', fc.length);
         const pending = fc.filter(c => (c.status || '').toLowerCase() === 'pending').length;
+        const detected = fc.filter(c => c.problem_detected === true).length;
         const chEl = document.getElementById('complaintChange');
-        if (chEl) chEl.querySelector('span').textContent = pending + ' Pending';
+        if (chEl) chEl.querySelector('span').textContent = detected + ' Detected / ' + pending + ' Pending';
         const activeD = drivers.filter(d => d.status === 'Active').length;
         const dChEl = document.getElementById('driverChange');
         if (dChEl) dChEl.querySelector('span').textContent = activeD + ' Active';
@@ -485,14 +486,40 @@ document.addEventListener('DOMContentLoaded', () => {
         kill('complaintsBreakdownChart');
         const fc = getFiltered(complaints, 'created_at');
         const cats = {};
-        fc.forEach(c => { const cat = c.subject || c.category || 'Unknown'; cats[cat] = (cats[cat] || 0) + 1; });
+        fc.forEach(c => {
+            // Use AI detection labels if available, otherwise fall back to subject
+            const preds = c.ai_predictions;
+            if (preds && Array.isArray(preds) && preds.length > 0) {
+                preds.forEach(p => {
+                    const label = (p.class_name || p.label || 'Unknown').replace(/_/g, ' ');
+                    cats[label] = (cats[label] || 0) + 1;
+                });
+            } else {
+                const cat = c.subject || c.category || 'Unknown';
+                cats[cat] = (cats[cat] || 0) + 1;
+            }
+        });
         const labels = Object.keys(cats).length > 0 ? Object.keys(cats) : ['No Data'];
         const data = Object.keys(cats).length > 0 ? Object.values(cats) : [0];
-        const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
+        const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#a855f7'];
         charts['complaintsBreakdownChart'] = new Chart(cv.getContext('2d'), {
             type: 'doughnut',
             data: { labels, datasets: [{ data, backgroundColor: colors.slice(0, labels.length), borderWidth: 0, cutout: '55%', borderRadius: 6 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: tc(), font: { weight: 700, size: 12 }, padding: 15, usePointStyle: true, pointStyle: 'rectRounded' } } } }
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'right', labels: { color: tc(), font: { weight: 700, size: 12 }, padding: 15, usePointStyle: true, pointStyle: 'rectRounded' } } },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const idx = activeEls[0].index;
+                        const label = labels[idx];
+                        if (label && label !== 'No Data') {
+                            window.location.href = `reports.html?search=${encodeURIComponent(label)}`;
+                        }
+                    } else {
+                        window.location.href = 'reports.html';
+                    }
+                }
+            }
         });
     }
     function renderDriverPerformance() {
@@ -610,7 +637,14 @@ document.addEventListener('DOMContentLoaded', () => {
         charts['usagePeakChart'] = new Chart(cv.getContext('2d'), {
             type: 'bar',
             data: { labels: Array.from({ length: 24 }, (_, i) => i + ':00'), datasets: [{ label: 'Activity', data, backgroundColor: barColors, borderRadius: 6, barPercentage: 0.7 }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: bc() }, ticks: { color: tc(), precision: 0 } }, x: { grid: { display: false }, ticks: { color: tc(), font: { size: 9 }, maxRotation: 45 } } }, plugins: { legend: { display: false } } }
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { grid: { color: bc() }, ticks: { color: tc(), precision: 0 } }, x: { grid: { display: false }, ticks: { color: tc(), font: { size: 9 }, maxRotation: 45 } } },
+                plugins: { legend: { display: false } },
+                onClick: () => {
+                    window.location.href = 'reports.html';
+                }
+            }
         });
     }
     function renderRouteDistribution() {
@@ -670,18 +704,40 @@ document.addEventListener('DOMContentLoaded', () => {
         kill('networkRadarChart');
         const activeDrivers = drivers.filter(d => d.status === 'Active').length;
         const activeBuses = buses.filter(b => b.status === 'Active').length;
-        const resolved = complaints.filter(c => (c.status || '').toLowerCase() === 'resolved' || (c.problem_detected ?? c.problemDetected) === false).length;
+        const resolved = complaints.filter(c => (c.status || '').toLowerCase() === 'resolved' || c.problem_detected === false).length;
+        const detected = complaints.filter(c => c.problem_detected === true).length;
+        const clean = complaints.filter(c => c.problem_detected === false).length;
         const pct = (v, m) => m > 0 ? Math.round((v / m) * 100) : 50;
+        // AI Safety = percentage of complaints that are clean (no problem detected)
+        const safetyPct = complaints.length > 0 ? Math.round((clean / complaints.length) * 100) : 100;
+        // Resolution rate
+        const resolvedPct = pct(resolved, complaints.length);
+        // Detection coverage = complaints that have been processed by AI
+        const processed = complaints.filter(c => c.processed_image || (c.ai_predictions && c.ai_predictions.length > 0)).length;
+        const coveragePct = complaints.length > 0 ? Math.round((processed / complaints.length) * 100) : 0;
         charts['networkRadarChart'] = new Chart(cv.getContext('2d'), {
             type: 'radar',
             data: {
-                labels: ['Drivers', 'Buses', 'Resolved', 'Uptime', 'Safety'],
-                datasets: [{ label: 'Health', data: [pct(activeDrivers, drivers.length), pct(activeBuses, buses.length), pct(resolved, complaints.length), 95, 88], backgroundColor: 'rgba(16,185,129,0.2)', borderColor: '#10b981', pointBackgroundColor: '#10b981', borderWidth: 2, pointRadius: 4 }]
+                labels: ['Drivers', 'Buses', 'Resolved', 'AI Coverage', 'Safety'],
+                datasets: [{ label: 'Health', data: [pct(activeDrivers, drivers.length), pct(activeBuses, buses.length), resolvedPct, coveragePct, safetyPct], backgroundColor: 'rgba(16,185,129,0.2)', borderColor: '#10b981', pointBackgroundColor: '#10b981', borderWidth: 2, pointRadius: 4 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: { r: { grid: { color: bc() }, angleLines: { color: bc() }, pointLabels: { color: tc(), font: { weight: 700, size: 10 } }, ticks: { display: false }, suggestedMin: 0, suggestedMax: 100 } },
-                plugins: { legend: { display: false } }
+                plugins: { legend: { display: false } },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const idx = activeEls[0].index;
+                        const label = ['Drivers', 'Buses', 'Resolved', 'AI Coverage', 'Safety'][idx];
+                        if (label === 'Drivers') window.location.href = 'drivers.html';
+                        else if (label === 'Buses') window.location.href = 'buses.html';
+                        else if (label === 'Resolved') window.location.href = 'reports.html?filter=resolved';
+                        else if (label === 'AI Coverage') window.location.href = 'reports.html?filter=detected';
+                        else if (label === 'Safety') window.location.href = 'reports.html?filter=clean';
+                    } else {
+                        window.location.href = 'reports.html';
+                    }
+                }
             }
         });
     }
@@ -690,18 +746,40 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cv) return;
         kill('complaintPriorityChart');
         const fc = getFiltered(complaints, 'created_at');
-        const pMap = { Critical: 0, Medium: 0, Low: 0, Unknown: 0 };
-        fc.forEach(c => {
-            const p = c.priority || 'Unknown';
-            if (p === 'Critical') pMap.Critical++;
-            else if (p === 'Medium') pMap.Medium++;
-            else if (p === 'Low') pMap.Low++;
-            else pMap.Unknown++;
-        });
+        const aiDetected = fc.filter(c => c.problem_detected === true).length;
+        const aiClean = fc.filter(c => c.problem_detected === false).length;
+        const pending = fc.filter(c => (c.status || '').toLowerCase() === 'pending').length;
+        const resolved = fc.filter(c => (c.status || '').toLowerCase() === 'resolved').length;
+        const pMap = { 'AI Detected': aiDetected, 'Clean': aiClean, 'Pending': pending, 'Resolved': resolved };
+        const labels = Object.keys(pMap).filter(k => pMap[k] > 0);
+        const data = labels.map(k => pMap[k]);
+        const colorMap = { 'AI Detected': '#ef4444', 'Clean': '#10b981', 'Pending': '#f59e0b', 'Resolved': '#3b82f6' };
+        const colors = labels.map(k => colorMap[k] || '#64748b');
+        if (labels.length === 0) { labels.push('No Data'); data.push(0); colors.push('#e2e8f0'); }
         charts['complaintPriorityChart'] = new Chart(cv.getContext('2d'), {
             type: 'pie',
-            data: { labels: Object.keys(pMap), datasets: [{ data: Object.values(pMap), backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#64748b'], borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: tc(), font: { weight: 700, size: 10 }, padding: 8, usePointStyle: true } } } }
+            data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { color: tc(), font: { weight: 700, size: 10 }, padding: 8, usePointStyle: true } } },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const idx = activeEls[0].index;
+                        const label = labels[idx];
+                        if (label === 'AI Detected') {
+                            window.location.href = 'reports.html?filter=detected';
+                        } else if (label === 'Pending') {
+                            window.location.href = 'reports.html?filter=pending';
+                        } else if (label === 'Resolved') {
+                            window.location.href = 'reports.html?filter=resolved';
+                        } else if (label === 'Clean') {
+                            window.location.href = 'reports.html?filter=clean';
+                        }
+                    } else {
+                        window.location.href = 'reports.html';
+                    }
+                }
+            }
         });
     }
     function renderComplaintsTimeline() {
@@ -725,7 +803,18 @@ document.addEventListener('DOMContentLoaded', () => {
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: { y: { grid: { color: bc() }, ticks: { color: tc(), stepSize: 1 } }, x: { grid: { display: false }, ticks: { color: tc(), font: { weight: 700 } } } },
-                plugins: { legend: { display: false } }
+                plugins: { legend: { display: false } },
+                onClick: (e, activeEls) => {
+                    if (activeEls.length > 0) {
+                        const idx = activeEls[0].index;
+                        const label = labels[idx];
+                        if (label && label !== 'No Data') {
+                            window.location.href = `reports.html?search=${encodeURIComponent(label)}`;
+                        }
+                    } else {
+                        window.location.href = 'reports.html';
+                    }
+                }
             }
         });
     }
@@ -818,12 +907,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeD = drivers.filter(d => d.status === 'Active').length;
         const activeB = buses.filter(b => b.status === 'Active').length;
         const pending = complaints.filter(c => (c.status || '').toLowerCase() === 'pending').length;
-        const critical = complaints.filter(c => c.priority === 'Critical').length;
+        const aiDetected = complaints.filter(c => c.problem_detected === true).length;
+        const resolved = complaints.filter(c => (c.status || '').toLowerCase() === 'resolved').length;
+        const resolutionRate = complaints.length > 0 ? Math.round((resolved / complaints.length) * 100) : 0;
         const vitals = [
             { label: 'Driver Readiness', value: drivers.length > 0 ? Math.round((activeD / drivers.length) * 100) : 0, color: '#10b981' },
             { label: 'Bus Availability', value: buses.length > 0 ? Math.round((activeB / buses.length) * 100) : 0, color: '#3b82f6' },
+            { label: 'Resolution Rate', value: resolutionRate, color: '#8b5cf6' },
             { label: 'Pending Issues', value: pending, color: '#f59e0b', raw: true },
-            { label: 'Critical Alerts', value: critical, color: '#ef4444', raw: true }
+            { label: 'AI Detected', value: aiDetected, color: '#ef4444', raw: true }
         ];
         el.innerHTML = vitals.map(v => `<div class="data-item">
             <div style="display:flex;justify-content:space-between;width:100%;"><span style="font-weight:700;font-size:0.85rem;">${v.label}</span><h4 style="margin:0;color:${v.color};font-size:0.95rem;">${v.raw ? v.value : v.value + '%'}</h4></div>
@@ -993,6 +1085,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     title: `Ticket purchased`,
                     detail: `${price} EGP ${t.status ? '— ' + t.status : ''}`.trim(),
                     type: 'ticket'
+                });
+            }
+        });
+
+        // Complaints / AI Detection events
+        complaints.forEach(c => {
+            if (c.created_at) {
+                const hasPredictions = c.ai_predictions && Array.isArray(c.ai_predictions) && c.ai_predictions.length > 0;
+                const isDetected = c.problem_detected === true;
+                const predLabels = hasPredictions ? c.ai_predictions.map(p => (p.class_name || 'issue').replace(/_/g, ' ')).join(', ') : '';
+                activities.push({
+                    time: c.created_at,
+                    icon: isDetected ? 'fa-exclamation-triangle' : 'fa-shield-alt',
+                    color: isDetected ? '#ef4444' : '#10b981',
+                    title: isDetected ? `AI Detected: ${predLabels || 'Problem'}` : 'Complaint filed (Clean)',
+                    detail: `${c.reporter_name || c.subject || 'Passenger'} — ${(c.status || 'Pending')}`,
+                    type: 'complaint'
                 });
             }
         });

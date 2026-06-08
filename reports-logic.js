@@ -12,6 +12,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('reportSearchInput');
     const modal = document.getElementById('reportDetailModal');
 
+    // Parse URL parameters for initial filters/search
+    const urlParams = new URLSearchParams(window.location.search);
+    const filterParam = urlParams.get('filter');
+    const searchParam = urlParams.get('search');
+
+    if (filterParam) {
+        currentFilter = filterParam.toLowerCase();
+        // Sync filter chips active state
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            if (chip.getAttribute('data-filter') === currentFilter) {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
+    }
+
+    if (searchParam && searchInput) {
+        searchInput.value = searchParam;
+    }
+
     window.loadReports = async function() {
         try {
             // Use window.supabaseAuth (official client) to automatically pass the logged-in user's token and bypass RLS
@@ -80,6 +101,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    function getSecureUrl(url) {
+        if (!url) return url;
+        if (url.startsWith('http://') && !url.includes('localhost')) {
+            return 'https://wsrv.nl/?url=' + url.replace('http://', '');
+        }
+        return url;
+    }
+
     function timeAgo(date) {
         if (!date) return '...';
         const seconds = Math.floor((new Date() - new Date(date)) / 1000);
@@ -107,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(currentFilter === 'pending') filtered = filtered.filter(r => (r.status || '').toLowerCase() === 'pending');
             if(currentFilter === 'detected') filtered = filtered.filter(r => r.problem_detected === true);
             if(currentFilter === 'resolved') filtered = filtered.filter(r => (r.status || '').toLowerCase() === 'resolved');
+            if(currentFilter === 'clean') filtered = filtered.filter(r => r.problem_detected === false);
         }
 
         if(query) {
@@ -135,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // No priority column in complaints - skip priority badge
 
             // Evidence thumbnail
-            const thumbUrl = rpt.original_image || rpt.processed_image;
+            const thumbUrl = getSecureUrl(rpt.original_image || rpt.processed_image);
             const thumbHtml = thumbUrl 
                 ? `<img src="${thumbUrl}" style="width:48px; height:36px; border-radius:8px; object-fit:cover; border:1px solid var(--border-color);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                    <div style="display:none; width:48px; height:36px; border-radius:8px; background:var(--bg-main); border:1px solid var(--border-color); align-items:center; justify-content:center;"><i class="fas fa-image" style="font-size:0.7rem; opacity:0.3;"></i></div>`
@@ -169,6 +199,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeReportDetail = () => {
         if(modal) modal.classList.remove('active');
     };
+
+    if(modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                window.closeReportDetail();
+            }
+        });
+    }
 
     window.viewReport = (id) => {
         const rpt = reportsData.find(r => String(r.id) === String(id));
@@ -250,8 +288,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPredictions(rpt.ai_predictions);
 
         if(imgBox) {
-            const hasOrig = rpt.original_image;
-            const hasAI = rpt.processed_image;
+            const hasOrig = getSecureUrl(rpt.original_image);
+            const hasAI = getSecureUrl(rpt.processed_image);
             
             if(hasOrig || hasAI) {
                 imgBox.style.display = 'grid';
